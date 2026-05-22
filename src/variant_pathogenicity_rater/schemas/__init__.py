@@ -1,6 +1,12 @@
 """Pydantic data contracts for SNV/small indel ACMG rating workflows."""
 
 from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
+from variant_pathogenicity_rater.schemas.annotation import (
+    AnnotationParseResult,
+    LofteeFlags,
+    OnlineResolutionResult,
+    VariantAnnotation,
+)
 from variant_pathogenicity_rater.schemas.classification import (
     ACMGClassification,
     ClassificationResult,
@@ -44,6 +50,7 @@ from variant_pathogenicity_rater.schemas.variant import (
 __all__ = [
     "ACMGClassification",
     "AuditTrail",
+    "AnnotationParseResult",
     "ClassificationResult",
     "ClinVarRecord",
     "ComputationalPrediction",
@@ -62,7 +69,9 @@ __all__ = [
     "LiteratureEvidenceQuality",
     "LiteratureEvidenceType",
     "LastExonInformation",
+    "LofteeFlags",
     "NormalizationResult",
+    "OnlineResolutionResult",
     "PopulationFrequency",
     "ReportFormat",
     "ReportLanguage",
@@ -71,6 +80,7 @@ __all__ = [
     "SplicePrediction",
     "Transcript",
     "Variant",
+    "VariantAnnotation",
     "VariantReport",
     "VariantReportSummary",
     "VariantType",
