@@ -42,6 +42,16 @@ class LiteratureEvidenceQuality(StrEnum):
     UNKNOWN = "unknown"
 
 
+class LiteratureCandidateEvidenceType(StrEnum):
+    PS3_CANDIDATE = "PS3_candidate"
+    BS3_CANDIDATE = "BS3_candidate"
+    PS2_CANDIDATE = "PS2_candidate"
+    PM6_CANDIDATE = "PM6_candidate"
+    PP1_CANDIDATE = "PP1_candidate"
+    PS4_CANDIDATE = "PS4_candidate"
+    PP4_CANDIDATE = "PP4_candidate"
+
+
 class EvidenceSource(SchemaModel):
     name: str = Field(..., min_length=1)
     version: str | None = None
@@ -123,17 +133,20 @@ class ClinVarRecord(SchemaModel):
 
 class LiteratureEvidence(SchemaModel):
     source: EvidenceSource
+    article_id: str | None = None
     study_id: str | None = None
     pmid: str | None = None
     doi: str | None = None
     citation: str = Field(..., min_length=1)
     citations: list[str] = Field(default_factory=list)
     title: str = Field(..., min_length=1)
+    journal: str | None = None
     year: int | None = Field(default=None, ge=1900)
     finding: str = Field(..., min_length=1)
     relevance: str | None = None
     evidence_types: list[LiteratureEvidenceType] = Field(default_factory=list)
     quality: LiteratureEvidenceQuality = LiteratureEvidenceQuality.UNKNOWN
+    duplicate_study_group: str | None = None
     requires_review: bool = True
     extracted_claims: list["LiteratureClaim"] = Field(default_factory=list)
     review_notes: list[str] = Field(default_factory=list)
@@ -149,13 +162,22 @@ class LiteratureClaim(SchemaModel):
     claim_id: str = Field(..., min_length=1)
     study_id: str = Field(..., min_length=1)
     evidence_type: LiteratureEvidenceType
+    evidence_type_candidate: LiteratureCandidateEvidenceType | None = None
     candidate_codes: list[EvidenceCode] = Field(default_factory=list)
     direction: EvidenceDirection = EvidenceDirection.NEUTRAL
     description: str = Field(..., min_length=1)
     quality: LiteratureEvidenceQuality = LiteratureEvidenceQuality.UNKNOWN
+    evidence_quality: LiteratureEvidenceQuality | None = None
+    assay_type: str | None = None
+    phenotype_match: bool | None = None
+    condition_match: bool | None = None
+    variant_match_level: str | None = None
+    duplicate_study_group: str | None = None
+    extraction_confidence: float = Field(default=0.5, ge=0, le=1)
     citation: str = Field(..., min_length=1)
     extracted_from: str | None = None
     requires_review: bool = True
+    requires_manual_review: bool = True
     review_notes: list[str] = Field(default_factory=list)
 
 

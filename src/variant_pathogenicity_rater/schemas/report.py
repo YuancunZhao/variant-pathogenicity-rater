@@ -46,6 +46,8 @@ class EvidenceReportEntry(SchemaModel):
     confidence: float = Field(..., ge=0, le=1)
     requires_review: bool = True
     triggered_by: list[str] = Field(default_factory=list)
+    citation: str | None = None
+    provenance: Any | None = None
     limitations: list[str] = Field(default_factory=list)
     review_flags: list[ReviewFlag] = Field(default_factory=list)
 

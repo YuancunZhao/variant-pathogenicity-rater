@@ -123,6 +123,9 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         confidence=item.confidence,
         requires_review=item.requires_review,
         triggered_by=item.triggered_by,
+        citation=item.supporting_data.get("citation"),
+        provenance=item.source.provenance,
+        limitations=list(item.supporting_data.get("limitations") or []),
         review_flags=item.review_flags,
     )
 
@@ -286,6 +289,10 @@ def _evidence_chain_lines(
         if include_details:
             lines.append(f"  - Confidence: {entry.confidence:.2f}")
             lines.append("  - Status: candidate/review-note only; not used in classification")
+            if entry.citation:
+                lines.append(f"  - Citation: {entry.citation}")
+            if entry.provenance:
+                lines.append("  - Provenance: retained on evidence source")
     return lines
 
 

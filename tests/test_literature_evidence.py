@@ -6,11 +6,22 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
+from variant_pathogenicity_rater.acmg.combiner import classify_acmg
+from variant_pathogenicity_rater.data_sources.config import DataSourceConfig
+from variant_pathogenicity_rater.data_sources.providers import build_literature_provider
 from variant_pathogenicity_rater.evidence.literature import (
+    LiteratureQuery,
     MockLiteratureProvider,
     extract_literature_evidence,
 )
-from variant_pathogenicity_rater.schemas import EvidenceStrength, GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.schemas import (
+    ACMGClassification,
+    EvidenceStrength,
+    GeneDiseaseContext,
+    Variant,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,6 +98,97 @@ def test_functional_literature_supports_bs3_candidate_without_applying_it() -> N
     assert result.candidate_evidence_items[0].supporting_data["citation"] == "PMID:44444444"
 
 
+def test_literature_safety_schema_preserves_candidate_fields_and_provenance() -> None:
+    result = extract_literature_evidence(_variant(), _context(), MockLiteratureProvider())
+    item = next(
+        evidence
+        for evidence in result.candidate_evidence_items
+        if evidence.supporting_data["evidence_type_candidate"] == "PS3_candidate"
+    )
+    claim = item.supporting_data["extracted_claim"]
+
+    assert item.supporting_data["article_id"] == "11111111"
+    assert item.supporting_data["title"]
+    assert item.supporting_data["citation"] == "PMID:11111111"
+    assert item.source.provenance is not None
+    assert claim["evidence_type_candidate"] == "PS3_candidate"
+    assert "evidence_quality" in item.supporting_data
+    assert "assay_type" in item.supporting_data
+    assert "phenotype_match" in item.supporting_data
+    assert "condition_match" in item.supporting_data
+    assert "variant_match_level" in item.supporting_data
+    assert "duplicate_study_group" in item.supporting_data
+    assert "extraction_confidence" in item.supporting_data
+
+
+def test_candidate_type_gates_do_not_auto_apply_requested_literature_codes() -> None:
+    result = extract_literature_evidence(_variant(), _context())
+    by_candidate_type = {
+        item.supporting_data["evidence_type_candidate"]: item
+        for item in result.candidate_evidence_items
+    }
+
+    for candidate_type in {
+        "PS3_candidate",
+        "PS2_candidate",
+        "PM6_candidate",
+        "PP1_candidate",
+        "PS4_candidate",
+        "PP4_candidate",
+    }:
+        item = by_candidate_type[candidate_type]
+        assert item.strength == EvidenceStrength.NONE
+        assert item.supporting_data["candidate_only"] is True
+        assert item.supporting_data["automatic_application"] is False
+        assert item.supporting_data["human_review_required"] is True
+
+
+@pytest.mark.parametrize(
+    ("evidence_type", "candidate_codes", "expected_candidate_types"),
+    [
+        ("functional", ["PS3"], ["PS3_candidate"]),
+        ("segregation", ["PP1"], ["PP1_candidate"]),
+        ("de_novo", ["PS2", "PM6"], ["PS2_candidate", "PM6_candidate"]),
+        ("case_report", ["PS4"], ["PS4_candidate"]),
+    ],
+)
+def test_single_paper_maps_only_to_expected_candidate_type(
+    evidence_type: str,
+    candidate_codes: list[str],
+    expected_candidate_types: list[str],
+) -> None:
+    records = [
+        {
+            "study_id": f"study-{evidence_type}",
+            "pmid": "99000001",
+            "citation": "PMID:99000001",
+            "title": f"Single {evidence_type} paper",
+            "gene": "GENE1",
+            "hgvs_c": "NM_000001.1:c.76A>G",
+            "finding": "Candidate evidence was reported.",
+            "claims": [
+                {
+                    "evidence_type": evidence_type,
+                    "candidate_codes": candidate_codes,
+                    "direction": "pathogenic",
+                    "description": f"{evidence_type} candidate claim.",
+                    "extraction_confidence": 0.9,
+                    "variant_match_level": "exact",
+                    "condition_match": True,
+                }
+            ],
+        }
+    ]
+
+    result = extract_literature_evidence(_variant(), _context(), MockLiteratureProvider(records))
+
+    assert [
+        item.supporting_data["evidence_type_candidate"]
+        for item in result.candidate_evidence_items
+    ] == expected_candidate_types
+    assert all(item.strength == EvidenceStrength.NONE for item in result.candidate_evidence_items)
+
+
 def test_literature_deduplicates_same_study_before_candidate_mapping() -> None:
     result = extract_literature_evidence(_variant(), _context())
 
@@ -95,6 +197,162 @@ def test_literature_deduplicates_same_study_before_candidate_mapping() -> None:
         claim for claim in result.extracted_claims if claim.claim_id == "claim-duplicate-gene1"
     ]
     assert duplicate_claims == []
+
+
+def test_literature_deduplicates_duplicate_study_group() -> None:
+    records = [
+        {
+            "study_id": "pub-a",
+            "pmid": "90000001",
+            "duplicate_study_group": "shared-family-1",
+            "citation": "PMID:90000001",
+            "title": "First publication of a shared family",
+            "gene": "GENE1",
+            "hgvs_c": "NM_000001.1:c.76A>G",
+            "finding": "Segregation was reported.",
+            "claims": [
+                {
+                    "evidence_type": "segregation",
+                    "candidate_codes": ["PP1"],
+                    "direction": "pathogenic",
+                    "description": "Shared family segregation claim.",
+                    "extraction_confidence": 0.8,
+                    "variant_match_level": "exact",
+                    "condition_match": True,
+                }
+            ],
+        },
+        {
+            "study_id": "pub-b",
+            "pmid": "90000002",
+            "duplicate_study_group": "shared-family-1",
+            "citation": "PMID:90000002",
+            "title": "Second publication of the same family",
+            "gene": "GENE1",
+            "hgvs_c": "NM_000001.1:c.76A>G",
+            "finding": "Same family was republished.",
+            "claims": [
+                {
+                    "evidence_type": "segregation",
+                    "candidate_codes": ["PP1"],
+                    "direction": "pathogenic",
+                    "description": "Duplicate family segregation claim.",
+                    "extraction_confidence": 0.8,
+                    "variant_match_level": "exact",
+                    "condition_match": True,
+                }
+            ],
+        },
+    ]
+
+    result = extract_literature_evidence(_variant(), _context(), MockLiteratureProvider(records))
+
+    assert len(result.literature_records) == 1
+    assert len(result.candidate_evidence_items) == 1
+    assert result.candidate_evidence_items[0].supporting_data["duplicate_study_group"] == (
+        "shared-family-1"
+    )
+
+
+def test_literature_mismatch_and_low_confidence_set_review_flags() -> None:
+    records = [
+        {
+            "study_id": "pmid-90000003",
+            "pmid": "90000003",
+            "citation": "PMID:90000003",
+            "title": "Condition and variant mismatch example",
+            "gene": "GENE1",
+            "hgvs_c": "NM_000001.1:c.76A>G",
+            "finding": "Claim was extracted with uncertain matching.",
+            "claims": [
+                {
+                    "evidence_type": "case_report",
+                    "candidate_codes": ["PS4"],
+                    "direction": "pathogenic",
+                    "description": "Case report for a related but mismatched context.",
+                    "condition_match": False,
+                    "variant_match_level": "gene_only",
+                    "extraction_confidence": 0.4,
+                }
+            ],
+        }
+    ]
+
+    result = extract_literature_evidence(_variant(), _context(), MockLiteratureProvider(records))
+    flag_codes = {
+        flag.code
+        for item in result.candidate_evidence_items
+        for flag in item.review_flags
+    }
+
+    assert "LITERATURE_CONDITION_MISMATCH" in flag_codes
+    assert "LITERATURE_VARIANT_MISMATCH" in flag_codes
+    assert "LITERATURE_LOW_EXTRACTION_CONFIDENCE" in flag_codes
+    assert "LITERATURE_MATCH_OR_CONFIDENCE_REVIEW" in {flag.code for flag in result.review_flags}
+
+
+def test_local_file_literature_provider_reads_jsonl_and_queries_by_pmid(tmp_path) -> None:
+    local_file = tmp_path / "literature.jsonl"
+    local_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "study_id": "pmid-91000001",
+                        "pmid": "91000001",
+                        "citation": "PMID:91000001",
+                        "title": "Local JSONL functional paper",
+                        "journal": "Offline Fixtures",
+                        "year": 2026,
+                        "gene": "GENE1",
+                        "hgvs_c": "NM_000001.1:c.76A>G",
+                        "finding": "Functional abnormality was reported.",
+                        "claims": [
+                            {
+                                "evidence_type": "functional",
+                                "candidate_codes": ["PS3"],
+                                "direction": "pathogenic",
+                                "description": "Local file functional claim.",
+                                "assay_type": "enzyme_activity",
+                                "extraction_confidence": 0.9,
+                                "condition_match": True,
+                                "variant_match_level": "exact",
+                            }
+                        ],
+                    }
+                )
+            ]
+        ),
+        encoding="utf-8",
+    )
+    provider = build_literature_provider(
+        DataSourceConfig(
+            name="literature",
+            mode="local_file",
+            source_version="local-literature-test",
+            parser_version="literature-parser-test",
+            cache_dir=str(tmp_path / "cache"),
+            local_file=str(local_file),
+        )
+    )
+
+    records = provider.search(LiteratureQuery(pmid="91000001"))
+
+    assert len(records) == 1
+    assert records[0].pmid == "91000001"
+    assert records[0].journal == "Offline Fixtures"
+    assert records[0].source.provenance.parser_version == "literature-parser-test"
+
+
+def test_literature_candidate_evidence_does_not_change_classification() -> None:
+    result = extract_literature_evidence(_variant(), _context())
+
+    baseline = classify_acmg([], _variant(), _context())
+    with_literature = classify_acmg(result.candidate_evidence_items, _variant(), _context())
+
+    assert baseline.final_classification == ACMGClassification.UNCERTAIN_SIGNIFICANCE
+    assert with_literature.final_classification == baseline.final_classification
+    assert with_literature.applied_combination_rule == baseline.applied_combination_rule
 
 
 def test_literature_review_flags_capture_mock_and_review_requirements() -> None:
