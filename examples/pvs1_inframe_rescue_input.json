@@ -1,0 +1,42 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-3-5000-ATGC-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "3",
+    "pos": 5000,
+    "ref": "ATGC",
+    "alt": "A",
+    "gene_symbol": "GENE3",
+    "hgvs_c": "NM_000003.1:c.300_302del",
+    "hgvs_p": "NP_000003.1:p.Gly100del"
+  },
+  "transcript": {
+    "accession": "NM_000003",
+    "version": "1",
+    "gene_symbol": "GENE3",
+    "hgvs_c": "NM_000003.1:c.300_302del",
+    "hgvs_p": "NP_000003.1:p.Gly100del",
+    "consequence": "loss_of_function,inframe_deletion",
+    "mane_select": true,
+    "canonical": true
+  },
+  "gene_disease_context": {
+    "gene": "GENE3",
+    "disease": "Example LoF disorder",
+    "inheritance": "autosomal dominant",
+    "lof_is_known_mechanism": true,
+    "transcript_is_biologically_relevant": true,
+    "nmd_prediction_available": true,
+    "nmd_predicted": true,
+    "last_exon_information": {
+      "is_in_last_exon": false,
+      "is_in_penultimate_exon": false,
+      "exon_number": 3,
+      "total_exons": 10,
+      "distance_to_last_exon_junction": 700,
+      "within_terminal_region": false
+    },
+    "source": "mock_example"
+  }
+}

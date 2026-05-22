@@ -1,0 +1,98 @@
+{
+  "result_id": "example-result-001",
+  "variant": {
+    "variant_id": "GRCh38-13-32316461-AT-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "13",
+    "pos": 32316461,
+    "ref": "AT",
+    "alt": "A",
+    "gene_symbol": "BRCA2",
+    "transcript": {
+      "accession": "NM_000059",
+      "version": "4",
+      "gene_symbol": "BRCA2",
+      "hgvs_c": "NM_000059.4:c.5946delT",
+      "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+      "exon": null,
+      "consequence": "frameshift_variant",
+      "mane_select": true,
+      "canonical": true
+    },
+    "hgvs_g": null,
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+    "zygosity": "heterozygous",
+    "normalization_warnings": [],
+    "review_flags": [],
+    "audit_trail": []
+  },
+  "final_classification": "vus",
+  "evidence_items": [
+    {
+      "evidence_id": "ev-pop-001",
+      "code": "PM2",
+      "strength": "supporting",
+      "direction": "pathogenic",
+      "reason": "Variant absent or rare in the selected population dataset; no ACMG rule was applied by this schema example.",
+      "source": {
+        "name": "gnomAD",
+        "version": "v4.1",
+        "url": "https://gnomad.broadinstitute.org/",
+        "database_id": null,
+        "retrieval_timestamp": "2026-05-21T00:00:00Z",
+        "query": {
+          "variant_id": "13-32316461-AT-A"
+        },
+        "raw_snapshot_ref": null
+      },
+      "confidence": 0.7,
+      "requires_review": true,
+      "triggered_by": ["population_frequency"],
+      "supporting_data": {
+        "population_frequency": {
+          "population": "global",
+          "allele_frequency": 0.0
+        }
+      },
+      "audit_trail": [
+        {
+          "event_id": "audit-001",
+          "event_type": "evidence_normalized",
+          "timestamp": "2026-05-21T00:00:00Z",
+          "actor": "system",
+          "tool_name": "query_population_frequency",
+          "query": {
+            "variant_id": "13-32316461-AT-A"
+          },
+          "source_snapshot": {},
+          "checksum": null,
+          "notes": []
+        }
+      ],
+      "review_flags": []
+    }
+  ],
+  "applied_combination_rule": null,
+  "pathogenic_evidence_summary": ["PM2 supporting candidate evidence recorded."],
+  "benign_evidence_summary": [],
+  "conflicting_evidence": [],
+  "limitations": [
+    "Schema example only; ACMG rules and final clinical assertion are not implemented.",
+    "Human review is required."
+  ],
+  "confidence": 0.4,
+  "human_review_required": true,
+  "report_text": "Machine-readable schema example. Classification is VUS because no ACMG combiner has been implemented.",
+  "review_flags": [
+    {
+      "code": "HUMAN_REVIEW_REQUIRED",
+      "message": "All machine-generated conclusions require qualified human review.",
+      "severity": "warning",
+      "blocking": true,
+      "audit_trail": []
+    }
+  ],
+  "audit_trail": []
+}

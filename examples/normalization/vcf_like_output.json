@@ -1,0 +1,35 @@
+{
+  "status": "normalized",
+  "input_format": "vcf_like",
+  "normalized_variant": {
+    "variant_id": "GRCh38-13-32316461-AT-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "13",
+    "pos": 32316461,
+    "ref": "AT",
+    "alt": "A",
+    "gene_symbol": "BRCA2",
+    "transcript": {
+      "accession": "NM_000059",
+      "version": "4",
+      "gene_symbol": "BRCA2",
+      "hgvs_c": "NM_000059.4:c.5946delT",
+      "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+      "exon": null,
+      "consequence": null,
+      "mane_select": false,
+      "canonical": false
+    },
+    "hgvs_g": null,
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+    "zygosity": "unknown",
+    "normalization_warnings": [],
+    "review_flags": [],
+    "audit_trail": []
+  },
+  "normalization_warnings": [],
+  "unresolved_fields": [],
+  "human_review_required": true
+}

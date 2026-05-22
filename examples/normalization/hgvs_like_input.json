@@ -1,0 +1,7 @@
+{
+  "gene": "BRCA1",
+  "transcript": "NM_007294.4",
+  "hgvs_c": "NM_007294.4:c.68A>G",
+  "hgvs_p": "NP_009225.1:p.Lys23Arg",
+  "genome_build": "GRCh38"
+}

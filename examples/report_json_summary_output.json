@@ -1,0 +1,67 @@
+{
+  "mode": "laboratory",
+  "language": "en",
+  "variant": {
+    "variant_id": "GRCh38-13-32316461-AT-A",
+    "gene_symbol": "BRCA2",
+    "genomic_location": "GRCh38:13:32316461:AT>A",
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22"
+  },
+  "final_classification": {
+    "value": "vus",
+    "label": "Variant of Uncertain Significance",
+    "applied_combination_rule": "default_vus",
+    "confidence": 0.4,
+    "machine_proposal_only": true
+  },
+  "evidence": {
+    "pathogenic": [
+      "PM2 candidate evidence was recorded."
+    ],
+    "benign": [],
+    "conflicting": [
+      "ClinVar conflicting interpretations were observed."
+    ],
+    "items": [
+      {
+        "evidence_id": "ev-clinvar-001",
+        "code": "PP5",
+        "strength": "supporting",
+        "direction": "conflicting",
+        "rationale": "ClinVar record has conflicting interpretations.",
+        "source": "ClinVar",
+        "confidence": 0.5,
+        "requires_review": true,
+        "triggered_by": [
+          "clinvar_record"
+        ],
+        "limitations": [],
+        "review_flags": []
+      }
+    ]
+  },
+  "limitations": [
+    "Offline example data only."
+  ],
+  "cautions": [
+    "The available evidence is insufficient to support a pathogenic or benign classification. The variant should be treated as a Variant of Uncertain Significance unless and until additional reviewed evidence becomes available.",
+    "ClinVar conflict detected: conflicting external assertions require prominent manual review and should not be resolved by this report alone."
+  ],
+  "clinvar_conflict_detected": true,
+  "data_source_summary": [
+    {
+      "name": "ClinVar",
+      "version": "mock-clinvar-offline-v1",
+      "retrieval_timestamp": null,
+      "evidence_ids": [
+        "ev-clinvar-001"
+      ],
+      "query": {},
+      "raw_snapshot_ref": null
+    }
+  ],
+  "review_flags": [],
+  "human_review_required": true,
+  "human_review_note": "This report is machine-generated and is not a final clinical assertion. A qualified human reviewer must verify the variant, evidence, ACMG criteria, limitations, and final classification before clinical or laboratory use."
+}

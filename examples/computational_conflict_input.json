@@ -1,0 +1,37 @@
+{
+  "variant": {
+    "variant_id": "mock-conflict-snv",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "3",
+    "pos": 37000000,
+    "ref": "C",
+    "alt": "A",
+    "gene_symbol": "GENE"
+  },
+  "computational_predictions": [
+    {
+      "source": {"name": "mock_REVEL", "version": "fixture-v1"},
+      "method": "REVEL",
+      "score": 0.88,
+      "prediction": "deleterious"
+    },
+    {
+      "source": {"name": "mock_CADD", "version": "fixture-v1"},
+      "method": "CADD",
+      "score": 27.0,
+      "prediction": "deleterious"
+    },
+    {
+      "source": {"name": "mock_PolyPhen2", "version": "fixture-v1"},
+      "method": "PolyPhen-2",
+      "score": 0.01,
+      "prediction": "benign"
+    },
+    {
+      "source": {"name": "mock_MutationTaster", "version": "fixture-v1"},
+      "method": "MutationTaster",
+      "prediction": "polymorphism"
+    }
+  ]
+}

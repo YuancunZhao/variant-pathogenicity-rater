@@ -1,0 +1,45 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-1-100-A-G",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "1",
+    "pos": 100,
+    "ref": "A",
+    "alt": "G",
+    "gene_symbol": "GENE1"
+  },
+  "gene_disease_context": {
+    "gene_symbol": "GENE1",
+    "disease_name": "Example disease",
+    "inheritance_mode": "autosomal dominant",
+    "disease_prevalence": 0.0001,
+    "population_ancestry": "global",
+    "source": "curated_user_context"
+  },
+  "population_frequency": {
+    "overall_af": 0.0,
+    "max_pop_af": 0.0,
+    "population_name": "global",
+    "allele_count": 0,
+    "allele_number": 100000,
+    "homozygote_count": 0,
+    "hemizygote_count": 0,
+    "data_source": "mock_population_frequency",
+    "data_version": "offline-fixture-v1",
+    "is_absent": true
+  },
+  "thresholds": {
+    "ba1_af_threshold": 0.05,
+    "bs1_af_threshold": 0.01,
+    "pm2_af_threshold": 0.0001,
+    "min_allele_number": 2000
+  },
+  "expected_evidence_item": {
+    "code": "PM2",
+    "strength": "moderate",
+    "direction": "pathogenic",
+    "requires_review": true,
+    "triggered_by": ["population_frequency"]
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "status": "ok",
+  "tool": "search_literature_evidence",
+  "stage": "mock_literature_evidence_provider",
+  "literature_records": [
+    {
+      "citation": "PMID:11111111",
+      "title": "Functional assessment of GENE1 c.76A>G in a disease model",
+      "quality": "moderate",
+      "evidence_types": ["functional"],
+      "requires_review": true,
+      "review_notes": [
+        "Literature evidence is candidate-only in this phase. Do not automatically apply PS3, BS3, PS2, PM6, PP1, PS4, or PP4 without qualified human review."
+      ]
+    },
+    {
+      "citation": "PMID:22222222",
+      "title": "Families with GENE1-related example disorder",
+      "quality": "low",
+      "evidence_types": ["case_report", "de_novo", "phenotype_specificity", "segregation"],
+      "requires_review": true,
+      "review_notes": [
+        "Literature evidence is candidate-only in this phase. Do not automatically apply PS3, BS3, PS2, PM6, PP1, PS4, or PP4 without qualified human review."
+      ]
+    }
+  ],
+  "candidate_evidence_items": [
+    {
+      "code": "PS3",
+      "strength": "none",
+      "direction": "pathogenic",
+      "requires_review": true,
+      "confidence": 0.6,
+      "supporting_data": {
+        "candidate_only": true,
+        "automatic_application": false,
+        "human_review_required": true,
+        "study_id": "pmid-11111111",
+        "citation": "PMID:11111111"
+      }
+    },
+    {
+      "code": "PS2",
+      "strength": "none",
+      "direction": "pathogenic",
+      "requires_review": true,
+      "confidence": 0.4,
+      "supporting_data": {
+        "candidate_only": true,
+        "automatic_application": false,
+        "human_review_required": true,
+        "study_id": "pmid-22222222",
+        "citation": "PMID:22222222"
+      }
+    },
+    {
+      "code": "PM6",
+      "strength": "none",
+      "direction": "pathogenic",
+      "requires_review": true,
+      "confidence": 0.4,
+      "supporting_data": {
+        "candidate_only": true,
+        "automatic_application": false,
+        "human_review_required": true,
+        "study_id": "pmid-22222222",
+        "citation": "PMID:22222222"
+      }
+    },
+    {
+      "code": "PP1",
+      "strength": "none",
+      "direction": "pathogenic",
+      "requires_review": true,
+      "confidence": 0.4,
+      "supporting_data": {
+        "candidate_only": true,
+        "automatic_application": false,
+        "human_review_required": true,
+        "study_id": "pmid-22222222",
+        "citation": "PMID:22222222"
+      }
+    },
+    {
+      "code": "PS4",
+      "strength": "none",
+      "direction": "pathogenic",
+      "requires_review": true,
+      "confidence": 0.4,
+      "supporting_data": {
+        "candidate_only": true,
+        "automatic_application": false,
+        "human_review_required": true,
+        "study_id": "pmid-22222222",
+        "citation": "PMID:22222222"
+      }
+    },
+    {
+      "code": "PP4",
+      "strength": "none",
+      "direction": "pathogenic",
+      "requires_review": true,
+      "confidence": 0.4,
+      "supporting_data": {
+        "candidate_only": true,
+        "automatic_application": false,
+        "human_review_required": true,
+        "study_id": "pmid-22222222",
+        "citation": "PMID:22222222"
+      }
+    }
+  ],
+  "extracted_claims": [
+    {
+      "claim_id": "claim-functional-gene1",
+      "study_id": "pmid-11111111",
+      "evidence_type": "functional",
+      "candidate_codes": ["PS3"],
+      "direction": "pathogenic",
+      "description": "Functional assay reported reduced activity compatible with a PS3 candidate.",
+      "quality": "moderate",
+      "citation": "PMID:11111111",
+      "extracted_from": "abstract",
+      "requires_review": true
+    },
+    {
+      "claim_id": "claim-denovo-gene1",
+      "study_id": "pmid-22222222",
+      "evidence_type": "de_novo",
+      "candidate_codes": ["PS2", "PM6"],
+      "direction": "pathogenic",
+      "description": "A proband was reported as de novo; parental confirmation details require review.",
+      "quality": "low",
+      "citation": "PMID:22222222",
+      "extracted_from": "case table",
+      "requires_review": true
+    },
+    {
+      "claim_id": "claim-segregation-gene1",
+      "study_id": "pmid-22222222",
+      "evidence_type": "segregation",
+      "candidate_codes": ["PP1"],
+      "direction": "pathogenic",
+      "description": "Variant was reported to segregate with disease in one small family.",
+      "quality": "low",
+      "citation": "PMID:22222222",
+      "extracted_from": "pedigree description",
+      "requires_review": true
+    },
+    {
+      "claim_id": "claim-cases-gene1",
+      "study_id": "pmid-22222222",
+      "evidence_type": "case_report",
+      "candidate_codes": ["PS4"],
+      "direction": "pathogenic",
+      "description": "Multiple unrelated affected individuals were described, but enrichment was not quantified.",
+      "quality": "low",
+      "citation": "PMID:22222222",
+      "extracted_from": "case series",
+      "requires_review": true
+    },
+    {
+      "claim_id": "claim-pp4-gene1",
+      "study_id": "pmid-22222222",
+      "evidence_type": "phenotype_specificity",
+      "candidate_codes": ["PP4"],
+      "direction": "pathogenic",
+      "description": "Reported phenotype was described as specific for the gene-disease association.",
+      "quality": "low",
+      "citation": "PMID:22222222",
+      "extracted_from": "clinical summary",
+      "requires_review": true
+    }
+  ],
+  "review_flags": [
+    {
+      "code": "LITERATURE_MOCK_PROVIDER",
+      "message": "Literature evidence came from the offline mock provider; no network search was performed.",
+      "severity": "info",
+      "blocking": false
+    },
+    {
+      "code": "LITERATURE_HUMAN_REVIEW_REQUIRED",
+      "message": "All literature-derived ACMG codes are candidate review notes only.",
+      "severity": "warning",
+      "blocking": true
+    },
+    {
+      "code": "LITERATURE_LOW_QUALITY_EVIDENCE",
+      "message": "At least one extracted claim is low or very-low quality and should not be applied without review.",
+      "severity": "warning",
+      "blocking": true
+    }
+  ],
+  "limitations": [
+    "Offline mock literature provider only; no PubMed, LitVar, or full-text search was performed.",
+    "Outputs are candidate evidence items and review notes only.",
+    "PS3, BS3, PS2, PM6, PP1, PS4, and PP4 are never automatically applied by this framework.",
+    "Every literature-derived item requires citation-preserving manual review.",
+    "Duplicate studies are collapsed by PMID, DOI, or study_id to avoid repeated counting."
+  ],
+  "human_review": {
+    "required": true,
+    "notice": "Human review is required. This framework does not provide a final clinical assertion."
+  }
+}

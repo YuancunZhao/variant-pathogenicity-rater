@@ -1,0 +1,42 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-17-43071077-C-T",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "17",
+    "pos": 43071077,
+    "ref": "C",
+    "alt": "T",
+    "gene_symbol": "BRCA1",
+    "hgvs_c": "NM_007294.4:c.181T>A",
+    "hgvs_p": "NP_009225.1:p.Cys61Ter"
+  },
+  "transcript": {
+    "accession": "NM_007294",
+    "version": "4",
+    "gene_symbol": "BRCA1",
+    "hgvs_c": "NM_007294.4:c.181T>A",
+    "hgvs_p": "NP_009225.1:p.Cys61Ter",
+    "consequence": "stop_gained",
+    "mane_select": true,
+    "canonical": true
+  },
+  "gene_disease_context": {
+    "gene": "BRCA1",
+    "disease": "Hereditary breast and ovarian cancer syndrome",
+    "inheritance": "autosomal dominant",
+    "lof_is_known_mechanism": true,
+    "transcript_is_biologically_relevant": true,
+    "nmd_prediction_available": true,
+    "nmd_predicted": true,
+    "last_exon_information": {
+      "is_in_last_exon": false,
+      "is_in_penultimate_exon": false,
+      "exon_number": 5,
+      "total_exons": 23,
+      "distance_to_last_exon_junction": 900,
+      "within_terminal_region": false
+    },
+    "source": "mock_example"
+  }
+}

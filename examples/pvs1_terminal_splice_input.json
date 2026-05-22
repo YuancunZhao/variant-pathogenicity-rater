@@ -1,0 +1,39 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-2-2000-G-T",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "2",
+    "pos": 2000,
+    "ref": "G",
+    "alt": "T",
+    "gene_symbol": "GENE2",
+    "hgvs_c": "NM_000002.1:c.900+1G>T"
+  },
+  "transcript": {
+    "accession": "NM_000002",
+    "version": "1",
+    "gene_symbol": "GENE2",
+    "hgvs_c": "NM_000002.1:c.900+1G>T",
+    "consequence": "splice_donor_variant",
+    "mane_select": true,
+    "canonical": true
+  },
+  "gene_disease_context": {
+    "gene": "GENE2",
+    "disease": "Example recessive disorder",
+    "inheritance": "autosomal recessive",
+    "lof_is_known_mechanism": true,
+    "transcript_is_biologically_relevant": true,
+    "nmd_prediction_available": true,
+    "nmd_predicted": false,
+    "last_exon_information": {
+      "is_in_last_exon": true,
+      "exon_number": 12,
+      "total_exons": 12,
+      "within_terminal_region": true,
+      "predicted_to_escape_nmd": true
+    },
+    "source": "mock_example"
+  }
+}

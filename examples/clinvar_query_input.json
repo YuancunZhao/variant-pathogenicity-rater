@@ -1,0 +1,6 @@
+{
+  "query": {
+    "gene": "BRCA1",
+    "hgvs_c": "NM_007294.4:c.68_69delAG"
+  }
+}

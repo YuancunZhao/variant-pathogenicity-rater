@@ -1,0 +1,12 @@
+{
+  "input_type": "vcf_like",
+  "chrom": "13",
+  "pos": 32316461,
+  "ref": "AT",
+  "alt": "A",
+  "gene_symbol": "BRCA2",
+  "transcript": "NM_000059.4",
+  "hgvs_c": "NM_000059.4:c.5946delT",
+  "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+  "genome_build": "GRCh38"
+}

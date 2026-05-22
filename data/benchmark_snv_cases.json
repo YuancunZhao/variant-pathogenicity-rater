@@ -1,0 +1,2132 @@
+{
+  "benchmark_version": "offline-curated-v1",
+  "case_count": 21,
+  "cases": [
+    {
+      "case_id": "bench-01",
+      "gene": "BRCA1",
+      "transcript": "NM_007294.4",
+      "hgvs_c": "NM_007294.4:c.68_69delAG",
+      "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+      "variant_type": "small_deletion",
+      "disease": "Hereditary breast and ovarian cancer",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "17",
+        "position": 43092919,
+        "ref": "AG",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.0,
+        "max_pop_af": 0.0,
+        "population_name": "global",
+        "allele_count": 0,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": true
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.91,
+          "prediction": "deleterious"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "CADD",
+          "score": 31.0,
+          "prediction": "deleterious"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800001",
+        "gene": "BRCA1",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-01",
+          "pmid": "90000001",
+          "gene": "BRCA1",
+          "hgvs_c": "NM_007294.4:c.68_69delAG",
+          "title": "Curated mock benchmark literature for BRCA1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "BRCA1",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "pathogenic",
+      "expected_applied_evidence": [
+        "PVS1",
+        "PM2",
+        "PP3"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "PVS1 very strong plus PM2_Supporting and PP3 reaches pathogenic; PM2 remains supporting."
+    },
+    {
+      "case_id": "bench-02",
+      "gene": "LDLR",
+      "transcript": "NM_000527.5",
+      "hgvs_c": "NM_000527.5:c.682G>T",
+      "hgvs_p": "NP_000518.1:p.Glu228Ter",
+      "variant_type": "snv",
+      "disease": "Familial hypercholesterolemia",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "19",
+        "position": 11111111,
+        "ref": "G",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.001,
+        "max_pop_af": 0.001,
+        "population_name": "global",
+        "allele_count": 120,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800002",
+        "gene": "LDLR",
+        "hgvs_c": "NM_000527.5:c.682G>T",
+        "hgvs_p": "NP_000518.1:p.Glu228Ter",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-02",
+          "pmid": "90000002",
+          "gene": "LDLR",
+          "hgvs_c": "NM_000527.5:c.682G>T",
+          "title": "Curated mock benchmark literature for LDLR",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PS3",
+          "strength": "strong",
+          "direction": "pathogenic",
+          "reason": "Curated mock PS3 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "LDLR",
+        "disease": "Familial hypercholesterolemia",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "pathogenic",
+      "expected_applied_evidence": [
+        "PVS1",
+        "PS3"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "PVS1 very strong plus curated PS3 strong reaches pathogenic."
+    },
+    {
+      "case_id": "bench-03",
+      "gene": "GAA",
+      "transcript": "NM_000152.5",
+      "hgvs_c": "NM_000152.5:c.1935C>A",
+      "hgvs_p": "NP_000143.2:p.Asp645Glu",
+      "variant_type": "snv",
+      "disease": "Pompe disease",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "17",
+        "position": 22222222,
+        "ref": "C",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.001,
+        "max_pop_af": 0.001,
+        "population_name": "global",
+        "allele_count": 120,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800003",
+        "gene": "GAA",
+        "hgvs_c": "NM_000152.5:c.1935C>A",
+        "hgvs_p": "NP_000143.2:p.Asp645Glu",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-03",
+          "pmid": "90000003",
+          "gene": "GAA",
+          "hgvs_c": "NM_000152.5:c.1935C>A",
+          "title": "Curated mock benchmark literature for GAA",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PS3",
+          "strength": "strong",
+          "direction": "pathogenic",
+          "reason": "Curated mock PS3 evidence for benchmark classification logic."
+        },
+        {
+          "code": "PS4",
+          "strength": "strong",
+          "direction": "pathogenic",
+          "reason": "Curated mock PS4 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "GAA",
+        "disease": "Pompe disease",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "pathogenic",
+      "expected_applied_evidence": [
+        "PS3",
+        "PS4"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "Two independent strong pathogenic criteria reach pathogenic without PVS1."
+    },
+    {
+      "case_id": "bench-04",
+      "gene": "MLH1",
+      "transcript": "NM_000249.4",
+      "hgvs_c": "NM_000249.4:c.1852_1854delAAG",
+      "hgvs_p": "NP_000240.1:p.Lys618delinsTer",
+      "variant_type": "small_deletion",
+      "disease": "Lynch syndrome",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "3",
+        "position": 33333333,
+        "ref": "AAG",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.0,
+        "max_pop_af": 0.0,
+        "population_name": "global",
+        "allele_count": 0,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": true
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800004",
+        "gene": "MLH1",
+        "hgvs_c": "NM_000249.4:c.1852_1854delAAG",
+        "hgvs_p": "NP_000240.1:p.Lys618delinsTer",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-04",
+          "pmid": "90000004",
+          "gene": "MLH1",
+          "hgvs_c": "NM_000249.4:c.1852_1854delAAG",
+          "title": "Curated mock benchmark literature for MLH1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PM1",
+          "strength": "moderate",
+          "direction": "pathogenic",
+          "reason": "Curated mock PM1 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "MLH1",
+        "disease": "Lynch syndrome",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "pathogenic",
+      "expected_applied_evidence": [
+        "PVS1",
+        "PM1",
+        "PM2"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "PVS1 very strong plus one moderate and one supporting criterion reaches pathogenic."
+    },
+    {
+      "case_id": "bench-05",
+      "gene": "APC",
+      "transcript": "NM_000038.6",
+      "hgvs_c": "NM_000038.6:c.3927_3931delAAAGA",
+      "hgvs_p": "NP_000029.2:p.Glu1309AspfsTer4",
+      "variant_type": "small_deletion",
+      "disease": "Familial adenomatous polyposis",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "5",
+        "position": 44444444,
+        "ref": "AAAGA",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.001,
+        "max_pop_af": 0.001,
+        "population_name": "global",
+        "allele_count": 120,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800005",
+        "gene": "APC",
+        "hgvs_c": "NM_000038.6:c.3927_3931delAAAGA",
+        "hgvs_p": "NP_000029.2:p.Glu1309AspfsTer4",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-05",
+          "pmid": "90000005",
+          "gene": "APC",
+          "hgvs_c": "NM_000038.6:c.3927_3931delAAAGA",
+          "title": "Curated mock benchmark literature for APC",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PM1",
+          "strength": "moderate",
+          "direction": "pathogenic",
+          "reason": "Curated mock PM1 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "APC",
+        "disease": "Familial adenomatous polyposis",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_pathogenic",
+      "expected_applied_evidence": [
+        "PVS1",
+        "PM1"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "PVS1 very strong plus one moderate criterion reaches likely pathogenic."
+    },
+    {
+      "case_id": "bench-06",
+      "gene": "PAH",
+      "transcript": "NM_000277.3",
+      "hgvs_c": "NM_000277.3:c.1222C>T",
+      "hgvs_p": "NP_000268.1:p.Arg408Trp",
+      "variant_type": "snv",
+      "disease": "Phenylketonuria",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "12",
+        "position": 55555555,
+        "ref": "C",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.0,
+        "max_pop_af": 0.0,
+        "population_name": "global",
+        "allele_count": 0,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": true
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.91,
+          "prediction": "deleterious"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "CADD",
+          "score": 31.0,
+          "prediction": "deleterious"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800006",
+        "gene": "PAH",
+        "hgvs_c": "NM_000277.3:c.1222C>T",
+        "hgvs_p": "NP_000268.1:p.Arg408Trp",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-06",
+          "pmid": "90000006",
+          "gene": "PAH",
+          "hgvs_c": "NM_000277.3:c.1222C>T",
+          "title": "Curated mock benchmark literature for PAH",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PS3",
+          "strength": "strong",
+          "direction": "pathogenic",
+          "reason": "Curated mock PS3 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "PAH",
+        "disease": "Phenylketonuria",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_pathogenic",
+      "expected_applied_evidence": [
+        "PS3",
+        "PM2",
+        "PP3"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "One strong plus two supporting pathogenic criteria reaches likely pathogenic."
+    },
+    {
+      "case_id": "bench-07",
+      "gene": "CFTR",
+      "transcript": "NM_000492.4",
+      "hgvs_c": "NM_000492.4:c.350G>A",
+      "hgvs_p": "NP_000483.3:p.Arg117His",
+      "variant_type": "snv",
+      "disease": "Cystic fibrosis",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "7",
+        "position": 66666666,
+        "ref": "G",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.001,
+        "max_pop_af": 0.001,
+        "population_name": "global",
+        "allele_count": 120,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800007",
+        "gene": "CFTR",
+        "hgvs_c": "NM_000492.4:c.350G>A",
+        "hgvs_p": "NP_000483.3:p.Arg117His",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-07",
+          "pmid": "90000007",
+          "gene": "CFTR",
+          "hgvs_c": "NM_000492.4:c.350G>A",
+          "title": "Curated mock benchmark literature for CFTR",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PM1",
+          "strength": "moderate",
+          "direction": "pathogenic",
+          "reason": "Curated mock PM1 evidence for benchmark classification logic."
+        },
+        {
+          "code": "PM3",
+          "strength": "moderate",
+          "direction": "pathogenic",
+          "reason": "Curated mock PM3 evidence for benchmark classification logic."
+        },
+        {
+          "code": "PM5",
+          "strength": "moderate",
+          "direction": "pathogenic",
+          "reason": "Curated mock PM5 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "CFTR",
+        "disease": "Cystic fibrosis",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_pathogenic",
+      "expected_applied_evidence": [
+        "PM1",
+        "PM3",
+        "PM5"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "Three moderate pathogenic criteria reach likely pathogenic."
+    },
+    {
+      "case_id": "bench-08",
+      "gene": "RYR1",
+      "transcript": "NM_000540.3",
+      "hgvs_c": "NM_000540.3:c.1201C>T",
+      "hgvs_p": "NP_000531.2:p.Arg401Cys",
+      "variant_type": "snv",
+      "disease": "RYR1-related myopathy",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "19",
+        "position": 77777777,
+        "ref": "C",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.001,
+        "max_pop_af": 0.001,
+        "population_name": "global",
+        "allele_count": 120,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.91,
+          "prediction": "deleterious"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "CADD",
+          "score": 31.0,
+          "prediction": "deleterious"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800008",
+        "gene": "RYR1",
+        "hgvs_c": "NM_000540.3:c.1201C>T",
+        "hgvs_p": "NP_000531.2:p.Arg401Cys",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-08",
+          "pmid": "90000008",
+          "gene": "RYR1",
+          "hgvs_c": "NM_000540.3:c.1201C>T",
+          "title": "Curated mock benchmark literature for RYR1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "PS3",
+          "strength": "strong",
+          "direction": "pathogenic",
+          "reason": "Curated mock PS3 evidence for benchmark classification logic."
+        },
+        {
+          "code": "PP4",
+          "strength": "supporting",
+          "direction": "pathogenic",
+          "reason": "Curated mock PP4 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "RYR1",
+        "disease": "RYR1-related myopathy",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_pathogenic",
+      "expected_applied_evidence": [
+        "PS3",
+        "PP3",
+        "PP4"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "One strong plus two supporting pathogenic criteria reaches likely pathogenic."
+    },
+    {
+      "case_id": "bench-09",
+      "gene": "MYH7",
+      "transcript": "NM_000257.4",
+      "hgvs_c": "NM_000257.4:c.2002G>A",
+      "hgvs_p": "NP_000248.2:p.Gly668Ser",
+      "variant_type": "snv",
+      "disease": "Hypertrophic cardiomyopathy",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "14",
+        "position": 88888888,
+        "ref": "G",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.0,
+        "max_pop_af": 0.0,
+        "population_name": "global",
+        "allele_count": 0,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": true
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800009",
+        "gene": "MYH7",
+        "hgvs_c": "NM_000257.4:c.2002G>A",
+        "hgvs_p": "NP_000248.2:p.Gly668Ser",
+        "clinical_significance": "conflicting interpretations of pathogenicity",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": true,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-09",
+          "pmid": "90000009",
+          "gene": "MYH7",
+          "hgvs_c": "NM_000257.4:c.2002G>A",
+          "title": "Curated mock benchmark literature for MYH7",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": [
+            {
+              "claim_id": "bench-09-claim-1",
+              "evidence_type": "functional",
+              "candidate_codes": [
+                "PS3"
+              ],
+              "direction": "pathogenic",
+              "description": "Curated mock literature claim suggesting PS3; candidate-only by design.",
+              "quality": "moderate"
+            }
+          ]
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "MYH7",
+        "disease": "Hypertrophic cardiomyopathy",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "vus",
+      "expected_applied_evidence": [
+        "PM2"
+      ],
+      "expected_candidate_evidence": [
+        "PP5",
+        "PS3"
+      ],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED",
+        "CLINVAR_CONFLICTING_INTERPRETATIONS"
+      ],
+      "rationale": "PM2 alone remains VUS; ClinVar conflict and literature PS3 are candidate review notes only."
+    },
+    {
+      "case_id": "bench-10",
+      "gene": "KCNQ1",
+      "transcript": "NM_000218.3",
+      "hgvs_c": "NM_000218.3:c.1123A>G",
+      "hgvs_p": "NP_000209.2:p.Ile375Val",
+      "variant_type": "snv",
+      "disease": "Long QT syndrome",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "11",
+        "position": 99999999,
+        "ref": "A",
+        "alt": "G"
+      },
+      "mock_population_data": {
+        "overall_af": 0.08,
+        "max_pop_af": 0.08,
+        "population_name": "global",
+        "allele_count": 9600,
+        "allele_number": 120000,
+        "homozygote_count": 4,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.91,
+          "prediction": "deleterious"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "CADD",
+          "score": 31.0,
+          "prediction": "deleterious"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800010",
+        "gene": "KCNQ1",
+        "hgvs_c": "NM_000218.3:c.1123A>G",
+        "hgvs_p": "NP_000209.2:p.Ile375Val",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-10",
+          "pmid": "90000010",
+          "gene": "KCNQ1",
+          "hgvs_c": "NM_000218.3:c.1123A>G",
+          "title": "Curated mock benchmark literature for KCNQ1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "KCNQ1",
+        "disease": "Long QT syndrome",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": false,
+        "penetrance_provided": false,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "vus",
+      "expected_applied_evidence": [
+        "PP3"
+      ],
+      "expected_candidate_evidence": [
+        "BA1"
+      ],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED",
+        "MISSING_DISEASE_SPECIFIC_POPULATION_THRESHOLD",
+        "MISSING_PENETRANCE_CONTEXT"
+      ],
+      "rationale": "PP3 alone remains VUS; BA1-level frequency is candidate-only because threshold context is invalid."
+    },
+    {
+      "case_id": "bench-11",
+      "gene": "SCN5A",
+      "transcript": "NM_198056.3",
+      "hgvs_c": "NM_198056.3:c.1A>G",
+      "hgvs_p": "NP_932173.1:p.Met1Val",
+      "variant_type": "snv",
+      "disease": "Brugada syndrome",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "3",
+        "position": 10101010,
+        "ref": "A",
+        "alt": "G"
+      },
+      "mock_population_data": {
+        "overall_af": 0.0,
+        "max_pop_af": 0.0,
+        "population_name": "global",
+        "allele_count": 0,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": true
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.91,
+          "prediction": "deleterious"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "CADD",
+          "score": 31.0,
+          "prediction": "deleterious"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800011",
+        "gene": "SCN5A",
+        "hgvs_c": "NM_198056.3:c.1A>G",
+        "hgvs_p": "NP_932173.1:p.Met1Val",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-11",
+          "pmid": "90000011",
+          "gene": "SCN5A",
+          "hgvs_c": "NM_198056.3:c.1A>G",
+          "title": "Curated mock benchmark literature for SCN5A",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "SCN5A",
+        "disease": "Brugada syndrome",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "vus",
+      "expected_applied_evidence": [
+        "PM2",
+        "PP3"
+      ],
+      "expected_candidate_evidence": [
+        "PVS1"
+      ],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED",
+        "PVS1_CANDIDATE_ONLY"
+      ],
+      "rationale": "PM2 plus PP3 remains VUS; start-loss PVS1 is candidate-only and must not overcall."
+    },
+    {
+      "case_id": "bench-12",
+      "gene": "FBN1",
+      "transcript": "NM_000138.5",
+      "hgvs_c": "NM_000138.5:c.3000C>T",
+      "hgvs_p": "NP_000129.3:p.Asp1000Asp",
+      "variant_type": "snv",
+      "disease": "Marfan syndrome",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "15",
+        "position": 11111112,
+        "ref": "C",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800012",
+        "gene": "FBN1",
+        "hgvs_c": "NM_000138.5:c.3000C>T",
+        "hgvs_p": "NP_000129.3:p.Asp1000Asp",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-12",
+          "pmid": "90000012",
+          "gene": "FBN1",
+          "hgvs_c": "NM_000138.5:c.3000C>T",
+          "title": "Curated mock benchmark literature for FBN1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "FBN1",
+        "disease": "Marfan syndrome",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": false,
+        "penetrance_provided": false,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "vus",
+      "expected_applied_evidence": [],
+      "expected_candidate_evidence": [
+        "BS1"
+      ],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED",
+        "MISSING_DISEASE_SPECIFIC_POPULATION_THRESHOLD",
+        "MISSING_PENETRANCE_CONTEXT"
+      ],
+      "rationale": "BS1-level frequency is candidate-only without disease-specific threshold and penetrance context; classification remains VUS."
+    },
+    {
+      "case_id": "bench-13",
+      "gene": "TP53",
+      "transcript": "NM_000546.6",
+      "hgvs_c": "NM_000546.6:c.742C>T",
+      "hgvs_p": "NP_000537.3:p.Arg248Trp",
+      "variant_type": "snv",
+      "disease": "Li-Fraumeni syndrome",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "17",
+        "position": 12121212,
+        "ref": "C",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.91,
+          "prediction": "deleterious"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "CADD",
+          "score": 31.0,
+          "prediction": "deleterious"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800013",
+        "gene": "TP53",
+        "hgvs_c": "NM_000546.6:c.742C>T",
+        "hgvs_p": "NP_000537.3:p.Arg248Trp",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-13",
+          "pmid": "90000013",
+          "gene": "TP53",
+          "hgvs_c": "NM_000546.6:c.742C>T",
+          "title": "Curated mock benchmark literature for TP53",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "TP53",
+        "disease": "Li-Fraumeni syndrome",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "vus",
+      "expected_applied_evidence": [
+        "BS1",
+        "PP3"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED",
+        "OPPOSING_PATHOGENIC_AND_BENIGN_EVIDENCE"
+      ],
+      "rationale": "Opposing pathogenic and benign evidence defaults to VUS pending human adjudication."
+    },
+    {
+      "case_id": "bench-14",
+      "gene": "GJB2",
+      "transcript": "NM_004004.6",
+      "hgvs_c": "NM_004004.6:c.109G>A",
+      "hgvs_p": "NP_003995.2:p.Val37Ile",
+      "variant_type": "snv",
+      "disease": "Nonsyndromic hearing loss",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "13",
+        "position": 13131313,
+        "ref": "G",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.04,
+          "prediction": "benign"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "PolyPhen-2",
+          "score": 0.02,
+          "prediction": "benign"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800014",
+        "gene": "GJB2",
+        "hgvs_c": "NM_004004.6:c.109G>A",
+        "hgvs_p": "NP_003995.2:p.Val37Ile",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-14",
+          "pmid": "90000014",
+          "gene": "GJB2",
+          "hgvs_c": "NM_004004.6:c.109G>A",
+          "title": "Curated mock benchmark literature for GJB2",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "GJB2",
+        "disease": "Nonsyndromic hearing loss",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_benign",
+      "expected_applied_evidence": [
+        "BS1",
+        "BP4"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "BS1 valid threshold context plus BP4 reaches likely benign."
+    },
+    {
+      "case_id": "bench-15",
+      "gene": "HBB",
+      "transcript": "NM_000518.5",
+      "hgvs_c": "NM_000518.5:c.9T>C",
+      "hgvs_p": "NP_000509.1:p.His3His",
+      "variant_type": "snv",
+      "disease": "Beta-thalassemia",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "11",
+        "position": 14141414,
+        "ref": "T",
+        "alt": "C"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800015",
+        "gene": "HBB",
+        "hgvs_c": "NM_000518.5:c.9T>C",
+        "hgvs_p": "NP_000509.1:p.His3His",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-15",
+          "pmid": "90000015",
+          "gene": "HBB",
+          "hgvs_c": "NM_000518.5:c.9T>C",
+          "title": "Curated mock benchmark literature for HBB",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "BP7",
+          "strength": "supporting",
+          "direction": "benign",
+          "reason": "Curated mock BP7 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "HBB",
+        "disease": "Beta-thalassemia",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_benign",
+      "expected_applied_evidence": [
+        "BS1",
+        "BP7"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "BS1 valid threshold context plus BP7 reaches likely benign."
+    },
+    {
+      "case_id": "bench-16",
+      "gene": "COL1A1",
+      "transcript": "NM_000088.4",
+      "hgvs_c": "NM_000088.4:c.1026C>T",
+      "hgvs_p": "NP_000079.2:p.Gly342Gly",
+      "variant_type": "snv",
+      "disease": "Osteogenesis imperfecta",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "17",
+        "position": 15151515,
+        "ref": "C",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.001,
+        "max_pop_af": 0.001,
+        "population_name": "global",
+        "allele_count": 120,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "REVEL",
+          "score": 0.04,
+          "prediction": "benign"
+        },
+        {
+          "source": {
+            "name": "curated_mock_computational",
+            "version": "offline-v1"
+          },
+          "method": "PolyPhen-2",
+          "score": 0.02,
+          "prediction": "benign"
+        }
+      ],
+      "mock_clinvar_record": {
+        "variation_id": "800016",
+        "gene": "COL1A1",
+        "hgvs_c": "NM_000088.4:c.1026C>T",
+        "hgvs_p": "NP_000079.2:p.Gly342Gly",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-16",
+          "pmid": "90000016",
+          "gene": "COL1A1",
+          "hgvs_c": "NM_000088.4:c.1026C>T",
+          "title": "Curated mock benchmark literature for COL1A1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "BP6",
+          "strength": "supporting",
+          "direction": "benign",
+          "reason": "Curated mock BP6 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "COL1A1",
+        "disease": "Osteogenesis imperfecta",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_benign",
+      "expected_applied_evidence": [
+        "BP4",
+        "BP6"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "Two benign supporting criteria reach likely benign."
+    },
+    {
+      "case_id": "bench-17",
+      "gene": "PKD1",
+      "transcript": "NM_001009944.3",
+      "hgvs_c": "NM_001009944.3:c.2500A>G",
+      "hgvs_p": "NP_001009944.3:p.Lys834Glu",
+      "variant_type": "snv",
+      "disease": "Autosomal dominant polycystic kidney disease",
+      "inheritance": "autosomal dominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "16",
+        "position": 16161616,
+        "ref": "A",
+        "alt": "G"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800017",
+        "gene": "PKD1",
+        "hgvs_c": "NM_001009944.3:c.2500A>G",
+        "hgvs_p": "NP_001009944.3:p.Lys834Glu",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-17",
+          "pmid": "90000017",
+          "gene": "PKD1",
+          "hgvs_c": "NM_001009944.3:c.2500A>G",
+          "title": "Curated mock benchmark literature for PKD1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "BP2",
+          "strength": "supporting",
+          "direction": "benign",
+          "reason": "Curated mock BP2 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "PKD1",
+        "disease": "Autosomal dominant polycystic kidney disease",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "likely_benign",
+      "expected_applied_evidence": [
+        "BS1",
+        "BP2"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "BS1 valid threshold context plus BP2 reaches likely benign."
+    },
+    {
+      "case_id": "bench-18",
+      "gene": "MTHFR",
+      "transcript": "NM_005957.5",
+      "hgvs_c": "NM_005957.5:c.665C>T",
+      "hgvs_p": "NP_005948.3:p.Ala222Val",
+      "variant_type": "snv",
+      "disease": "Homocystinuria susceptibility",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "1",
+        "position": 17171717,
+        "ref": "C",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.08,
+        "max_pop_af": 0.08,
+        "population_name": "global",
+        "allele_count": 9600,
+        "allele_number": 120000,
+        "homozygote_count": 4,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800018",
+        "gene": "MTHFR",
+        "hgvs_c": "NM_005957.5:c.665C>T",
+        "hgvs_p": "NP_005948.3:p.Ala222Val",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-18",
+          "pmid": "90000018",
+          "gene": "MTHFR",
+          "hgvs_c": "NM_005957.5:c.665C>T",
+          "title": "Curated mock benchmark literature for MTHFR",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "MTHFR",
+        "disease": "Homocystinuria susceptibility",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "benign",
+      "expected_applied_evidence": [
+        "BA1"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "BA1 stand-alone with valid threshold context classifies benign."
+    },
+    {
+      "case_id": "bench-19",
+      "gene": "SERPINA1",
+      "transcript": "NM_000295.5",
+      "hgvs_c": "NM_000295.5:c.863A>T",
+      "hgvs_p": "NP_000286.3:p.Glu288Val",
+      "variant_type": "snv",
+      "disease": "Alpha-1 antitrypsin deficiency",
+      "inheritance": "autosomal codominant",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "14",
+        "position": 18181818,
+        "ref": "A",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800019",
+        "gene": "SERPINA1",
+        "hgvs_c": "NM_000295.5:c.863A>T",
+        "hgvs_p": "NP_000286.3:p.Glu288Val",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-19",
+          "pmid": "90000019",
+          "gene": "SERPINA1",
+          "hgvs_c": "NM_000295.5:c.863A>T",
+          "title": "Curated mock benchmark literature for SERPINA1",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "BS3",
+          "strength": "strong",
+          "direction": "benign",
+          "reason": "Curated mock BS3 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "SERPINA1",
+        "disease": "Alpha-1 antitrypsin deficiency",
+        "inheritance": "autosomal codominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "benign",
+      "expected_applied_evidence": [
+        "BS1",
+        "BS3"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "Two strong benign criteria classify benign."
+    },
+    {
+      "case_id": "bench-20",
+      "gene": "ALDOB",
+      "transcript": "NM_000035.4",
+      "hgvs_c": "NM_000035.4:c.360G>A",
+      "hgvs_p": "NP_000026.2:p.Lys120Lys",
+      "variant_type": "snv",
+      "disease": "Hereditary fructose intolerance",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "9",
+        "position": 19191919,
+        "ref": "G",
+        "alt": "A"
+      },
+      "mock_population_data": {
+        "overall_af": 0.02,
+        "max_pop_af": 0.02,
+        "population_name": "global",
+        "allele_count": 2400,
+        "allele_number": 120000,
+        "homozygote_count": 0,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800020",
+        "gene": "ALDOB",
+        "hgvs_c": "NM_000035.4:c.360G>A",
+        "hgvs_p": "NP_000026.2:p.Lys120Lys",
+        "clinical_significance": "uncertain significance",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-20",
+          "pmid": "90000020",
+          "gene": "ALDOB",
+          "hgvs_c": "NM_000035.4:c.360G>A",
+          "title": "Curated mock benchmark literature for ALDOB",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "mock_applied_evidence": [
+        {
+          "code": "BS2",
+          "strength": "strong",
+          "direction": "benign",
+          "reason": "Curated mock BS2 evidence for benchmark classification logic."
+        }
+      ],
+      "gene_disease_context": {
+        "gene": "ALDOB",
+        "disease": "Hereditary fructose intolerance",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "benign",
+      "expected_applied_evidence": [
+        "BS1",
+        "BS2"
+      ],
+      "expected_candidate_evidence": [],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "BS1 and BS2 provide two strong benign criteria."
+    },
+    {
+      "case_id": "bench-21",
+      "gene": "CYP21A2",
+      "transcript": "NM_000500.9",
+      "hgvs_c": "NM_000500.9:c.844G>T",
+      "hgvs_p": "NP_000491.4:p.Val282Leu",
+      "variant_type": "snv",
+      "disease": "Congenital adrenal hyperplasia",
+      "inheritance": "autosomal recessive",
+      "genomic": {
+        "genome_build": "GRCh38",
+        "chromosome": "6",
+        "position": 20202020,
+        "ref": "G",
+        "alt": "T"
+      },
+      "mock_population_data": {
+        "overall_af": 0.08,
+        "max_pop_af": 0.08,
+        "population_name": "global",
+        "allele_count": 9600,
+        "allele_number": 120000,
+        "homozygote_count": 4,
+        "data_source": "curated_mock_population",
+        "is_absent": false
+      },
+      "mock_computational_prediction": [],
+      "mock_clinvar_record": {
+        "variation_id": "800021",
+        "gene": "CYP21A2",
+        "hgvs_c": "NM_000500.9:c.844G>T",
+        "hgvs_p": "NP_000491.4:p.Val282Leu",
+        "clinical_significance": "pathogenic",
+        "review_status": "criteria provided, single submitter",
+        "condition": "curated mock disease",
+        "submitter_count": 1,
+        "last_evaluated": "2024-01-01",
+        "conflicting_interpretations": false,
+        "germline_or_somatic": "germline",
+        "citations": [
+          "PMID:90000000"
+        ]
+      },
+      "mock_literature_evidence": [
+        {
+          "study_id": "study-bench-21",
+          "pmid": "90000021",
+          "gene": "CYP21A2",
+          "hgvs_c": "NM_000500.9:c.844G>T",
+          "title": "Curated mock benchmark literature for CYP21A2",
+          "year": 2024,
+          "finding": "Local mock literature evidence for regression testing.",
+          "quality": "moderate",
+          "claims": [
+            {
+              "claim_id": "bench-21-claim-1",
+              "evidence_type": "functional",
+              "candidate_codes": [
+                "PS3"
+              ],
+              "direction": "pathogenic",
+              "description": "Curated mock literature claim suggesting PS3; candidate-only by design.",
+              "quality": "moderate"
+            }
+          ]
+        }
+      ],
+      "mock_applied_evidence": [],
+      "gene_disease_context": {
+        "gene": "CYP21A2",
+        "disease": "Congenital adrenal hyperplasia",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": false,
+        "nmd_predicted": null
+      },
+      "population_thresholds": {
+        "disease_specific": true,
+        "penetrance_provided": true,
+        "ba1_af_threshold": 0.05,
+        "bs1_af_threshold": 0.01,
+        "pm2_af_threshold": 0.0001,
+        "min_allele_number": 2000
+      },
+      "expected_classification": "benign",
+      "expected_applied_evidence": [
+        "BA1"
+      ],
+      "expected_candidate_evidence": [
+        "PP5",
+        "PS3"
+      ],
+      "expected_review_flags": [
+        "HUMAN_REVIEW_REQUIRED"
+      ],
+      "rationale": "BA1 valid stand-alone remains benign; pathogenic ClinVar/literature hints are candidate-only and do not alter classification."
+    }
+  ]
+}

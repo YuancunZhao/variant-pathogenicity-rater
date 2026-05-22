@@ -1,0 +1,155 @@
+{
+  "status": "ok",
+  "tool": "rate_variant",
+  "stage": "integrated_snv_small_indel_acmg_pipeline",
+  "mock_mode": true,
+  "normalized_variant": {
+    "variant_id": "GRCh38-17-43092919-AG-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "17",
+    "pos": 43092919,
+    "ref": "AG",
+    "alt": "A",
+    "gene_symbol": "BRCA1",
+    "transcript": {
+      "accession": "NM_007294",
+      "version": "4",
+      "gene_symbol": "BRCA1",
+      "hgvs_c": "NM_007294.4:c.68_69delAG",
+      "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+      "exon": null,
+      "consequence": null,
+      "mane_select": false,
+      "canonical": false
+    },
+    "hgvs_g": null,
+    "hgvs_c": "NM_007294.4:c.68_69delAG",
+    "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+    "zygosity": "unknown",
+    "normalization_warnings": [],
+    "review_flags": [],
+    "audit_trail": []
+  },
+  "classification_result": {
+    "result_id": "acmg-classification-example",
+    "variant": {
+      "variant_id": "GRCh38-17-43092919-AG-A",
+      "genome_build": "GRCh38",
+      "variant_type": "small_deletion",
+      "chrom": "17",
+      "pos": 43092919,
+      "ref": "AG",
+      "alt": "A",
+      "gene_symbol": "BRCA1",
+      "transcript": null,
+      "hgvs_g": null,
+      "hgvs_c": "NM_007294.4:c.68_69delAG",
+      "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+      "zygosity": "unknown",
+      "normalization_warnings": [],
+      "review_flags": [],
+      "audit_trail": []
+    },
+    "final_classification": "vus",
+    "evidence_items": [],
+    "applied_combination_rule": "default_vus",
+    "pathogenic_evidence_summary": ["PM2:moderate", "PP3:supporting"],
+    "benign_evidence_summary": [],
+    "conflicting_evidence": [],
+    "limitations": [
+      "Mock mode is enabled by default; no network access was attempted.",
+      "Phase 1 supports SNV and small indel variants only.",
+      "All conclusions are machine proposals and require qualified human review."
+    ],
+    "confidence": 0.4,
+    "human_review_required": true,
+    "report_text": "Detailed machine-generated ACMG report text is returned in full by the tool.",
+    "review_flags": [],
+    "audit_trail": []
+  },
+  "evidence_items": [
+    {
+      "evidence_id": "ev-pop-example",
+      "code": "PM2",
+      "strength": "moderate",
+      "direction": "pathogenic",
+      "reason": "Variant is absent from the configured population dataset or below the PM2 rarity threshold.",
+      "source": {
+        "name": "mock_population_frequency",
+        "version": "offline-fixture-v1",
+        "url": null,
+        "database_id": null,
+        "retrieval_timestamp": "2026-05-21T00:00:00Z",
+        "query": {
+          "variant_id": "GRCh38-17-43092919-AG-A"
+        },
+        "raw_snapshot_ref": null
+      },
+      "confidence": 0.7,
+      "requires_review": true,
+      "triggered_by": ["population_frequency"],
+      "supporting_data": {},
+      "audit_trail": [],
+      "review_flags": []
+    }
+  ],
+  "final_classification": "vus",
+  "report_text": "Detailed machine-generated ACMG report text is returned in full by the tool.",
+  "report": {
+    "human_review_required": true,
+    "summary": {
+      "final_classification": "vus",
+      "classification_label": "Variant of Uncertain Significance"
+    }
+  },
+  "limitations": [
+    "Mock mode is enabled by default; no network access was attempted.",
+    "Phase 1 supports SNV and small indel variants only.",
+    "All conclusions are machine proposals and require qualified human review."
+  ],
+  "human_review_required": true,
+  "human_review": {
+    "required": true,
+    "notice": "Human review is required. This framework does not provide a final clinical assertion."
+  },
+  "audit_trail": [
+    {
+      "event_id": "audit-normalize_variant-started-example",
+      "event_type": "normalize_variant_started",
+      "timestamp": "2026-05-21T00:00:00Z",
+      "actor": "system",
+      "tool_name": "normalize_variant",
+      "query": {},
+      "source_snapshot": {},
+      "checksum": null,
+      "notes": []
+    },
+    {
+      "event_id": "audit-generate_report-completed-example",
+      "event_type": "generate_report_completed",
+      "timestamp": "2026-05-21T00:00:00Z",
+      "actor": "system",
+      "tool_name": "generate_report",
+      "query": {},
+      "source_snapshot": {},
+      "checksum": null,
+      "notes": []
+    }
+  ],
+  "step_results": {
+    "normalize_variant": {},
+    "query_population_frequency": {},
+    "evaluate_population_rules": {},
+    "evaluate_computational_evidence": {},
+    "evaluate_pvs1": {},
+    "query_clinvar": {},
+    "search_literature_evidence": {},
+    "combine_all_evidence": {
+      "evidence_item_count": 4,
+      "evidence_ids": ["ev-pop-example"]
+    },
+    "classify_acmg": {},
+    "generate_report": {}
+  }
+}

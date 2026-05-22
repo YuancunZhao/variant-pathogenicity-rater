@@ -1,0 +1,42 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-13-32316461-AT-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "13",
+    "pos": 32316461,
+    "ref": "AT",
+    "alt": "A",
+    "gene_symbol": "BRCA2",
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22"
+  },
+  "transcript": {
+    "accession": "NM_000059",
+    "version": "4",
+    "gene_symbol": "BRCA2",
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+    "consequence": "frameshift_variant",
+    "mane_select": true,
+    "canonical": true
+  },
+  "gene_disease_context": {
+    "gene": "BRCA2",
+    "disease": "Hereditary breast and ovarian cancer syndrome",
+    "inheritance": "autosomal dominant",
+    "lof_is_known_mechanism": true,
+    "transcript_is_biologically_relevant": true,
+    "nmd_prediction_available": true,
+    "nmd_predicted": true,
+    "last_exon_information": {
+      "is_in_last_exon": false,
+      "is_in_penultimate_exon": false,
+      "exon_number": 11,
+      "total_exons": 27,
+      "distance_to_last_exon_junction": 1200,
+      "within_terminal_region": false
+    },
+    "source": "curated_user_context"
+  }
+}

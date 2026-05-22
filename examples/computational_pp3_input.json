@@ -1,0 +1,34 @@
+{
+  "variant": {
+    "variant_id": "mock-pp3-snv",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "7",
+    "pos": 140753336,
+    "ref": "A",
+    "alt": "T",
+    "gene_symbol": "BRAF",
+    "hgvs_c": "NM_004333.6:c.1799T>A",
+    "hgvs_p": "p.Val600Glu"
+  },
+  "computational_predictions": [
+    {
+      "source": {"name": "mock_REVEL", "version": "fixture-v1"},
+      "method": "REVEL",
+      "score": 0.91,
+      "prediction": "deleterious"
+    },
+    {
+      "source": {"name": "mock_CADD", "version": "fixture-v1"},
+      "method": "CADD",
+      "score": 31.4,
+      "prediction": "deleterious"
+    },
+    {
+      "source": {"name": "mock_SIFT", "version": "fixture-v1"},
+      "method": "SIFT",
+      "score": 0.01,
+      "prediction": "deleterious"
+    }
+  ]
+}

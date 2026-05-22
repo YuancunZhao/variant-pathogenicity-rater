@@ -1,0 +1,41 @@
+Clinician Variant Pathogenicity Report
+
+Clinician-facing machine-generated ACMG report
+
+Variant Summary
+- Variant: GRCh38-13-32316461-AT-A
+- Gene: BRCA2
+- Transcript: NM_000059.4
+- HGVS c.: NM_000059.4:c.5946delT
+- HGVS p.: NP_000050.3:p.Ser1982ArgfsTer22
+- Genomic location: GRCh38:13:32316461:AT>A
+
+Final Classification
+- Machine proposal: Variant of Uncertain Significance
+- Applied combination rule: default_vus
+- Confidence: 0.40
+- Human review required: true
+
+Cautions
+- The available evidence is insufficient to support a pathogenic or benign classification. The variant should be treated as a Variant of Uncertain Significance unless and until additional reviewed evidence becomes available.
+- Computational evidence is supporting evidence only and must not be treated as determinative without independent clinical, functional, segregation, or population evidence as applicable.
+
+Triggered ACMG Evidence
+- ev-comp-001: PP3 / supporting / pathogenic; source: ComputationalPredictionEvaluator; rationale: Multiple computational methods support a deleterious effect.
+
+CONFLICTING EVIDENCE
+- No conflicting evidence was reported in the supplied classification result.
+
+Limitations
+- Offline example data only.
+
+Data Source Summary
+- ComputationalPredictionEvaluator (0.1.0): evidence IDs ev-comp-001
+
+Human Review Checklist
+- Verify variant normalization and transcript selection.
+- Verify every ACMG evidence item and strength adjustment.
+- Resolve any conflicting evidence before sign-out.
+
+Human Review Note
+This report is machine-generated and is not a final clinical assertion. A qualified human reviewer must verify the variant, evidence, ACMG criteria, limitations, and final classification before clinical or laboratory use.

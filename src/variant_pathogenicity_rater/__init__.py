@@ -1,0 +1,2 @@
+"""Variant Pathogenicity Rater package."""
+

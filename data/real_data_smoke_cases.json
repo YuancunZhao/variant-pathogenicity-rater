@@ -1,0 +1,355 @@
+{
+  "smoke_version": "offline-real-data-smoke-v1",
+  "case_count": 10,
+  "description": "Small manually curated real-variant smoke set for conservative pipeline behavior checks. ClinVar and population observations are local fixtures only and are not used as final classifications.",
+  "cases": [
+    {
+      "case_id": "smoke-brca1-lof-plp",
+      "scenario": "high_confidence_p_lp_lof",
+      "variant": {
+        "gene": "BRCA1",
+        "transcript": "NM_007294.4",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "chromosome": "17",
+        "position": 43124027,
+        "ref": "AG",
+        "alt": "A",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "BRCA1",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.95, "prediction": "deleterious"},
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "CADD", "score": 35.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": "pop-brca1-68-69delag",
+      "clinvar_fixture_ids": ["clinvar-brca1-68-69delag"],
+      "expected_behavior": "Known LoF mechanism with rare population observation may apply PVS1, PM2, and PP3; ClinVar remains candidate-only.",
+      "expected_applied_evidence": ["PVS1", "PM2", "PP3"],
+      "expected_candidate_evidence": ["PP5"],
+      "allowed_classifications": ["pathogenic"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "BRCA1 c.68_69delAG is a common public example of a truncating BRCA1 variant. The smoke expectation is about conservative evidence separation, not ClinVar concordance."
+    },
+    {
+      "case_id": "smoke-ldlr-lof-plp",
+      "scenario": "high_confidence_p_lp_lof",
+      "variant": {
+        "gene": "LDLR",
+        "transcript": "NM_000527.5",
+        "hgvs_c": "NM_000527.5:c.682G>T",
+        "hgvs_p": "NP_000518.1:p.Glu228Ter",
+        "chromosome": "19",
+        "position": 11111111,
+        "ref": "G",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "LDLR",
+        "disease": "Familial hypercholesterolemia",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.002,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.9, "prediction": "deleterious"},
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "CADD", "score": 36.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": "pop-ldlr-glu228ter",
+      "clinvar_fixture_ids": ["clinvar-ldlr-glu228ter"],
+      "expected_behavior": "Second LoF positive-control case should be stable and interpretable with ClinVar candidate-only.",
+      "expected_applied_evidence": ["PVS1", "PM2", "PP3"],
+      "expected_candidate_evidence": ["PP5"],
+      "allowed_classifications": ["pathogenic"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "LDLR nonsense variant is used as a real-world style LoF positive-control fixture."
+    },
+    {
+      "case_id": "smoke-mthfr-common-benign",
+      "scenario": "high_af_benign",
+      "variant": {
+        "gene": "MTHFR",
+        "transcript": "NM_005957.5",
+        "hgvs_c": "NM_005957.5:c.665C>T",
+        "hgvs_p": "NP_005948.3:p.Ala222Val",
+        "chromosome": "1",
+        "position": 11796321,
+        "ref": "C",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "MTHFR",
+        "disease": "MTHFR-related thrombophilia assertion review",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.01,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-mthfr-c665t",
+      "clinvar_fixture_ids": ["clinvar-mthfr-c665t"],
+      "expected_behavior": "Very high population frequency can drive BA1, while ClinVar benign assertion remains a candidate review note.",
+      "expected_applied_evidence": ["BA1"],
+      "expected_candidate_evidence": ["BP6"],
+      "allowed_classifications": ["benign"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "Common MTHFR C677T-style variant exercises high-AF benign behavior without using ClinVar as the classifier."
+    },
+    {
+      "case_id": "smoke-gjb2-common-benign",
+      "scenario": "high_af_benign",
+      "variant": {
+        "gene": "GJB2",
+        "transcript": "NM_004004.6",
+        "hgvs_c": "NM_004004.6:c.79G>A",
+        "hgvs_p": "NP_003995.2:p.Val27Ile",
+        "chromosome": "13",
+        "position": 20189547,
+        "ref": "G",
+        "alt": "A",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "GJB2",
+        "disease": "Nonsyndromic hearing loss",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-gjb2-v27i",
+      "clinvar_fixture_ids": ["clinvar-gjb2-v27i"],
+      "expected_behavior": "Second high-AF case should classify benign from BA1, with ClinVar only candidate.",
+      "expected_applied_evidence": ["BA1"],
+      "expected_candidate_evidence": ["BP6"],
+      "allowed_classifications": ["benign"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "GJB2 p.Val27Ile is used as a common benign-style smoke fixture."
+    },
+    {
+      "case_id": "smoke-hbb-clinvar-conflict",
+      "scenario": "clinvar_conflict",
+      "variant": {
+        "gene": "HBB",
+        "transcript": "NM_000518.5",
+        "hgvs_c": "NM_000518.5:c.20A>T",
+        "hgvs_p": "NP_000509.1:p.Glu7Val",
+        "chromosome": "11",
+        "position": 5227002,
+        "ref": "A",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "HBB",
+        "disease": "Hemoglobinopathy review",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-hbb-e7v",
+      "clinvar_fixture_ids": ["clinvar-hbb-e7v-conflict"],
+      "expected_behavior": "ClinVar conflict should stay in candidate/review-note evidence and force review, not final classification by ClinVar.",
+      "expected_applied_evidence": [],
+      "expected_candidate_evidence": ["PP5"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED", "CLINVAR_CONFLICTING_INTERPRETATIONS"],
+      "explanation": "A conflict-style ClinVar record should not be counted as ACMG evidence."
+    },
+    {
+      "case_id": "smoke-tp53-clinvar-conflict",
+      "scenario": "clinvar_conflict",
+      "variant": {
+        "gene": "TP53",
+        "transcript": "NM_000546.6",
+        "hgvs_c": "NM_000546.6:c.215C>G",
+        "hgvs_p": "NP_000537.3:p.Pro72Arg",
+        "chromosome": "17",
+        "position": 7676154,
+        "ref": "C",
+        "alt": "G",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "TP53",
+        "disease": "Li-Fraumeni syndrome",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.00001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-tp53-p72r",
+      "clinvar_fixture_ids": ["clinvar-tp53-p72r-conflict"],
+      "expected_behavior": "Common polymorphism with conflicting ClinVar-style assertions should remain VUS/review in this smoke set because BA1 is below threshold here.",
+      "expected_applied_evidence": [],
+      "expected_candidate_evidence": ["PP5"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED", "CLINVAR_CONFLICTING_INTERPRETATIONS"],
+      "explanation": "This exercises candidate-only handling of a ClinVar conflict independent of population thresholds."
+    },
+    {
+      "case_id": "smoke-cftr-vus",
+      "scenario": "vus",
+      "variant": {
+        "gene": "CFTR",
+        "transcript": "NM_000492.4",
+        "hgvs_c": "NM_000492.4:c.350G>A",
+        "hgvs_p": "NP_000483.3:p.Arg117His",
+        "chromosome": "7",
+        "position": 117559590,
+        "ref": "G",
+        "alt": "A",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "CFTR",
+        "disease": "Cystic fibrosis",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.0003,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-cftr-r117h",
+      "clinvar_fixture_ids": ["clinvar-cftr-r117h-vus"],
+      "expected_behavior": "VUS-style fixture should remain VUS with no applied ACMG evidence.",
+      "expected_applied_evidence": [],
+      "expected_candidate_evidence": [],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "The fixture intentionally avoids enough applied evidence to move beyond VUS."
+    },
+    {
+      "case_id": "smoke-brca2-vus",
+      "scenario": "vus",
+      "variant": {
+        "gene": "BRCA2",
+        "transcript": "NM_000059.4",
+        "hgvs_c": "NM_000059.4:c.9976A>T",
+        "hgvs_p": "NP_000050.3:p.Lys3326Ter",
+        "chromosome": "13",
+        "position": 32398770,
+        "ref": "A",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "BRCA2",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": false
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-brca2-k3326ter",
+      "clinvar_fixture_ids": ["clinvar-brca2-k3326ter-vus"],
+      "expected_behavior": "Terminal truncating edge-style VUS should not be overcalled.",
+      "expected_applied_evidence": ["PVS1"],
+      "expected_candidate_evidence": [],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "PVS1 may be downgraded to supporting because NMD is not predicted; supporting alone should remain VUS."
+    },
+    {
+      "case_id": "smoke-ryr1-pm2-pp3-vus",
+      "scenario": "pm2_pp3_still_vus",
+      "variant": {
+        "gene": "RYR1",
+        "transcript": "NM_000540.3",
+        "hgvs_c": "NM_000540.3:c.1840C>T",
+        "hgvs_p": "NP_000531.2:p.Arg614Cys",
+        "chromosome": "19",
+        "position": 38455431,
+        "ref": "C",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "RYR1",
+        "disease": "Malignant hyperthermia susceptibility",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.0001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.88, "prediction": "deleterious"},
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "CADD", "score": 28.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": "pop-ryr1-r614c",
+      "clinvar_fixture_ids": ["clinvar-ryr1-r614c-vus"],
+      "expected_behavior": "PM2 plus PP3 supporting evidence must remain VUS.",
+      "expected_applied_evidence": ["PM2", "PP3"],
+      "expected_candidate_evidence": [],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "This is the key conservative smoke case: computational support and rarity alone should not create P/LP."
+    },
+    {
+      "case_id": "smoke-atm-start-loss-edge",
+      "scenario": "pvs1_edge_no_overcall",
+      "variant": {
+        "gene": "ATM",
+        "transcript": "NM_000051.4",
+        "hgvs_c": "NM_000051.4:c.2T>C",
+        "hgvs_p": "NP_000042.3:p.Met1Thr",
+        "chromosome": "11",
+        "position": 108223044,
+        "ref": "T",
+        "alt": "C",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "ATM",
+        "disease": "Ataxia-telangiectasia",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.00001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.91, "prediction": "deleterious"},
+        {"source": {"name": "curated_real_smoke_computational", "version": "offline-v1"}, "method": "CADD", "score": 30.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": null,
+      "clinvar_fixture_ids": ["clinvar-atm-met1thr-vus"],
+      "expected_behavior": "Start-loss is PVS1 candidate-only and no population record found must not infer PM2.",
+      "expected_applied_evidence": ["PP3"],
+      "expected_candidate_evidence": ["PVS1"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED", "PVS1_CANDIDATE_ONLY"],
+      "explanation": "This combines the no-record-found PM2 safety check with a PVS1 edge case that should not be overcalled."
+    }
+  ]
+}

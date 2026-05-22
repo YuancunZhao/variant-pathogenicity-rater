@@ -1,0 +1,37 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-1-1000-A-G",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "1",
+    "pos": 1000,
+    "ref": "A",
+    "alt": "G",
+    "gene_symbol": "GENE1",
+    "hgvs_c": "NM_000001.1:c.1A>G",
+    "hgvs_p": "NP_000001.1:p.Met1Val"
+  },
+  "transcript": {
+    "accession": "NM_000001",
+    "version": "1",
+    "gene_symbol": "GENE1",
+    "hgvs_c": "NM_000001.1:c.1A>G",
+    "hgvs_p": "NP_000001.1:p.Met1Val",
+    "consequence": "start_lost",
+    "mane_select": true,
+    "canonical": true
+  },
+  "gene_disease_context": {
+    "gene": "GENE1",
+    "disease": "Example autosomal dominant disorder",
+    "inheritance": "autosomal dominant",
+    "lof_is_known_mechanism": true,
+    "transcript_is_biologically_relevant": true,
+    "nmd_prediction_available": false,
+    "last_exon_information": {
+      "is_in_last_exon": false,
+      "within_terminal_region": false
+    },
+    "source": "mock_example"
+  }
+}

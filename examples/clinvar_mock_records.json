@@ -1,0 +1,76 @@
+[
+  {
+    "variation_id": "17661",
+    "gene": "BRCA1",
+    "hgvs_c": "NM_007294.4:c.68_69delAG",
+    "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+    "rsid": "rs80357914",
+    "genomic": {
+      "genome_build": "GRCh38",
+      "chromosome": "17",
+      "position": 43124027,
+      "ref": "AG",
+      "alt": "A"
+    },
+    "clinical_significance": "Pathogenic",
+    "review_status": "reviewed by expert panel",
+    "conditions": ["Hereditary breast ovarian cancer syndrome"],
+    "submitter_count": 12,
+    "last_evaluated": "2025-04-01",
+    "conflicting_interpretations": false,
+    "germline_or_somatic": "germline",
+    "citations": ["PMID:20301425", "PMID:23108138"]
+  },
+  {
+    "variation_id": "7108",
+    "gene": "CFTR",
+    "hgvs_c": "NM_000492.4:c.1521_1523delCTT",
+    "hgvs_p": "NP_000483.3:p.Phe508del",
+    "rsid": "rs113993960",
+    "genomic": {
+      "genome_build": "GRCh38",
+      "chromosome": "7",
+      "position": 117559593,
+      "ref": "CTT",
+      "alt": "C"
+    },
+    "clinical_significance": "Pathogenic",
+    "review_status": "criteria provided, multiple submitters, no conflicts",
+    "conditions": ["Cystic fibrosis"],
+    "submitter_count": 48,
+    "last_evaluated": "2025-02-10",
+    "conflicting_interpretations": false,
+    "germline_or_somatic": "germline",
+    "citations": ["PMID:7529962"]
+  },
+  {
+    "variation_id": "13961",
+    "gene": "HBB",
+    "hgvs_c": "NM_000518.5:c.20A>T",
+    "hgvs_p": "NP_000509.1:p.Glu7Val",
+    "rsid": "rs334",
+    "clinical_significance": "Conflicting interpretations of pathogenicity",
+    "review_status": "criteria provided, conflicting interpretations",
+    "conditions": ["Sickle cell anemia"],
+    "submitter_count": 22,
+    "last_evaluated": "2024-12-12",
+    "conflicting_interpretations": true,
+    "germline_or_somatic": "germline",
+    "citations": ["PMID:25741868"]
+  },
+  {
+    "variation_id": "55555",
+    "gene": "GENE1",
+    "hgvs_c": "NM_000001.1:c.76A>G",
+    "hgvs_p": "NP_000001.1:p.Lys26Arg",
+    "rsid": "rs55555",
+    "clinical_significance": "Likely benign",
+    "review_status": "criteria provided, single submitter",
+    "conditions": ["not specified"],
+    "submitter_count": 1,
+    "last_evaluated": "2025-01-20",
+    "conflicting_interpretations": false,
+    "germline_or_somatic": "germline",
+    "citations": []
+  }
+]

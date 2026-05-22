@@ -1,0 +1,27 @@
+{
+  "variant": {
+    "variant_id": "mock-splice-pp3-snv",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "2",
+    "pos": 47641559,
+    "ref": "C",
+    "alt": "T",
+    "gene_symbol": "MSH2"
+  },
+  "computational_predictions": [
+    {
+      "source": {"name": "mock_SpliceAI", "version": "fixture-v1"},
+      "method": "SpliceAI delta score",
+      "score": 0.83,
+      "prediction": "splice altering",
+      "transcript": "NM_000251.3"
+    },
+    {
+      "source": {"name": "mock_CADD", "version": "fixture-v1"},
+      "method": "CADD",
+      "score": 24.1,
+      "prediction": "deleterious"
+    }
+  ]
+}

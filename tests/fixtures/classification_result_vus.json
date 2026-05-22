@@ -1,0 +1,25 @@
+{
+  "result_id": "acmg-classification-fixture",
+  "variant": {
+    "variant_id": "GRCh38-1-123-A-G",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "1",
+    "pos": 123,
+    "ref": "A",
+    "alt": "G",
+    "gene_symbol": "GENE1",
+    "hgvs_c": "NM_000001.1:c.76A>G",
+    "hgvs_p": "NP_000001.1:p.Lys26Arg"
+  },
+  "final_classification": "vus",
+  "evidence_items": [],
+  "applied_combination_rule": "default_vus",
+  "pathogenic_evidence_summary": [],
+  "benign_evidence_summary": [],
+  "conflicting_evidence": [],
+  "limitations": ["Fixture for report and MCP smoke tests."],
+  "confidence": 0.35,
+  "human_review_required": true,
+  "report_text": "Fixture VUS classification; human review is required."
+}

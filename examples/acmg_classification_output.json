@@ -1,0 +1,97 @@
+{
+  "result_id": "acmg-classification-335574e923e2",
+  "variant": {
+    "variant_id": "GRCh38-13-32316461-AT-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "13",
+    "pos": 32316461,
+    "ref": "AT",
+    "alt": "A",
+    "gene_symbol": "BRCA2",
+    "transcript": null,
+    "hgvs_g": null,
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+    "zygosity": "unknown",
+    "normalization_warnings": [],
+    "review_flags": [],
+    "audit_trail": []
+  },
+  "final_classification": "likely_pathogenic",
+  "evidence_items": [
+    {
+      "evidence_id": "ev-pvs1-001",
+      "code": "PVS1",
+      "strength": "very_strong",
+      "direction": "pathogenic",
+      "reason": "Predicted loss-of-function variant in a gene where LoF is an established disease mechanism.",
+      "source": {
+        "name": "example_acmg_evaluator",
+        "version": "0.1.0",
+        "url": null,
+        "database_id": null,
+        "retrieval_timestamp": null,
+        "query": {},
+        "raw_snapshot_ref": null
+      },
+      "confidence": 0.9,
+      "requires_review": true,
+      "triggered_by": [
+        "pvs1"
+      ],
+      "supporting_data": {},
+      "audit_trail": [],
+      "review_flags": []
+    },
+    {
+      "evidence_id": "ev-pm2-001",
+      "code": "PM2",
+      "strength": "moderate",
+      "direction": "pathogenic",
+      "reason": "Variant is absent or extremely rare in population datasets.",
+      "source": {
+        "name": "example_acmg_evaluator",
+        "version": "0.1.0",
+        "url": null,
+        "database_id": null,
+        "retrieval_timestamp": null,
+        "query": {},
+        "raw_snapshot_ref": null
+      },
+      "confidence": 0.85,
+      "requires_review": true,
+      "triggered_by": [
+        "population_frequency"
+      ],
+      "supporting_data": {},
+      "audit_trail": [],
+      "review_flags": []
+    }
+  ],
+  "applied_combination_rule": "likely_pathogenic: 1 very_strong + 1 moderate",
+  "pathogenic_evidence_summary": [
+    "PM2 moderate: Variant is absent or extremely rare in population datasets.",
+    "PVS1 very_strong: Predicted loss-of-function variant in a gene where LoF is an established disease mechanism."
+  ],
+  "benign_evidence_summary": [],
+  "conflicting_evidence": [],
+  "limitations": [
+    "Phase 1 classification supports SNV and small indel variants only.",
+    "This engine combines supplied ACMG evidence items; it does not trigger evidence.",
+    "All machine-generated classifications require qualified human review."
+  ],
+  "confidence": 0.55,
+  "human_review_required": true,
+  "report_text": "ACMG combiner result is likely_pathogenic by likely_pathogenic: 1 very_strong + 1 moderate; human review is required.",
+  "review_flags": [
+    {
+      "code": "HUMAN_REVIEW_REQUIRED",
+      "message": "All ACMG classifications are machine proposals and require qualified human review.",
+      "severity": "warning",
+      "blocking": true,
+      "audit_trail": []
+    }
+  ],
+  "audit_trail": []
+}

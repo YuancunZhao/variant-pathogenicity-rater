@@ -1,0 +1,16 @@
+{
+  "gene": "BRCA1",
+  "transcript": "NM_007294.4",
+  "hgvs_c": "NM_007294.4:c.68_69delAG",
+  "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+  "chromosome": "17",
+  "position": 43092919,
+  "ref": "AG",
+  "alt": "A",
+  "disease": "Hereditary breast and ovarian cancer",
+  "inheritance": "autosomal dominant",
+  "phenotype": ["HP:0003002"],
+  "options": {
+    "mock_mode": true
+  }
+}

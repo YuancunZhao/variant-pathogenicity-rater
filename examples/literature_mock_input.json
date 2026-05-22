@@ -1,0 +1,20 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-1-123-A-G",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "1",
+    "pos": 123,
+    "ref": "A",
+    "alt": "G",
+    "gene_symbol": "GENE1",
+    "hgvs_c": "NM_000001.1:c.76A>G",
+    "hgvs_p": "NP_000001.1:p.Lys26Arg"
+  },
+  "gene_disease_context": {
+    "gene_symbol": "GENE1",
+    "disease_name": "GENE1-related example disorder",
+    "inheritance_mode": "autosomal dominant",
+    "phenotype_terms": ["HP:0001250", "HP:0001263"]
+  }
+}

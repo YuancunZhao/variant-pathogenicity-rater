@@ -1,0 +1,31 @@
+{
+  "variant": {
+    "variant_id": "mock-bp4-snv",
+    "genome_build": "GRCh38",
+    "variant_type": "snv",
+    "chrom": "1",
+    "pos": 100001,
+    "ref": "G",
+    "alt": "A",
+    "gene_symbol": "GENE"
+  },
+  "computational_predictions": [
+    {
+      "source": {"name": "mock_REVEL", "version": "fixture-v1"},
+      "method": "REVEL",
+      "score": 0.04,
+      "prediction": "benign"
+    },
+    {
+      "source": {"name": "mock_PolyPhen2", "version": "fixture-v1"},
+      "method": "PolyPhen-2",
+      "score": 0.02,
+      "prediction": "benign"
+    },
+    {
+      "source": {"name": "mock_MutationTaster", "version": "fixture-v1"},
+      "method": "MutationTaster",
+      "prediction": "polymorphism"
+    }
+  ]
+}

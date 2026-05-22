@@ -1,0 +1,33 @@
+{
+  "variant": {
+    "variant_id": "GRCh38-13-32316461-AT-A",
+    "genome_build": "GRCh38",
+    "variant_type": "small_deletion",
+    "chrom": "13",
+    "pos": 32316461,
+    "ref": "AT",
+    "alt": "A",
+    "gene_symbol": "BRCA2",
+    "transcript": {
+      "accession": "NM_000059",
+      "version": "4",
+      "gene_symbol": "BRCA2",
+      "hgvs_c": "NM_000059.4:c.5946delT",
+      "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+      "consequence": "frameshift_variant",
+      "mane_select": true,
+      "canonical": true
+    },
+    "hgvs_c": "NM_000059.4:c.5946delT",
+    "hgvs_p": "NP_000050.3:p.Ser1982ArgfsTer22",
+    "zygosity": "heterozygous"
+  },
+  "gene_disease_context": {
+    "gene_symbol": "BRCA2",
+    "disease_name": "Hereditary breast and ovarian cancer syndrome",
+    "disease_id": "MONDO:0016419",
+    "inheritance_mode": "autosomal dominant",
+    "phenotype_terms": ["HP:0003002", "HP:0100013"],
+    "source": "curated_user_context"
+  }
+}

@@ -1,0 +1,19 @@
+[plugin]
+name = "variant-pathogenicity-rater"
+version = "0.1.0"
+description = "Codex Plugin MCP server for SNV/small indel ACMG variant interpretation tools."
+
+[server]
+command = ".venv/bin/python"
+args = ["mcp-server/server.py"]
+transport = "stdio"
+
+[mcp]
+server = "variant-pathogenicity-rater"
+transport = "stdio"
+command = ".venv/bin/python"
+args = ["mcp-server/server.py"]
+
+[tools]
+dynamic_discovery = true
+package = "tools"

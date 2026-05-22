@@ -1,0 +1,35 @@
+default_mode: mock
+offline_default: true
+sources:
+  clinvar:
+    mode: mock
+    enabled: true
+    online_enabled: false
+    source_version: offline-fixture-v1
+    parser_version: clinvar-parser-v1
+    ttl_seconds: 86400
+    cache_dir: .cache/variant_pathogenicity_rater/clinvar
+  population:
+    mode: mock
+    enabled: true
+    online_enabled: false
+    source_version: offline-fixture-v1
+    parser_version: population-parser-v1
+    ttl_seconds: 86400
+    cache_dir: .cache/variant_pathogenicity_rater/population
+  literature:
+    mode: mock
+    enabled: true
+    online_enabled: false
+    source_version: offline-fixture-v1
+    parser_version: literature-parser-v1
+    ttl_seconds: 86400
+    cache_dir: .cache/variant_pathogenicity_rater/literature
+  computational:
+    mode: mock
+    enabled: true
+    online_enabled: false
+    source_version: offline-fixture-v1
+    parser_version: computational-parser-v1
+    ttl_seconds: 86400
+    cache_dir: .cache/variant_pathogenicity_rater/computational

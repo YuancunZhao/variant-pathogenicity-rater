@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+from enum import StrEnum
+from typing import Any
+
+from pydantic import Field
+
+from variant_pathogenicity_rater.schemas.classification import ClassificationResult
+from variant_pathogenicity_rater.schemas.common import ReviewFlag, SchemaModel
+
+
+class ReportFormat(StrEnum):
+    MARKDOWN = "markdown"
+    PLAIN_TEXT = "plain_text"
+    JSON = "json"
+
+
+class ReportMode(StrEnum):
+    CONCISE = "concise"
+    DETAILED = "detailed"
+    LABORATORY = "laboratory"
+    CLINICIAN = "clinician"
+
+
+class ReportLanguage(StrEnum):
+    ENGLISH = "en"
+    CHINESE = "zh"
+
+
+class DataSourceSummary(SchemaModel):
+    name: str = Field(..., min_length=1)
+    version: str | None = None
+    retrieval_timestamp: str | None = None
+    evidence_ids: list[str] = Field(default_factory=list)
+    query: dict[str, Any] = Field(default_factory=dict)
+    raw_snapshot_ref: str | None = None
+
+
+class EvidenceReportEntry(SchemaModel):
+    evidence_id: str = Field(..., min_length=1)
+    code: str = Field(..., min_length=1)
+    strength: str = Field(..., min_length=1)
+    direction: str = Field(..., min_length=1)
+    rationale: str = Field(..., min_length=1)
+    source: str = Field(..., min_length=1)
+    confidence: float = Field(..., ge=0, le=1)
+    requires_review: bool = True
+    triggered_by: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    review_flags: list[ReviewFlag] = Field(default_factory=list)
+
+
+class VariantReportSummary(SchemaModel):
+    variant_id: str = Field(..., min_length=1)
+    gene_symbol: str | None = None
+    transcript: str | None = None
+    hgvs_c: str | None = None
+    hgvs_p: str | None = None
+    genomic_location: str = Field(..., min_length=1)
+    final_classification: str = Field(..., min_length=1)
+    classification_label: str = Field(..., min_length=1)
+    confidence: float = Field(..., ge=0, le=1)
+    applied_combination_rule: str | None = None
+    triggered_acmg_evidence: list[EvidenceReportEntry] = Field(default_factory=list)
+    candidate_acmg_evidence: list[EvidenceReportEntry] = Field(default_factory=list)
+    pathogenic_evidence_summary: list[str] = Field(default_factory=list)
+    benign_evidence_summary: list[str] = Field(default_factory=list)
+    conflicting_evidence: list[str] = Field(default_factory=list)
+    clinvar_conflict_detected: bool = False
+    limitations: list[str] = Field(default_factory=list)
+    human_review_note: str = Field(..., min_length=1)
+    data_source_summary: list[DataSourceSummary] = Field(default_factory=list)
+    review_flags: list[ReviewFlag] = Field(default_factory=list)
+
+
+class VariantReport(SchemaModel):
+    report_id: str = Field(..., min_length=1)
+    result_id: str = Field(..., min_length=1)
+    mode: ReportMode
+    output_format: ReportFormat
+    language: ReportLanguage = ReportLanguage.ENGLISH
+    summary: VariantReportSummary
+    content: str | dict[str, Any]
+    source_result: ClassificationResult
+    human_review_required: bool = True
