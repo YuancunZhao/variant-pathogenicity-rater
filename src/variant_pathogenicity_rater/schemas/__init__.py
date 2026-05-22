@@ -5,7 +5,14 @@ from variant_pathogenicity_rater.schemas.annotation import (
     AnnotationParseResult,
     LofteeFlags,
     OnlineResolutionResult,
+    TranscriptSelection,
     VariantAnnotation,
+)
+from variant_pathogenicity_rater.schemas.batch import (
+    BatchRecordError,
+    BatchResult,
+    BatchVariantResult,
+    FailedBatchRecord,
 )
 from variant_pathogenicity_rater.schemas.classification import (
     ACMGClassification,
@@ -43,6 +50,7 @@ from variant_pathogenicity_rater.schemas.variant import (
     NormalizationResult,
     Transcript,
     Variant,
+    VariantIdentity,
     VariantType,
     Zygosity,
 )
@@ -51,6 +59,9 @@ __all__ = [
     "ACMGClassification",
     "AuditTrail",
     "AnnotationParseResult",
+    "BatchRecordError",
+    "BatchResult",
+    "BatchVariantResult",
     "ClassificationResult",
     "ClinVarRecord",
     "ComputationalPrediction",
@@ -61,6 +72,7 @@ __all__ = [
     "EvidenceReportEntry",
     "EvidenceSource",
     "EvidenceStrength",
+    "FailedBatchRecord",
     "GeneDiseaseContext",
     "GenomeBuild",
     "LiteratureCandidateEvidenceType",
@@ -79,8 +91,10 @@ __all__ = [
     "ReviewFlag",
     "SplicePrediction",
     "Transcript",
+    "TranscriptSelection",
     "Variant",
     "VariantAnnotation",
+    "VariantIdentity",
     "VariantReport",
     "VariantReportSummary",
     "VariantType",

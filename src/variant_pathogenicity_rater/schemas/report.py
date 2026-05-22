@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import Field
 
+from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection
 from variant_pathogenicity_rater.schemas.classification import ClassificationResult
 from variant_pathogenicity_rater.schemas.common import ReviewFlag, SchemaModel
 
@@ -73,6 +74,7 @@ class VariantReportSummary(SchemaModel):
     human_review_note: str = Field(..., min_length=1)
     data_source_summary: list[DataSourceSummary] = Field(default_factory=list)
     review_flags: list[ReviewFlag] = Field(default_factory=list)
+    transcript_selection: TranscriptSelection | None = None
 
 
 class VariantReport(SchemaModel):

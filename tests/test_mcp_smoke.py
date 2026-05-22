@@ -41,6 +41,7 @@ def test_mcp_registry_lists_ci_smoke_tools() -> None:
         "evaluate_pvs1",
         "search_literature_evidence",
         "generate_report",
+        "rate_variant_batch",
     }.issubset(tool_names)
 
 
@@ -66,6 +67,7 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
         in {
             "health_check",
             "rate_variant",
+            "rate_variant_batch",
             "normalize_variant",
             "query_clinvar",
             "query_population_frequency",
@@ -86,6 +88,7 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
     assert schemas["evaluate_computational_evidence"]["properties"]["thresholds"][
         "additionalProperties"
     ] is False
+    assert schemas["rate_variant_batch"]["additionalProperties"] is False
 
 
 def test_mcp_unknown_extra_field_is_rejected_with_structured_error() -> None:

@@ -42,6 +42,9 @@ from variant_pathogenicity_rater.reporting import (  # noqa: E402
 from variant_pathogenicity_rater.pipeline.rate_variant import (  # noqa: E402
     rate_variant as rate_variant_pipeline,
 )
+from variant_pathogenicity_rater.pipeline.batch import (  # noqa: E402
+    rate_variant_batch as rate_variant_batch_pipeline,
+)
 from variant_pathogenicity_rater.config.thresholds import (  # noqa: E402
     computational_thresholds_from_options,
     population_thresholds_from_options,
@@ -125,6 +128,18 @@ async def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     return rate_variant_pipeline(arguments)
 
 
+async def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
+    has_records = isinstance(arguments.get("records"), list)
+    has_text = any(isinstance(arguments.get(key), str) for key in ("input_text", "text", "data"))
+    if not has_records and not has_text:
+        raise McpToolError(
+            "SCHEMA_VALIDATION_ERROR",
+            "rate_variant_batch requires either a 'records' array or textual batch input.",
+            details={"required_any": ["records", "input_text/text/data"]},
+        )
+    return rate_variant_batch_pipeline(arguments)
+
+
 async def normalize_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     try:
         result = normalize_variant_service(arguments)
@@ -146,6 +161,11 @@ async def normalize_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "stage": "variant_normalization",
         "input_format": dumped["input_format"],
         "normalized_variant": dumped["normalized_variant"],
+        "variant_identity": dumped["variant_identity"],
+        "warnings": dumped["normalization_warnings"],
+        "review_flags": dumped["review_flags"],
+        "limitations": dumped["limitations"],
+        "provenance": dumped["provenance"],
         "normalization_warnings": dumped["normalization_warnings"],
         "unresolved_fields": dumped["unresolved_fields"],
         "human_review_required": dumped["human_review_required"],
@@ -156,10 +176,11 @@ async def normalize_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "audit": {
             "input": arguments,
             "retrieval_timestamp": _timestamp(),
-            "provenance": [],
+            "provenance": dumped["provenance"],
             "limitations": [
                 "SNV/small indel framework only.",
                 "No liftover, transcript mapping service, or external normalization API was used.",
+                *dumped["limitations"],
             ],
         },
     }
@@ -623,6 +644,36 @@ def _review_flag_schema() -> dict[str, Any]:
     }
 
 
+def _transcript_selection_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "selected_transcript": {"type": ["string", "null"]},
+            "selected_gene": {"type": ["string", "null"]},
+            "selection_reason": {"type": "string"},
+            "selection_confidence": {"type": "number"},
+            "candidate_transcripts": {
+                "type": "array",
+                "items": _open_object_schema("Transcript candidate summary."),
+            },
+            "rejected_transcripts": {
+                "type": "array",
+                "items": _open_object_schema("Rejected transcript summary."),
+            },
+            "mane_select_available": {"type": "boolean"},
+            "canonical_available": {"type": "boolean"},
+            "biologically_relevant_available": {"type": "boolean"},
+            "user_transcript_provided": {"type": "boolean"},
+            "user_transcript_matched": {"type": "boolean"},
+            "review_flags": {"type": "array", "items": _review_flag_schema()},
+            "limitations": _string_array_schema(),
+            "provenance": _open_object_schema("Transcript selection provenance."),
+        },
+        "required": ["selection_reason", "selection_confidence"],
+        "additionalProperties": False,
+    }
+
+
 def _source_schema() -> dict[str, Any]:
     return {
         "type": "object",
@@ -772,6 +823,8 @@ def _normalization_properties() -> dict[str, Any]:
         "ref": {"type": "string"},
         "alt": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]},
         "genome_build": {"type": "string", "enum": ["GRCh37", "GRCh38"]},
+        "online_normalization": {"type": "boolean"},
+        "use_online_normalizer": {"type": "boolean"},
     }
 
 
@@ -967,6 +1020,7 @@ def _classification_result_schema(description: str | None = None) -> dict[str, A
             "human_review_required": {"type": "boolean"},
             "report_text": {"type": "string"},
             "review_flags": {"type": "array", "items": _review_flag_schema()},
+            "transcript_selection": {"oneOf": [_transcript_selection_schema(), {"type": "null"}]},
             "audit_trail": {"type": "array", "items": _audit_trail_schema()},
         },
         "required": ["result_id", "variant", "final_classification", "confidence", "report_text"],
@@ -1019,7 +1073,18 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "include_computational": {"type": "boolean"},
             "include_clinvar": {"type": "boolean"},
             "include_literature": {"type": "boolean"},
+            "include_transcript_selection": {"type": "boolean"},
             "data_sources": _data_sources_override_schema(),
+            "annotations": {
+                "type": "array",
+                "items": _open_object_schema("Parsed annotation record."),
+            },
+            "annotation_records": {
+                "type": "array",
+                "items": _open_object_schema("Raw generic annotation record."),
+            },
+            "annotation_text": {"type": "string"},
+            "user_transcript": {"type": "string"},
             "population_frequency": population_fixture,
             "population_thresholds": {
                 "type": "object",
@@ -1079,6 +1144,57 @@ def _variant_input_schema() -> dict[str, Any]:
             "phenotype_terms": _string_array_schema(),
             "options": _pipeline_options_schema(),
         },
+        "additionalProperties": False,
+    }
+
+
+def _batch_variant_record_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            **_normalization_properties(),
+            "variant": _normalization_payload_schema(
+                "Optional wrapped HGVS or VCF-like variant input."
+            ),
+            "variant_type": {"type": "string"},
+            "type": {"type": "string"},
+            "gene_disease_context": _gene_disease_context_schema(),
+            "context": _gene_disease_context_schema(),
+            "disease": {"type": "string"},
+            "inheritance": {"type": ["string", "null"]},
+            "phenotype": _string_array_schema(),
+            "phenotype_terms": _string_array_schema(),
+            "options": _pipeline_options_schema(),
+        },
+        "additionalProperties": True,
+    }
+
+
+def _batch_options_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "batch_id": {"type": "string"},
+            "records": {"type": "array", "items": _batch_variant_record_schema()},
+            "input_text": {"type": "string"},
+            "text": {"type": "string"},
+            "data": {"type": "string"},
+            "input_format": {
+                "type": "string",
+                "enum": ["json", "jsonl", "csv", "tsv", "vcf", "vcf_like"],
+            },
+            "format": {
+                "type": "string",
+                "enum": ["json", "jsonl", "csv", "tsv", "vcf", "vcf_like"],
+            },
+            "options": _pipeline_options_schema(),
+        },
+        "anyOf": [
+            {"required": ["records"]},
+            {"required": ["input_text"]},
+            {"required": ["text"]},
+            {"required": ["data"]},
+        ],
         "additionalProperties": False,
     }
 
@@ -1240,6 +1356,18 @@ def register_tools(registry: ToolRegistry) -> None:
             ),
             input_schema=_variant_input_schema(),
             handler=rate_variant,
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="rate_variant_batch",
+            description=(
+                "Parse JSON, JSONL, CSV/TSV, or minimal VCF-like batch input and run "
+                "the existing offline mock rate_variant pipeline independently for each "
+                "SNV/small indel record."
+            ),
+            input_schema=_batch_options_schema(),
+            handler=rate_variant_batch,
         )
     )
     registry.register(

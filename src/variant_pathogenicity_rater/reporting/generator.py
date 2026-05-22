@@ -109,6 +109,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
         human_review_note=HUMAN_REVIEW_NOTE,
         data_source_summary=_data_source_summary(result.evidence_items),
         review_flags=result.review_flags,
+        transcript_selection=result.transcript_selection,
     )
 
 
@@ -189,6 +190,11 @@ def _json_content(
             source.model_dump(mode="json") for source in summary.data_source_summary
         ],
         "review_flags": [flag.model_dump(mode="json") for flag in summary.review_flags],
+        "transcript_selection": (
+            summary.transcript_selection.model_dump(mode="json")
+            if summary.transcript_selection
+            else None
+        ),
         "human_review_required": True,
         "human_review_note": summary.human_review_note,
     }
@@ -222,6 +228,7 @@ def _text_content(
     ]
 
     lines.extend(_caution_lines(result, summary, language))
+    lines.extend(_transcript_selection_lines(summary))
 
     lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
     lines.extend(_conflicting_evidence_lines(summary))
@@ -293,6 +300,33 @@ def _evidence_chain_lines(
                 lines.append(f"  - Citation: {entry.citation}")
             if entry.provenance:
                 lines.append("  - Provenance: retained on evidence source")
+    return lines
+
+
+def _transcript_selection_lines(summary: VariantReportSummary) -> list[str]:
+    lines = ["", "## Transcript Selection"]
+    selection = summary.transcript_selection
+    if selection is None:
+        lines.append("- No transcript selection summary was supplied.")
+        return lines
+
+    lines.extend(
+        [
+            f"- Recommended transcript: {selection.selected_transcript or 'none'}",
+            f"- Gene: {selection.selected_gene or 'not provided'}",
+            f"- Reason: {selection.selection_reason}",
+            f"- Confidence: {selection.selection_confidence:.2f}",
+            "- Status: recommendation/review-note only; not ACMG evidence",
+            "- Human review required: true",
+        ]
+    )
+    if selection.review_flags:
+        lines.append(
+            "- Review flags: "
+            + ", ".join(flag.code for flag in selection.review_flags)
+        )
+    if selection.limitations:
+        lines.append("- Selection limitations: " + "; ".join(selection.limitations))
     return lines
 
 

@@ -1,21 +1,27 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from typing import Any
 
 from pydantic import ValidationError
 
+from variant_pathogenicity_rater.annotation.resolvers import OnlineVariantNormalizer
+from variant_pathogenicity_rater.schemas.common import ReviewFlag
 from variant_pathogenicity_rater.schemas.variant import (
     GenomeBuild,
     NormalizationResult,
     Transcript,
     Variant,
+    VariantIdentity,
     VariantType,
 )
 
 SUPPORTED_INPUT_FORMATS = {"hgvs", "vcf_like", "structured"}
 SMALL_INDEL_MAX_BP = 50
 ALLELE_RE = re.compile(r"^[ACGTN]+$", re.IGNORECASE)
+CHROM_RE = re.compile(r"^(?:[1-9]|1[0-9]|2[0-2]|X|Y|M|MT|unresolved)$", re.I)
 TRANSCRIPT_RE = re.compile(r"^(?P<accession>[A-Z]{2}_[0-9]+)(?:\.(?P<version>[0-9]+))?")
 HGVS_C_SUB_RE = re.compile(r":c\.(?P<pos>[-*]?\d+(?:[+-]\d+)?)(?P<ref>[ACGT])>(?P<alt>[ACGT])$", re.I)
 HGVS_C_DEL_RE = re.compile(r":c\.(?P<pos>[-*]?\d+(?:[+-]\d+)?)(?:_(?P<end>[-*]?\d+))?del(?P<seq>[ACGT]+)?$", re.I)
@@ -46,7 +52,11 @@ class NormalizationError(ValueError):
         self.unresolved_fields = unresolved_fields or []
 
 
-def normalize_variant(payload: dict[str, Any]) -> NormalizationResult:
+def normalize_variant(
+    payload: dict[str, Any],
+    *,
+    online_normalizer: OnlineVariantNormalizer | None = None,
+) -> NormalizationResult:
     """Normalize phase-1 HGVS-like or VCF-like variant input.
 
     This module deliberately avoids liftover, transcript mapping, and external API
@@ -59,22 +69,88 @@ def normalize_variant(payload: dict[str, Any]) -> NormalizationResult:
     data = _unwrap_variant(payload)
     input_format = _detect_input_format(data)
     warnings: list[str] = []
+    review_flags: list[str] = []
+    limitations: list[str] = []
     unresolved: list[str] = []
+    provenance: list[dict[str, Any]] = [
+        {
+            "source": "local_normalizer",
+            "version": "hgvs-normalization-v2",
+            "scope": "SNV/small-indel descriptive normalization",
+            "input_hash": _input_hash(data),
+        }
+    ]
 
     if input_format == "vcf_like":
-        variant = _normalize_vcf_like(data, warnings, unresolved)
+        variant = _normalize_vcf_like(data, warnings, review_flags, limitations, unresolved)
     elif input_format == "hgvs":
-        variant = _normalize_hgvs_like(data, warnings, unresolved)
+        variant = _normalize_hgvs_like(data, warnings, review_flags, limitations, unresolved)
     else:
-        variant = _normalize_structured(data, warnings, unresolved)
+        variant = _normalize_structured(data, warnings, review_flags, limitations, unresolved)
+
+    _check_conflicts(data, variant, warnings, review_flags, limitations)
+    _apply_online_normalizer(
+        data,
+        variant,
+        warnings,
+        review_flags,
+        limitations,
+        provenance,
+        online_normalizer=online_normalizer,
+    )
+    identity = build_variant_identity(
+        variant,
+        original_input=data,
+        normalization_status="normalized_with_review"
+        if review_flags or unresolved
+        else "normalized",
+        unresolved_fields=_unique(unresolved),
+        provenance=provenance,
+    )
 
     return NormalizationResult(
         status="normalized",
         input_format=input_format,
         normalized_variant=variant,
+        variant_identity=identity,
         normalization_warnings=_unique(warnings),
+        review_flags=_review_flag_models(_unique(review_flags)),
+        limitations=_unique(limitations),
         unresolved_fields=_unique(unresolved),
+        provenance=provenance,
         human_review_required=True,
+    )
+
+
+def build_variant_identity(
+    variant: Variant,
+    *,
+    original_input: dict[str, Any],
+    normalization_status: str,
+    unresolved_fields: list[str] | None = None,
+    provenance: list[dict[str, Any]] | None = None,
+) -> VariantIdentity:
+    chrom = _normalize_chrom(variant.chrom)
+    genomic_key = None
+    if chrom != "unresolved" and variant.pos >= 1 and variant.ref and variant.alt:
+        genomic_key = f"{chrom}-{variant.pos}-{variant.ref.upper()}-{variant.alt.upper()}"
+    transcript = _transcript_label(variant.transcript)
+    hgvs_key = f"{transcript}:{variant.hgvs_c}" if transcript and variant.hgvs_c else None
+    protein_key = f"{transcript}:{variant.hgvs_p}" if transcript and variant.hgvs_p else None
+    gene_variant_key = None
+    if variant.gene_symbol:
+        gene_variant_key = f"{variant.gene_symbol}:{hgvs_key or genomic_key or variant.variant_id}"
+    normalized_key = genomic_key or hgvs_key or gene_variant_key or f"input:{_input_hash(original_input)}"
+    return VariantIdentity(
+        normalized_variant_key=normalized_key,
+        genomic_key=genomic_key,
+        hgvs_key=hgvs_key,
+        protein_key=protein_key,
+        gene_variant_key=gene_variant_key,
+        input_hash=_input_hash(original_input),
+        normalization_status=normalization_status,
+        unresolved_fields=unresolved_fields or [],
+        provenance=provenance or [],
     )
 
 
@@ -103,17 +179,22 @@ def _detect_input_format(data: dict[str, Any]) -> str:
 
 
 def _normalize_vcf_like(
-    data: dict[str, Any], warnings: list[str], unresolved: list[str]
+    data: dict[str, Any],
+    warnings: list[str],
+    review_flags: list[str],
+    limitations: list[str],
+    unresolved: list[str],
 ) -> Variant:
     vcf = data.get("vcf", data)
     if not isinstance(vcf, dict):
         raise NormalizationError("The 'vcf' field must be an object.")
 
-    chrom = _string_field(vcf, "chrom", "chromosome", required=True)
+    chrom = _normalize_chrom(_string_field(vcf, "chrom", "chromosome", required=True))
     pos = _int_field(vcf, "pos", "position", required=True)
     ref = _allele_field(vcf, "ref", required=True)
     alt = _alt_field(vcf, required=True)
     genome_build = _genome_build(vcf)
+    pos, ref, alt = _trim_ref_alt(pos, ref, alt, warnings)
 
     variant_type = _classify_ref_alt(ref, alt)
     _reject_unsupported_ref_alt(ref, alt, variant_type)
@@ -135,14 +216,18 @@ def _normalize_vcf_like(
 
 
 def _normalize_structured(
-    data: dict[str, Any], warnings: list[str], unresolved: list[str]
+    data: dict[str, Any],
+    warnings: list[str],
+    review_flags: list[str],
+    limitations: list[str],
+    unresolved: list[str],
 ) -> Variant:
     if all(key in data for key in ("chrom", "pos", "ref", "alt")) or all(
         key in data for key in ("chromosome", "position", "ref", "alt")
     ):
-        return _normalize_vcf_like(data, warnings, unresolved)
+        return _normalize_vcf_like(data, warnings, review_flags, limitations, unresolved)
     if "hgvs_c" in data or "transcript" in data:
-        return _normalize_hgvs_like(data, warnings, unresolved)
+        return _normalize_hgvs_like(data, warnings, review_flags, limitations, unresolved)
     raise NormalizationError(
         "Input must include either VCF-like chrom/pos/ref/alt fields or HGVS-like transcript/hgvs_c fields.",
         code="SCHEMA_VALIDATION_ERROR",
@@ -151,7 +236,11 @@ def _normalize_structured(
 
 
 def _normalize_hgvs_like(
-    data: dict[str, Any], warnings: list[str], unresolved: list[str]
+    data: dict[str, Any],
+    warnings: list[str],
+    review_flags: list[str],
+    limitations: list[str],
+    unresolved: list[str],
 ) -> Variant:
     hgvs_c = _optional_str(data.get("hgvs_c") or data.get("hgvs"))
     hgvs_p = _optional_str(data.get("hgvs_p"))
@@ -171,6 +260,7 @@ def _normalize_hgvs_like(
         )
     if not hgvs_p:
         warnings.append("Missing hgvs_p; protein consequence is unresolved.")
+        limitations.append("Protein HGVS is missing; protein-level identity requires review.")
         unresolved.append("hgvs_p")
 
     parsed = _parse_hgvs_c(hgvs_c, warnings, unresolved)
@@ -180,7 +270,7 @@ def _normalize_hgvs_like(
     _reject_unsupported_ref_alt(ref, alt, variant_type)
 
     if "chrom" in data or "chromosome" in data:
-        chrom = _string_field(data, "chrom", "chromosome", required=True)
+        chrom = _normalize_chrom(_string_field(data, "chrom", "chromosome", required=True))
     else:
         chrom = "unresolved"
         unresolved.append("chrom")
@@ -297,6 +387,7 @@ def _build_variant(
     transcript: Transcript | None,
     warnings: list[str],
 ) -> Variant:
+    chrom = _normalize_chrom(chrom)
     variant_id = f"{genome_build}-{chrom}-{pos}-{ref}-{alt}"
     try:
         return Variant(
@@ -366,6 +457,155 @@ def _reject_unsupported_ref_alt(ref: str, alt: str, variant_type: VariantType) -
             "Phase 1 supports SNV and small indel variants up to 50 bp only.",
             code="UNSUPPORTED_VARIANT_TYPE",
         )
+
+
+def _trim_ref_alt(pos: int, ref: str, alt: str, warnings: list[str]) -> tuple[int, str, str]:
+    original = (pos, ref, alt)
+    while len(ref) > 1 and len(alt) > 1 and ref[-1] == alt[-1]:
+        ref = ref[:-1]
+        alt = alt[:-1]
+    while len(ref) > 1 and len(alt) > 1 and ref[0] == alt[0]:
+        ref = ref[1:]
+        alt = alt[1:]
+        pos += 1
+    if (pos, ref, alt) != original:
+        warnings.append("Common ref/alt sequence was trimmed for stable small-variant identity.")
+    return pos, ref, alt
+
+
+def _normalize_chrom(chrom: str) -> str:
+    value = chrom.strip()
+    if value.lower().startswith("chr"):
+        value = value[3:]
+    if value in {"m", "M"}:
+        value = "MT"
+    elif value.upper() in {"X", "Y", "MT", "UNRESOLVED"}:
+        value = value.upper().replace("UNRESOLVED", "unresolved")
+    if not CHROM_RE.fullmatch(value):
+        raise NormalizationError(
+            "Chromosome must be 1-22, X, Y, M/MT, or chr-prefixed equivalent.",
+            code="SCHEMA_VALIDATION_ERROR",
+            unresolved_fields=["chrom"],
+        )
+    return value
+
+
+def _check_conflicts(
+    data: dict[str, Any],
+    variant: Variant,
+    warnings: list[str],
+    review_flags: list[str],
+    limitations: list[str],
+) -> None:
+    hgvs_c = _optional_str(data.get("hgvs_c") or data.get("hgvs"))
+    transcript_value = _optional_str(data.get("transcript") or data.get("transcript_accession"))
+    if hgvs_c and transcript_value and ":" in hgvs_c:
+        hgvs_transcript = hgvs_c.split(":", 1)[0]
+        if _normalize_transcript_label(hgvs_transcript) != _normalize_transcript_label(transcript_value):
+            review_flags.append("TRANSCRIPT_MISMATCH")
+            warnings.append("Transcript field does not match the transcript embedded in HGVS c.; review required.")
+
+    if hgvs_c and variant.chrom != "unresolved" and variant.ref and variant.alt:
+        try:
+            parsed = _parse_hgvs_c(hgvs_c, [], [])
+        except NormalizationError:
+            parsed = None
+        if parsed and (parsed["ref"] != variant.ref or parsed["alt"] != variant.alt):
+            review_flags.append("HGVS_GENOMIC_MISMATCH")
+            warnings.append("HGVS c. allele does not match genomic ref/alt after local normalization; review required.")
+
+    gene = _optional_str(data.get("gene") or data.get("gene_symbol"))
+    transcript_gene = variant.transcript.gene_symbol if variant.transcript else None
+    if gene and transcript_gene and transcript_gene != "unknown" and gene.upper() != transcript_gene.upper():
+        review_flags.append("GENE_MISMATCH")
+        warnings.append("Input gene does not match transcript gene metadata; review required.")
+
+    if not variant.hgvs_p:
+        limitations.append("Protein HGVS is missing or unresolved; protein identity is incomplete.")
+
+
+def _apply_online_normalizer(
+    data: dict[str, Any],
+    variant: Variant,
+    warnings: list[str],
+    review_flags: list[str],
+    limitations: list[str],
+    provenance: list[dict[str, Any]],
+    *,
+    online_normalizer: OnlineVariantNormalizer | None,
+) -> None:
+    requested = bool(data.get("online_normalization") or data.get("use_online_normalizer"))
+    if online_normalizer is None and not requested:
+        limitations.append("Online variant normalization was disabled by default; no network access was attempted.")
+        provenance.append({"source": "online_variant_normalizer", "status": "disabled_by_default"})
+        return
+    resolver = online_normalizer or OnlineVariantNormalizer()
+    result = resolver.resolve(_online_query(data, variant))
+    limitations.extend(result.limitations)
+    if result.provenance is not None:
+        provenance.append(json.loads(result.provenance.model_dump_json()))
+    if result.resolved is None:
+        return
+    provenance.append({"source": "online_variant_normalizer", "status": "candidate", "cache_hit": result.cache_hit})
+    candidate = _extract_online_candidate(result.resolved)
+    confidence = _online_confidence(result.resolved)
+    if confidence < 0.9:
+        review_flags.append("ONLINE_NORMALIZER_CANDIDATE_LOW_CONFIDENCE")
+        warnings.append("Online normalizer result was retained as candidate context because confidence was not high.")
+        return
+    if candidate and _candidate_matches_variant(candidate, variant):
+        provenance.append({"source": "online_variant_normalizer", "status": "confirmed_high_confidence"})
+    else:
+        review_flags.append("ONLINE_NORMALIZER_CONFLICT")
+        warnings.append("High-confidence online normalizer candidate conflicted with user input; user input was preserved.")
+
+
+def _online_query(data: dict[str, Any], variant: Variant) -> dict[str, Any]:
+    return {
+        "input": data,
+        "genomic_key": f"{variant.chrom}-{variant.pos}-{variant.ref}-{variant.alt}",
+        "hgvs_c": variant.hgvs_c,
+        "hgvs_p": variant.hgvs_p,
+        "gene_symbol": variant.gene_symbol,
+    }
+
+
+def _extract_online_candidate(resolved: dict[str, Any]) -> dict[str, Any] | None:
+    record = resolved.get("record")
+    if isinstance(record, dict):
+        for key in ("normalized_variant", "variant", "candidate"):
+            value = record.get(key)
+            if isinstance(value, dict):
+                return value
+        return record
+    return None
+
+
+def _online_confidence(resolved: dict[str, Any]) -> float:
+    record = resolved.get("record")
+    raw = record.get("confidence") if isinstance(record, dict) else resolved.get("confidence")
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 0.5
+
+
+def _candidate_matches_variant(candidate: dict[str, Any], variant: Variant) -> bool:
+    chrom = _optional_str(candidate.get("chrom") or candidate.get("chromosome"))
+    pos = candidate.get("pos") or candidate.get("position")
+    ref = _optional_str(candidate.get("ref"))
+    alt = _optional_str(candidate.get("alt"))
+    if not all((chrom, pos, ref, alt)):
+        return False
+    try:
+        return (
+            _normalize_chrom(chrom or "") == variant.chrom
+            and int(pos) == variant.pos
+            and ref.upper() == variant.ref
+            and alt.upper() == variant.alt
+        )
+    except (TypeError, ValueError, NormalizationError):
+        return False
 
 
 def _genome_build(data: dict[str, Any]) -> GenomeBuild:
@@ -468,6 +708,40 @@ def _optional_str(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _transcript_label(transcript: Transcript | None) -> str | None:
+    if transcript is None:
+        return None
+    return f"{transcript.accession}.{transcript.version}" if transcript.version else transcript.accession
+
+
+def _normalize_transcript_label(transcript: str) -> str:
+    return transcript.strip().upper()
+
+
+def _input_hash(value: Any) -> str:
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _review_flag_models(codes: list[str]) -> list[ReviewFlag]:
+    messages = {
+        "TRANSCRIPT_MISMATCH": "Transcript field does not match the transcript embedded in HGVS c.",
+        "HGVS_GENOMIC_MISMATCH": "HGVS c. allele does not match genomic ref/alt after local normalization.",
+        "GENE_MISMATCH": "Input gene does not match transcript gene metadata.",
+        "ONLINE_NORMALIZER_CANDIDATE_LOW_CONFIDENCE": "Online normalizer result requires review before use.",
+        "ONLINE_NORMALIZER_CONFLICT": "Online normalizer candidate conflicts with preserved user input.",
+    }
+    return [
+        ReviewFlag(
+            code=code,
+            message=messages.get(code, "Normalization result requires human review."),
+            severity="warning",
+            blocking=False,
+        )
+        for code in codes
+    ]
 
 
 def _unique(values: list[str]) -> list[str]:

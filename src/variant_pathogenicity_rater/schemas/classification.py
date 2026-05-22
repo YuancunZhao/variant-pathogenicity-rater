@@ -6,6 +6,7 @@ from pydantic import Field
 
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag, SchemaModel
 from variant_pathogenicity_rater.schemas.evidence import EvidenceItem
+from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection
 from variant_pathogenicity_rater.schemas.variant import Variant
 
 
@@ -31,4 +32,5 @@ class ClassificationResult(SchemaModel):
     human_review_required: bool = True
     report_text: str = Field(..., min_length=1)
     review_flags: list[ReviewFlag] = Field(default_factory=list)
+    transcript_selection: TranscriptSelection | None = None
     audit_trail: list[AuditTrail] = Field(default_factory=list)

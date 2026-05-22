@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from variant_pathogenicity_rater.annotation import GenericTableAdapter, select_transcript
 from variant_pathogenicity_rater.acmg.combiner import classify_acmg
 from variant_pathogenicity_rater.acmg.computational_rules import evaluate_computational_predictions
 from variant_pathogenicity_rater.acmg.population_rules import evaluate_population_rules
@@ -33,6 +34,7 @@ from variant_pathogenicity_rater.normalization import NormalizationError, normal
 from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.schemas.common import AuditTrail
 from variant_pathogenicity_rater.schemas.evidence import ComputationalPrediction, EvidenceItem
+from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
 
 
@@ -68,6 +70,18 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     limitations.extend(normalization_result.normalization_warnings)
 
     context = _gene_disease_context(arguments, normalized_variant, limitations, audit_trail)
+
+    transcript_selection: TranscriptSelection | None = None
+    if _should_select_transcript(options):
+        transcript_selection = _run_step(
+            "select_transcript",
+            audit_trail,
+            limitations,
+            lambda: _select_transcript_step(options, normalized_variant),
+        )
+        if transcript_selection is not None:
+            limitations.extend(transcript_selection.limitations)
+            step_results["select_transcript"] = json.loads(transcript_selection.model_dump_json())
 
     population_frequency = None
     if options.get("include_population", True):
@@ -196,6 +210,11 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     )
     if classification_result is None:
         classification_result = classify_acmg([], normalized_variant, context, _unique(limitations))
+    classification_result.transcript_selection = transcript_selection
+    if transcript_selection is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *transcript_selection.review_flags]
+        )
     step_results["classify_acmg"] = json.loads(classification_result.model_dump_json())
 
     report = _run_step(
@@ -240,6 +259,11 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "classification_result": json.loads(classification_result.model_dump_json()),
         "evidence_items": [json.loads(item.model_dump_json()) for item in evidence_items],
         "final_classification": classification_result.final_classification,
+        "transcript_selection": (
+            json.loads(transcript_selection.model_dump_json())
+            if transcript_selection is not None
+            else None
+        ),
         "report_text": classification_result.report_text,
         "report": serialized_report,
         "limitations": classification_result.limitations,
@@ -389,6 +413,56 @@ def _evaluate_computational_step(
     )
 
 
+def _should_select_transcript(options: dict[str, Any]) -> bool:
+    return bool(
+        options.get("include_transcript_selection")
+        or options.get("annotations") is not None
+        or options.get("annotation_records") is not None
+        or options.get("annotation_text") is not None
+    )
+
+
+def _select_transcript_step(
+    options: dict[str, Any],
+    variant: Variant,
+) -> TranscriptSelection:
+    annotations = _annotation_records(options)
+    user_transcript = options.get("user_transcript") or _variant_transcript_label(variant)
+    return select_transcript(annotations, user_transcript=user_transcript)
+
+
+def _annotation_records(options: dict[str, Any]) -> list[VariantAnnotation]:
+    raw_annotations = options.get("annotations")
+    if isinstance(raw_annotations, list):
+        return [
+            VariantAnnotation.model_validate(annotation)
+            for annotation in raw_annotations
+            if isinstance(annotation, dict)
+        ]
+
+    raw_records = options.get("annotation_records")
+    if isinstance(raw_records, list):
+        result = GenericTableAdapter(source_version="pipeline-options").parse_records(
+            record for record in raw_records if isinstance(record, dict)
+        )
+        return result.annotations
+
+    annotation_text = options.get("annotation_text")
+    if isinstance(annotation_text, str):
+        result = GenericTableAdapter(source_version="pipeline-options").parse_text(annotation_text)
+        return result.annotations
+
+    return []
+
+
+def _variant_transcript_label(variant: Variant) -> str | None:
+    if variant.transcript is None:
+        return None
+    if variant.transcript.version:
+        return f"{variant.transcript.accession}.{variant.transcript.version}"
+    return variant.transcript.accession
+
+
 def _supplemental_evidence_items(
     options: dict[str, Any],
     variant: Variant,
@@ -462,3 +536,15 @@ def _audit(step_name: str, status: str, notes: list[str] | None = None) -> Audit
 
 def _unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(str(value) for value in values if value))
+
+
+def _unique_review_flags(flags: list[Any]) -> list[Any]:
+    seen: set[str] = set()
+    unique: list[Any] = []
+    for flag in flags:
+        code = getattr(flag, "code", None)
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        unique.append(flag)
+    return unique

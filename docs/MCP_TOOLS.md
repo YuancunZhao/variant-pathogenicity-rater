@@ -15,6 +15,7 @@ Phase 1 tools:
 
 - `health_check`
 - `rate_variant`
+- `rate_variant_batch`
 - `normalize_variant`
 - `query_clinvar`
 - `query_population_frequency`
@@ -123,6 +124,32 @@ Output includes `status`, `input_format`, `normalized_variant`,
 
 Malformed or unsupported variant input returns a structured MCP error from the
 normalizer. Unknown fields are rejected by schema validation.
+
+## rate_variant_batch
+
+Required input: either `records` as an array of record objects, or textual batch
+input through `input_text`, `text`, or `data`.
+
+Optional input:
+
+- `input_format` or `format`: `json`, `jsonl`, `csv`, `tsv`, `vcf`, or
+  `vcf_like`.
+- `batch_id`: caller-supplied batch identifier.
+- `options`: default options merged into each record before it is sent to the
+  existing `rate_variant` pipeline.
+
+Each record may use the same flat variant fields accepted by `rate_variant`.
+Batch mode does not change ACMG logic, does not merge evidence across variants,
+and does not relax safety rules. Malformed records, unsupported CNV/SV/repeat
+records, symbolic VCF alleles, multi-allelic ALT values, normalization failures,
+and per-record exceptions are returned as explicit `error` results and
+`failed_records`; no input row is skipped silently.
+
+Output includes `batch_id`, `total_records`, `succeeded`, `failed`, per-record
+`results`, `failed_records`, `warnings`, `limitations`, `started_at`, and
+`completed_at`. Successful records include the per-record
+`classification_result`, `review_required`, review flags, limitations, and
+normalized variant key when available.
 
 ## query_clinvar
 

@@ -24,10 +24,9 @@ class ServerConfig:
     def from_env(cls) -> "ServerConfig":
         return cls(
             server_name=os.getenv("VPR_SERVER_NAME", "variant-pathogenicity-rater"),
-            server_version=os.getenv("VPR_SERVER_VERSION", "0.1.0"),
+            server_version=os.getenv("VPR_SERVER_VERSION", "0.2.0-alpha1"),
             log_level=os.getenv("VPR_LOG_LEVEL", "INFO").upper(),
             tools_package=os.getenv("VPR_TOOLS_PACKAGE", "tools"),
             enable_health_tool=_env_bool("VPR_ENABLE_HEALTH_TOOL", True),
             environment=os.getenv("VPR_ENVIRONMENT", "development"),
         )
-

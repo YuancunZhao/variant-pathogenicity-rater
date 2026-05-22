@@ -43,6 +43,23 @@ class AnnotationParseResult(SchemaModel):
     limitations: list[str] = Field(default_factory=list)
 
 
+class TranscriptSelection(SchemaModel):
+    selected_transcript: str | None = None
+    selected_gene: str | None = None
+    selection_reason: str = Field(..., min_length=1)
+    selection_confidence: float = Field(..., ge=0, le=1)
+    candidate_transcripts: list[dict[str, Any]] = Field(default_factory=list)
+    rejected_transcripts: list[dict[str, Any]] = Field(default_factory=list)
+    mane_select_available: bool = False
+    canonical_available: bool = False
+    biologically_relevant_available: bool = False
+    user_transcript_provided: bool = False
+    user_transcript_matched: bool = False
+    review_flags: list[ReviewFlag] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    provenance: dict[str, Any] = Field(default_factory=dict)
+
+
 class OnlineResolutionResult(SchemaModel):
     resolved: dict[str, Any] | None = None
     provenance: ProvenanceMetadata | None = None

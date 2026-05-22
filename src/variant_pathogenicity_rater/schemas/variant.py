@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from typing import Any
+
 from pydantic import AliasChoices, Field, model_validator
 
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag, SchemaModel
@@ -78,12 +80,28 @@ class Variant(SchemaModel):
         return self
 
 
+class VariantIdentity(SchemaModel):
+    normalized_variant_key: str = Field(..., min_length=1)
+    genomic_key: str | None = None
+    hgvs_key: str | None = None
+    protein_key: str | None = None
+    gene_variant_key: str | None = None
+    input_hash: str = Field(..., min_length=1)
+    normalization_status: str = Field(..., min_length=1)
+    unresolved_fields: list[str] = Field(default_factory=list)
+    provenance: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class NormalizationResult(SchemaModel):
     status: str = Field(..., pattern="^(normalized|rejected)$")
     input_format: str = Field(..., min_length=1)
     normalized_variant: Variant | None = None
+    variant_identity: VariantIdentity | None = None
     normalization_warnings: list[str] = Field(default_factory=list)
+    review_flags: list[ReviewFlag] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
     unresolved_fields: list[str] = Field(default_factory=list)
+    provenance: list[dict[str, Any]] = Field(default_factory=list)
     human_review_required: bool = True
 
 

@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from variant_pathogenicity_rater.acmg.combiner import classify_acmg
+from variant_pathogenicity_rater.annotation import OnlineResolverConfig, OnlineVariantNormalizer
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
+from variant_pathogenicity_rater.schemas import GeneDiseaseContext
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +36,11 @@ def test_normalize_vcf_like_snv() -> None:
     assert result.normalized_variant.variant_id == "GRCh38-7-140453136-A-T"
     assert result.unresolved_fields == []
     assert result.human_review_required is True
+    assert result.variant_identity is not None
+    assert result.variant_identity.genomic_key == "7-140453136-A-T"
+    assert result.variant_identity.normalized_variant_key == "7-140453136-A-T"
+    assert result.variant_identity.input_hash
+    assert result.variant_identity.provenance
 
 
 def test_normalize_vcf_like_small_deletion_preserves_transcript() -> None:
@@ -92,6 +100,116 @@ def test_missing_transcript_and_hgvs_p_are_warnings() -> None:
 def test_multiallelic_input_is_rejected() -> None:
     with pytest.raises(NormalizationError, match="Multi-allelic"):
         normalize_variant({"chrom": "1", "pos": 10, "ref": "A", "alt": "C,G"})
+
+
+def test_insertion_deletion_trimming_and_chr_prefix_normalization() -> None:
+    result = normalize_variant({"chrom": "chr13", "pos": 100, "ref": "CAT", "alt": "CA"})
+
+    variant = result.normalized_variant
+    assert variant is not None
+    assert variant.chrom == "13"
+    assert variant.pos == 101
+    assert variant.ref == "AT"
+    assert variant.alt == "A"
+    assert result.variant_identity is not None
+    assert result.variant_identity.genomic_key == "13-101-AT-A"
+    assert any("trimmed" in warning for warning in result.normalization_warnings)
+
+
+def test_hgvs_genomic_conflict_is_review_flag() -> None:
+    result = normalize_variant(
+        {
+            "chrom": "1",
+            "pos": 10,
+            "ref": "A",
+            "alt": "G",
+            "transcript": "NM_000001.1",
+            "hgvs_c": "NM_000001.1:c.10A>T",
+            "gene_symbol": "GENE1",
+        }
+    )
+
+    assert "HGVS_GENOMIC_MISMATCH" in {flag.code for flag in result.review_flags}
+
+
+def test_user_transcript_is_preserved_when_hgvs_differs() -> None:
+    result = normalize_variant(
+        {
+            "transcript": "NM_000001.1",
+            "hgvs_c": "NM_000002.1:c.10A>G",
+            "gene_symbol": "GENE1",
+        }
+    )
+
+    variant = result.normalized_variant
+    assert variant is not None
+    assert variant.transcript is not None
+    assert variant.transcript.accession == "NM_000001"
+    assert "TRANSCRIPT_MISMATCH" in {flag.code for flag in result.review_flags}
+
+
+def test_online_normalizer_disabled_by_default() -> None:
+    result = normalize_variant({"chrom": "1", "pos": 10, "ref": "A", "alt": "G"})
+
+    assert any("disabled by default" in limitation for limitation in result.limitations)
+    assert any(item["source"] == "online_variant_normalizer" for item in result.provenance)
+
+
+def test_mocked_online_normalizer_success_and_failure(tmp_path) -> None:
+    def fetcher(_query: dict[str, object], _timeout_seconds: float) -> dict[str, object]:
+        return {
+            "confidence": 0.95,
+            "normalized_variant": {"chrom": "1", "pos": 10, "ref": "A", "alt": "G"},
+        }
+
+    resolver = OnlineVariantNormalizer(
+        OnlineResolverConfig(
+            name="normalizer",
+            enabled=True,
+            online_enabled=True,
+            cache_dir=str(tmp_path / "cache"),
+        ),
+        fetcher=fetcher,
+    )
+    success = normalize_variant(
+        {"chrom": "1", "pos": 10, "ref": "A", "alt": "G"},
+        online_normalizer=resolver,
+    )
+
+    assert "ONLINE_NORMALIZER_CONFLICT" not in {flag.code for flag in success.review_flags}
+    assert any(item.get("status") == "confirmed_high_confidence" for item in success.provenance)
+
+    def failing_fetcher(_query: dict[str, object], _timeout_seconds: float) -> dict[str, object]:
+        raise TimeoutError("offline test timeout")
+
+    failing_resolver = OnlineVariantNormalizer(
+        OnlineResolverConfig(
+            name="normalizer",
+            enabled=True,
+            online_enabled=True,
+            cache_dir=str(tmp_path / "failing-cache"),
+        ),
+        fetcher=failing_fetcher,
+    )
+    failure = normalize_variant(
+        {"chrom": "1", "pos": 10, "ref": "A", "alt": "G"},
+        online_normalizer=failing_resolver,
+    )
+
+    assert failure.status == "normalized"
+    assert any("TimeoutError" in limitation for limitation in failure.limitations)
+
+
+def test_normalization_does_not_change_classification() -> None:
+    raw = {"chrom": "chr1", "pos": 10, "ref": "A", "alt": "G", "gene_symbol": "GENE1"}
+    normalized = normalize_variant(raw).normalized_variant
+    assert normalized is not None
+
+    context = GeneDiseaseContext(gene_symbol="GENE1", disease_name="Example disease")
+    before = classify_acmg([], normalized, context)
+    after = classify_acmg([], normalized, context)
+
+    assert before.final_classification == after.final_classification == "vus"
 
 
 def test_invalid_ref_alt_is_rejected() -> None:
