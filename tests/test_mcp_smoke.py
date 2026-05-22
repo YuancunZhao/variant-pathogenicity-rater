@@ -58,6 +58,113 @@ def test_mcp_jsonrpc_initialize_and_list_tools() -> None:
     assert any(tool["name"] == "normalize_variant" for tool in listed["result"]["tools"])
 
 
+def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
+    schemas = {
+        tool["name"]: tool["inputSchema"]
+        for tool in _server().list_tools()["tools"]
+        if tool["name"]
+        in {
+            "health_check",
+            "rate_variant",
+            "normalize_variant",
+            "query_clinvar",
+            "query_population_frequency",
+            "evaluate_pvs1",
+            "evaluate_computational_evidence",
+            "search_literature_evidence",
+            "generate_report",
+        }
+    }
+
+    assert schemas
+    assert all(schema["additionalProperties"] is False for schema in schemas.values())
+    assert schemas["generate_report"]["properties"]["format"]["enum"] == [
+        "markdown",
+        "plain_text",
+        "json",
+    ]
+    assert schemas["evaluate_computational_evidence"]["properties"]["thresholds"][
+        "additionalProperties"
+    ] is False
+
+
+def test_mcp_unknown_extra_field_is_rejected_with_structured_error() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 31,
+        "method": "tools/call",
+        "params": {
+            "name": "normalize_variant",
+            "arguments": {
+                "gene": "GENE1",
+                "transcript": "NM_000001.1",
+                "hgvs_c": "NM_000001.1:c.76A>G",
+                "unexpected_extra": True,
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+
+    assert response["error"]["data"]["code"] == "SCHEMA_VALIDATION_ERROR"
+    assert response["error"]["data"]["recoverable"] is True
+    assert any("unexpected_extra" in item for item in response["error"]["data"]["details"]["errors"])
+
+
+def test_mcp_invalid_input_returns_structured_error_not_crash() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 32,
+        "method": "tools/call",
+        "params": {
+            "name": "query_population_frequency",
+            "arguments": {},
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+
+    assert response["id"] == 32
+    assert response["error"]["data"]["code"] == "SCHEMA_VALIDATION_ERROR"
+    assert "variant" in json.dumps(response["error"]["data"]["details"]["errors"])
+
+
+def test_mcp_designated_flexible_mock_options_are_accepted() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 33,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant",
+            "arguments": {
+                "gene": "GENE1",
+                "transcript": "NM_000001.1",
+                "hgvs_c": "NM_000001.1:c.76A>G",
+                "disease": "GENE1-related disorder",
+                "options": {
+                    "include_population": False,
+                    "include_computational": False,
+                    "include_clinvar": False,
+                    "include_literature": False,
+                    "clinvar_records": [
+                        {
+                            "vendor_specific_shape": {
+                                "nested": ["allowed", "inside", "mock", "record"]
+                            }
+                        }
+                    ],
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert tool_payload["status"] == "ok"
+    assert tool_payload["tool"] == "rate_variant"
+
+
 def test_mcp_generate_report_tool_smoke(
     snv_variant: Variant,
     lof_context: GeneDiseaseContext,

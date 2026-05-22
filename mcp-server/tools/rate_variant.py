@@ -578,29 +578,544 @@ async def generate_report(arguments: dict[str, Any]) -> dict[str, Any]:
     return response
 
 
-def _variant_input_schema() -> dict[str, Any]:
+def _string_array_schema() -> dict[str, Any]:
+    return {"type": "array", "items": {"type": "string"}}
+
+
+def _open_object_schema(description: str | None = None) -> dict[str, Any]:
+    schema: dict[str, Any] = {"type": "object", "additionalProperties": True}
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def _audit_trail_schema() -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "variant": {
-                "type": "object",
-                "description": "HGVS or VCF-like variant input. SNV/small indel scope only.",
-                "additionalProperties": True,
-            },
-            "options": {
-                "type": "object",
-                "additionalProperties": True,
-            },
+            "event_id": {"type": "string"},
+            "event_type": {"type": "string"},
+            "timestamp": {"type": "string"},
+            "actor": {"type": "string"},
+            "tool_name": {"type": ["string", "null"]},
+            "query": _open_object_schema("Flexible source query snapshot."),
+            "source_snapshot": _open_object_schema("Flexible source payload snapshot."),
+            "checksum": {"type": ["string", "null"]},
+            "notes": _string_array_schema(),
         },
-        "additionalProperties": True,
+        "required": ["event_id", "event_type"],
+        "additionalProperties": False,
     }
 
 
-def _generic_input_schema() -> dict[str, Any]:
+def _review_flag_schema() -> dict[str, Any]:
     return {
         "type": "object",
-        "properties": {},
-        "additionalProperties": True,
+        "properties": {
+            "code": {"type": "string"},
+            "message": {"type": "string"},
+            "severity": {"type": "string", "enum": ["info", "warning", "error"]},
+            "blocking": {"type": "boolean"},
+            "audit_trail": {"type": "array", "items": _audit_trail_schema()},
+        },
+        "required": ["code", "message"],
+        "additionalProperties": False,
+    }
+
+
+def _source_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "version": {"type": ["string", "null"]},
+            "url": {"type": ["string", "null"]},
+            "database_id": {"type": ["string", "null"]},
+            "retrieval_timestamp": {"type": ["string", "null"]},
+            "query": _open_object_schema("Flexible provider query metadata."),
+            "raw_snapshot_ref": {"type": ["string", "null"]},
+            "provenance": {},
+        },
+        "required": ["name"],
+        "additionalProperties": False,
+    }
+
+
+def _transcript_schema(description: str | None = None) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "accession": {"type": "string"},
+            "version": {"type": ["string", "null"]},
+            "gene_symbol": {"type": "string"},
+            "hgvs_c": {"type": ["string", "null"]},
+            "hgvs_p": {"type": ["string", "null"]},
+            "exon": {"type": ["string", "null"]},
+            "consequence": {"type": ["string", "null"]},
+            "mane_select": {"type": "boolean"},
+            "canonical": {"type": "boolean"},
+        },
+        "required": ["accession", "gene_symbol"],
+        "additionalProperties": False,
+    }
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def _variant_schema(description: str | None = None) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "variant_id": {"type": "string"},
+            "genome_build": {"type": "string", "enum": ["GRCh37", "GRCh38"]},
+            "variant_type": {
+                "type": "string",
+                "enum": ["snv", "small_insertion", "small_deletion", "small_delins"],
+            },
+            "chrom": {"type": "string"},
+            "pos": {"type": "integer", "minimum": 1},
+            "ref": {"type": "string"},
+            "alt": {"type": "string"},
+            "gene_symbol": {"type": ["string", "null"]},
+            "transcript": {"oneOf": [_transcript_schema(), {"type": "null"}]},
+            "hgvs_g": {"type": ["string", "null"]},
+            "hgvs_c": {"type": ["string", "null"]},
+            "hgvs_p": {"type": ["string", "null"]},
+            "zygosity": {
+                "type": "string",
+                "enum": ["heterozygous", "homozygous", "hemizygous", "unknown"],
+            },
+            "normalization_warnings": _string_array_schema(),
+            "review_flags": {"type": "array", "items": _review_flag_schema()},
+            "audit_trail": {"type": "array", "items": _audit_trail_schema()},
+        },
+        "required": ["variant_id", "genome_build", "variant_type", "chrom", "pos", "ref", "alt"],
+        "additionalProperties": False,
+    }
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def _last_exon_information_schema() -> dict[str, Any]:
+    nullable_bool = {"type": ["boolean", "null"]}
+    return {
+        "type": "object",
+        "properties": {
+            "is_in_last_exon": nullable_bool,
+            "is_in_penultimate_exon": nullable_bool,
+            "exon_number": {"type": ["integer", "null"]},
+            "total_exons": {"type": ["integer", "null"]},
+            "distance_to_last_exon_junction": {"type": ["integer", "null"]},
+            "within_terminal_region": nullable_bool,
+            "predicted_to_escape_nmd": nullable_bool,
+            "affects_critical_region": nullable_bool,
+        },
+        "additionalProperties": False,
+    }
+
+
+def _gene_disease_context_schema(description: str | None = None) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "gene_symbol": {"type": "string"},
+            "gene": {"type": "string"},
+            "disease_name": {"type": "string"},
+            "disease": {"type": "string"},
+            "disease_id": {"type": ["string", "null"]},
+            "inheritance_mode": {"type": ["string", "null"]},
+            "inheritance": {"type": ["string", "null"]},
+            "disease_prevalence": {"type": ["number", "null"]},
+            "population_ancestry": {"type": ["string", "null"]},
+            "phenotype_terms": _string_array_schema(),
+            "transcript": {"oneOf": [_transcript_schema(), {"type": "null"}]},
+            "lof_is_known_mechanism": {"type": ["boolean", "null"]},
+            "transcript_is_biologically_relevant": {"type": ["boolean", "null"]},
+            "last_exon_information": {"oneOf": [_last_exon_information_schema(), {"type": "null"}]},
+            "nmd_prediction_available": {"type": "boolean"},
+            "nmd_predicted": {"type": ["boolean", "null"]},
+            "source": {"type": ["string", "null"]},
+            "audit_trail": {"type": "array", "items": _audit_trail_schema()},
+        },
+        "anyOf": [
+            {"required": ["gene_symbol", "disease_name"]},
+            {"required": ["gene", "disease"]},
+            {"required": ["gene_symbol", "disease"]},
+            {"required": ["gene", "disease_name"]},
+        ],
+        "additionalProperties": False,
+    }
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def _normalization_properties() -> dict[str, Any]:
+    return {
+        "input_type": {"type": "string", "enum": ["hgvs", "vcf_like", "structured"]},
+        "format": {"type": "string", "enum": ["hgvs", "vcf_like", "structured"]},
+        "gene": {"type": "string"},
+        "gene_symbol": {"type": "string"},
+        "transcript": {"type": "string"},
+        "transcript_accession": {"type": "string"},
+        "hgvs": {"type": "string"},
+        "value": {"type": "string"},
+        "hgvs_g": {"type": "string"},
+        "hgvs_c": {"type": "string"},
+        "hgvs_p": {"type": "string"},
+        "chrom": {"type": "string"},
+        "chromosome": {"type": "string"},
+        "pos": {"type": "integer", "minimum": 1},
+        "position": {"type": "integer", "minimum": 1},
+        "ref": {"type": "string"},
+        "alt": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]},
+        "genome_build": {"type": "string", "enum": ["GRCh37", "GRCh38"]},
+    }
+
+
+def _normalization_payload_schema(description: str | None = None) -> dict[str, Any]:
+    schema = {
+        "type": "object",
+        "properties": _normalization_properties(),
+        "additionalProperties": False,
+    }
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def _clinvar_query_properties() -> dict[str, Any]:
+    return {
+        "gene": {"type": ["string", "null"]},
+        "gene_symbol": {"type": ["string", "null"]},
+        "hgvs_c": {"type": ["string", "null"]},
+        "hgvs_p": {"type": ["string", "null"]},
+        "rsid": {"type": ["string", "null"]},
+        "rsID": {"type": ["string", "null"]},
+        "variation_id": {"type": ["string", "null"]},
+        "clinvar_variation_id": {"type": ["string", "null"]},
+        "variationID": {"type": ["string", "null"]},
+        "chromosome": {"type": ["string", "null"]},
+        "chrom": {"type": ["string", "null"]},
+        "position": {"type": ["integer", "null"]},
+        "pos": {"type": ["integer", "null"]},
+        "ref": {"type": ["string", "null"]},
+        "alt": {"type": ["string", "null"]},
+        "genome_build": {"type": ["string", "null"]},
+        "condition": {"type": ["string", "null"]},
+    }
+
+
+def _clinvar_query_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": _clinvar_query_properties(),
+        "additionalProperties": False,
+    }
+
+
+def _population_frequency_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "source": {"oneOf": [_source_schema(), {"type": "null"}]},
+            "overall_af": {"type": ["number", "null"]},
+            "max_pop_af": {"type": ["number", "null"]},
+            "population_name": {"type": "string"},
+            "allele_count": {"type": ["integer", "null"]},
+            "allele_number": {"type": ["integer", "null"]},
+            "homozygote_count": {"type": ["integer", "null"]},
+            "hemizygote_count": {"type": ["integer", "null"]},
+            "data_source": {"type": "string"},
+            "filter_status": {"type": ["string", "null"]},
+            "data_version": {"type": ["string", "null"]},
+            "is_absent": {"type": "boolean"},
+            "faf95": {"type": ["number", "null"]},
+            "filtering_af": {"type": ["number", "null"]},
+            "genome_build": {"type": ["string", "null"]},
+            "dataset_version": {"type": ["string", "null"]},
+            "coverage_quality": {"type": ["string", "null"]},
+            "population_match": {"type": ["boolean", "null"]},
+            "limitations": _string_array_schema(),
+        },
+        "required": ["population_name", "data_source"],
+        "additionalProperties": False,
+    }
+
+
+def _splice_prediction_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "source": _source_schema(),
+            "DS_AG": {"type": ["number", "null"]},
+            "DS_AL": {"type": ["number", "null"]},
+            "DS_DG": {"type": ["number", "null"]},
+            "DS_DL": {"type": ["number", "null"]},
+            "max_delta_score": {"type": "number"},
+            "predicted_consequence": {"type": "string"},
+            "affected_gene": {"type": "string"},
+            "transcript": {"type": ["string", "null"]},
+            "source_version": {"type": ["string", "null"]},
+            "genome_build": {"type": ["string", "null"]},
+            "provenance": {},
+            "candidate_only": {"type": "boolean"},
+            "limitations": _string_array_schema(),
+        },
+        "required": ["source", "max_delta_score", "predicted_consequence", "affected_gene"],
+        "additionalProperties": False,
+    }
+
+
+def _computational_prediction_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "source": _source_schema(),
+            "method": {"type": "string"},
+            "score": {"type": ["number", "null"]},
+            "prediction": {"type": "string"},
+            "threshold": {"type": ["number", "null"]},
+            "transcript": {"type": ["string", "null"]},
+            "candidate_only": {"type": "boolean"},
+            "limitations": _string_array_schema(),
+            "splice_prediction": {"oneOf": [_splice_prediction_schema(), {"type": "null"}]},
+        },
+        "required": ["source", "method", "prediction"],
+        "additionalProperties": False,
+    }
+
+
+def _computational_thresholds_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "description": "Optional configurable PP3/BP4 thresholds.",
+        "properties": {
+            "min_pathogenic_supporting_tools": {"type": "integer"},
+            "min_benign_supporting_tools": {"type": "integer"},
+            "revel_pathogenic": {"type": "number"},
+            "revel_benign": {"type": "number"},
+            "cadd_pathogenic": {"type": "number"},
+            "cadd_benign": {"type": "number"},
+            "sift_pathogenic": {"type": "number"},
+            "sift_benign": {"type": "number"},
+            "polyphen2_pathogenic": {"type": "number"},
+            "polyphen2_benign": {"type": "number"},
+            "spliceai_pathogenic": {"type": "number"},
+            "spliceai_benign": {"type": "number"},
+        },
+        "additionalProperties": False,
+    }
+
+
+def _evidence_code_values() -> list[str]:
+    return [
+        "PVS1", "PS1", "PS2", "PS3", "PS4", "PM1", "PM2", "PM3",
+        "PM4", "PM5", "PM6", "PP1", "PP2", "PP3", "PP4", "PP5",
+        "BA1", "BS1", "BS2", "BS3", "BS4", "BP1", "BP2", "BP3",
+        "BP4", "BP5", "BP6", "BP7",
+    ]
+
+
+def _evidence_item_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "evidence_id": {"type": "string"},
+            "code": {"type": "string", "enum": _evidence_code_values()},
+            "strength": {
+                "type": "string",
+                "enum": ["stand_alone", "very_strong", "strong", "moderate", "supporting", "none"],
+            },
+            "direction": {
+                "type": "string",
+                "enum": ["pathogenic", "benign", "neutral", "conflicting"],
+            },
+            "reason": {"type": "string"},
+            "source": _source_schema(),
+            "confidence": {"type": "number"},
+            "requires_review": {"type": "boolean"},
+            "triggered_by": _string_array_schema(),
+            "supporting_data": _open_object_schema("Flexible evidence-specific supporting data."),
+            "audit_trail": {"type": "array", "items": _audit_trail_schema()},
+            "review_flags": {"type": "array", "items": _review_flag_schema()},
+        },
+        "required": ["evidence_id", "code", "strength", "direction", "reason", "source", "confidence"],
+        "additionalProperties": False,
+    }
+
+
+def _classification_result_schema(description: str | None = None) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {
+            "result_id": {"type": "string"},
+            "variant": _variant_schema(),
+            "final_classification": {
+                "type": "string",
+                "enum": ["pathogenic", "likely_pathogenic", "vus", "likely_benign", "benign"],
+            },
+            "evidence_items": {"type": "array", "items": _evidence_item_schema()},
+            "applied_combination_rule": {"type": ["string", "null"]},
+            "pathogenic_evidence_summary": _string_array_schema(),
+            "benign_evidence_summary": _string_array_schema(),
+            "conflicting_evidence": _string_array_schema(),
+            "limitations": _string_array_schema(),
+            "confidence": {"type": "number"},
+            "human_review_required": {"type": "boolean"},
+            "report_text": {"type": "string"},
+            "review_flags": {"type": "array", "items": _review_flag_schema()},
+            "audit_trail": {"type": "array", "items": _audit_trail_schema()},
+        },
+        "required": ["result_id", "variant", "final_classification", "confidence", "report_text"],
+        "additionalProperties": False,
+    }
+    if description:
+        schema["description"] = description
+    return schema
+
+
+def _data_sources_override_schema() -> dict[str, Any]:
+    source_override = {
+        "type": "object",
+        "properties": {
+            "mode": {"type": "string", "enum": ["mock", "online", "disabled"]},
+            "timeout_seconds": {"type": "number"},
+            "cache_enabled": {"type": "boolean"},
+            "endpoint": {"type": ["string", "null"]},
+            "api_key_env": {"type": ["string", "null"]},
+            "fixture_path": {"type": ["string", "null"]},
+        },
+        "additionalProperties": False,
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "clinvar": source_override,
+            "population": source_override,
+            "computational": source_override,
+            "literature": source_override,
+        },
+        "additionalProperties": False,
+    }
+
+
+def _pipeline_options_schema() -> dict[str, Any]:
+    population_fixture = _population_frequency_schema()
+    population_fixture = {
+        **population_fixture,
+        "description": "Single mock population fixture. Must include variant_id.",
+        "properties": {**population_fixture["properties"], "variant_id": {"type": "string"}},
+        "required": ["variant_id", "population_name", "data_source"],
+    }
+    return {
+        "type": "object",
+        "description": "Designated flexible wrapper for mock fixtures and per-run options.",
+        "properties": {
+            "mock_mode": {"type": "boolean"},
+            "include_population": {"type": "boolean"},
+            "include_computational": {"type": "boolean"},
+            "include_clinvar": {"type": "boolean"},
+            "include_literature": {"type": "boolean"},
+            "data_sources": _data_sources_override_schema(),
+            "population_frequency": population_fixture,
+            "population_thresholds": {
+                "type": "object",
+                "properties": {
+                    "disease_specific": {"type": "boolean"},
+                    "penetrance_provided": {"type": "boolean"},
+                    "ba1_af_threshold": {"type": "number"},
+                    "bs1_af_threshold": {"type": "number"},
+                    "pm2_af_threshold": {"type": "number"},
+                    "min_allele_number": {"type": "integer"},
+                    "high_confidence": {"type": "number"},
+                    "missing_context_confidence_penalty": {"type": "number"},
+                    "warning_confidence_penalty": {"type": "number"},
+                    "founder_populations": _string_array_schema(),
+                },
+                "additionalProperties": False,
+            },
+            "computational_predictions": {"type": "array", "items": _computational_prediction_schema()},
+            "computational_thresholds": _computational_thresholds_schema(),
+            "clinvar_records": {
+                "type": "array",
+                "items": _open_object_schema("Flexible mock ClinVar raw record."),
+            },
+            "literature_records": {
+                "type": "array",
+                "items": _open_object_schema("Flexible mock literature raw record."),
+            },
+            "mock_supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
+            "supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
+            "gene_disease_context": _gene_disease_context_schema(),
+        },
+        "additionalProperties": False,
+    }
+
+
+def _variant_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "anyOf": [
+            {"required": ["variant"]},
+            {"required": ["hgvs_c"]},
+            {"required": ["hgvs"]},
+            {"required": ["value"]},
+            {"required": ["chrom", "pos", "ref", "alt"]},
+            {"required": ["chromosome", "position", "ref", "alt"]},
+        ],
+        "properties": {
+            **_normalization_properties(),
+            "variant": _normalization_payload_schema(
+                "HGVS or VCF-like variant input. SNV/small indel scope only."
+            ),
+            "gene_disease_context": _gene_disease_context_schema(),
+            "context": _gene_disease_context_schema(),
+            "disease": {"type": "string"},
+            "inheritance": {"type": ["string", "null"]},
+            "phenotype": _string_array_schema(),
+            "phenotype_terms": _string_array_schema(),
+            "options": _pipeline_options_schema(),
+        },
+        "additionalProperties": False,
+    }
+
+
+def _query_clinvar_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "query": _clinvar_query_schema(),
+            "variant": _variant_schema(),
+            "normalized_variant": _variant_schema(),
+            **_clinvar_query_properties(),
+        },
+        "additionalProperties": False,
+    }
+
+
+def _population_frequency_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {"variant": _variant_schema()},
+        "required": ["variant"],
+        "additionalProperties": False,
+    }
+
+
+def _population_rules_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "variant": _variant_schema(),
+            "gene_disease_context": _gene_disease_context_schema(),
+            "population_frequency": _population_frequency_schema(),
+            "thresholds": _pipeline_options_schema()["properties"]["population_thresholds"],
+        },
+        "required": ["variant", "gene_disease_context", "population_frequency"],
+        "additionalProperties": False,
     }
 
 
@@ -608,24 +1123,18 @@ def _computational_evidence_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "variant": {
-                "type": "object",
-                "description": "Normalized SNV/small indel Variant payload.",
-                "additionalProperties": True,
-            },
+            "variant": _variant_schema("Normalized SNV/small indel Variant payload."),
             "computational_predictions": {
                 "type": "array",
                 "description": "Mock ComputationalPrediction records.",
-                "items": {"type": "object", "additionalProperties": True},
+                "items": _computational_prediction_schema(),
             },
-            "thresholds": {
-                "type": "object",
-                "description": "Optional configurable PP3/BP4 thresholds.",
-                "additionalProperties": True,
-            },
+            "predictions": {"type": "array", "items": _computational_prediction_schema()},
+            "evidence_items": {"type": "array", "items": _computational_prediction_schema()},
+            "thresholds": _computational_thresholds_schema(),
         },
         "required": ["variant"],
-        "additionalProperties": True,
+        "additionalProperties": False,
     }
 
 
@@ -633,24 +1142,16 @@ def _pvs1_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "variant": {
-                "type": "object",
-                "description": "Normalized SNV/small indel Variant payload.",
-                "additionalProperties": True,
-            },
-            "transcript": {
-                "type": "object",
-                "description": "Transcript payload used for consequence and clinical relevance assessment.",
-                "additionalProperties": True,
-            },
-            "gene_disease_context": {
-                "type": "object",
-                "description": "Gene-disease context including LoF mechanism, transcript relevance, last-exon, and NMD data.",
-                "additionalProperties": True,
-            },
+            "variant": _variant_schema("Normalized SNV/small indel Variant payload."),
+            "transcript": _transcript_schema(
+                "Transcript payload used for consequence and clinical relevance assessment."
+            ),
+            "gene_disease_context": _gene_disease_context_schema(
+                "Gene-disease context including LoF mechanism, transcript relevance, last-exon, and NMD data."
+            ),
         },
         "required": ["variant", "gene_disease_context"],
-        "additionalProperties": True,
+        "additionalProperties": False,
     }
 
 
@@ -658,19 +1159,16 @@ def _literature_evidence_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "variant": {
-                "type": "object",
-                "description": "Normalized SNV/small indel Variant payload.",
-                "additionalProperties": True,
-            },
-            "gene_disease_context": {
-                "type": "object",
-                "description": "Optional gene-disease and phenotype context for review notes.",
-                "additionalProperties": True,
-            },
+            "variant": _variant_schema("Normalized SNV/small indel Variant payload."),
+            "gene_disease_context": _gene_disease_context_schema(
+                "Optional gene-disease and phenotype context for review notes."
+            ),
+            "context": _gene_disease_context_schema(
+                "Alias for gene_disease_context."
+            ),
         },
         "required": ["variant"],
-        "additionalProperties": True,
+        "additionalProperties": False,
     }
 
 
@@ -678,11 +1176,11 @@ def _generate_report_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {
-            "classification_result": {
-                "type": "object",
-                "description": "ClassificationResult payload to render. Criteria are not recalculated.",
-                "additionalProperties": True,
-            },
+            "classification_result": _classification_result_schema(
+                "ClassificationResult payload to render. Criteria are not recalculated."
+            ),
+            "result": _classification_result_schema("Alias for classification_result."),
+            "classification": _classification_result_schema("Alias for classification_result."),
             "format": {
                 "type": "string",
                 "enum": ["markdown", "plain_text", "json"],
@@ -699,43 +1197,35 @@ def _generate_report_input_schema() -> dict[str, Any]:
                 "description": "English is complete. Chinese is reserved for future localization.",
             },
         },
-        "required": ["classification_result"],
-        "additionalProperties": True,
+        "anyOf": [
+            {"required": ["classification_result"]},
+            {"required": ["result"]},
+            {"required": ["classification"]},
+        ],
+        "additionalProperties": False,
     }
 
 
 def _normalize_variant_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
+        "anyOf": [
+            {"required": ["variant"]},
+            {"required": ["hgvs_c"]},
+            {"required": ["hgvs"]},
+            {"required": ["value"]},
+            {"required": ["chrom", "pos", "ref", "alt"]},
+            {"required": ["chromosome", "position", "ref", "alt"]},
+            {"required": ["vcf"]},
+        ],
         "properties": {
-            "variant": {
-                "type": "object",
-                "description": "Optional wrapper for HGVS-like or VCF-like variant input.",
-                "additionalProperties": True,
-            },
-            "input_type": {"type": "string", "enum": ["hgvs", "vcf_like", "structured"]},
-            "gene": {"type": "string"},
-            "gene_symbol": {"type": "string"},
-            "transcript": {"type": "string"},
-            "transcript_accession": {"type": "string"},
-            "hgvs": {"type": "string"},
-            "hgvs_c": {"type": "string"},
-            "hgvs_p": {"type": "string"},
-            "chrom": {"type": "string"},
-            "chromosome": {"type": "string"},
-            "pos": {"type": "integer", "minimum": 1},
-            "position": {"type": "integer", "minimum": 1},
-            "ref": {"type": "string"},
-            "alt": {
-                "oneOf": [
-                    {"type": "string"},
-                    {"type": "array", "items": {"type": "string"}},
-                ]
-            },
-            "genome_build": {"type": "string", "enum": ["GRCh37", "GRCh38"]},
-            "vcf": {"type": "object", "additionalProperties": True},
+            "variant": _normalization_payload_schema(
+                "Optional wrapper for HGVS-like or VCF-like variant input."
+            ),
+            **_normalization_properties(),
+            "vcf": _normalization_payload_schema("VCF-like variant object."),
         },
-        "additionalProperties": True,
+        "additionalProperties": False,
     }
 
 
@@ -764,7 +1254,7 @@ def register_tools(registry: ToolRegistry) -> None:
         ToolDefinition(
             name="query_clinvar",
             description="Offline mock ClinVar record lookup and candidate evidence mapping framework.",
-            input_schema=_generic_input_schema(),
+            input_schema=_query_clinvar_input_schema(),
             handler=query_clinvar,
         )
     )
@@ -772,7 +1262,7 @@ def register_tools(registry: ToolRegistry) -> None:
         ToolDefinition(
             name="query_population_frequency",
             description="Offline mock population frequency retrieval interface.",
-            input_schema=_generic_input_schema(),
+            input_schema=_population_frequency_input_schema(),
             handler=query_population_frequency,
         )
     )
@@ -788,7 +1278,7 @@ def register_tools(registry: ToolRegistry) -> None:
         ToolDefinition(
             name="evaluate_population_rules",
             description="Evaluate BA1, BS1, and PM2 from population frequency evidence.",
-            input_schema=_generic_input_schema(),
+            input_schema=_population_rules_input_schema(),
             handler=evaluate_population_rules,
         )
     )

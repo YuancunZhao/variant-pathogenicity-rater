@@ -31,7 +31,7 @@ def register_tools(registry: ToolRegistry) -> None:
             input_schema={
                 "type": "object",
                 "properties": {},
-                "additionalProperties": True,
+                "additionalProperties": False,
             },
             handler=health_check,
         )
