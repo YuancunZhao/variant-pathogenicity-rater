@@ -1,0 +1,239 @@
+{
+  "status": "ok",
+  "tool": "assess_literature_evidence",
+  "stage": "acmg_literature_evidence_agent",
+  "literature_evidence_assessments": [
+    {
+      "candidate_code": "PS3",
+      "suggested_strength": "supporting",
+      "evidence_type": "functional",
+      "variant_match_level": "exact",
+      "disease_match_level": null,
+      "phenotype_match_level": "specific",
+      "assay_validity": "validated",
+      "case_count": null,
+      "segregation_count": null,
+      "de_novo_status": null,
+      "trans_cis_status": null,
+      "inheritance_context": "autosomal dominant",
+      "extracted_claims": [
+        "The variant showed reduced activity in a validated assay with adequate controls."
+      ],
+      "citation": "PMID:11111111",
+      "pmid": "11111111",
+      "doi": "10.0000/example.1",
+      "source": "caller_supplied_literature_record",
+      "confidence": 0.3,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "limitations": [
+        "Literature-derived evidence is suggested only and is never automatically applied.",
+        "Manual review is required before any ACMG evidence code can be used for classification.",
+        "Assay validity, phenotype specificity, phase, segregation, and case independence require expert confirmation."
+      ]
+    },
+    {
+      "candidate_code": "PM6",
+      "suggested_strength": "supporting",
+      "evidence_type": "de_novo",
+      "variant_match_level": "exact",
+      "disease_match_level": null,
+      "phenotype_match_level": "specific",
+      "assay_validity": null,
+      "case_count": 1,
+      "segregation_count": null,
+      "de_novo_status": "reported",
+      "trans_cis_status": null,
+      "inheritance_context": "autosomal dominant",
+      "extracted_claims": [
+        "The proband carried the variant de novo; parental samples were tested but parentage confirmation was not stated."
+      ],
+      "citation": "PMID:22222222",
+      "pmid": "22222222",
+      "doi": "10.0000/example.2",
+      "source": "caller_supplied_literature_record",
+      "confidence": 0.3,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "limitations": [
+        "Literature-derived evidence is suggested only and is never automatically applied.",
+        "Manual review is required before any ACMG evidence code can be used for classification.",
+        "Assay validity, phenotype specificity, phase, segregation, and case independence require expert confirmation."
+      ]
+    },
+    {
+      "candidate_code": "PP1",
+      "suggested_strength": "supporting",
+      "evidence_type": "segregation",
+      "variant_match_level": "exact",
+      "disease_match_level": null,
+      "phenotype_match_level": "partial",
+      "assay_validity": null,
+      "case_count": 2,
+      "segregation_count": 3,
+      "de_novo_status": null,
+      "trans_cis_status": null,
+      "inheritance_context": "autosomal dominant",
+      "extracted_claims": [
+        "The variant was reported in three affected relatives and two unrelated affected individuals."
+      ],
+      "citation": "PMID:33333333",
+      "pmid": "33333333",
+      "doi": "10.0000/example.3",
+      "source": "caller_supplied_literature_record",
+      "confidence": 0.3,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "limitations": [
+        "Literature-derived evidence is suggested only and is never automatically applied.",
+        "Manual review is required before any ACMG evidence code can be used for classification.",
+        "Assay validity, phenotype specificity, phase, segregation, and case independence require expert confirmation."
+      ]
+    },
+    {
+      "candidate_code": "PM3",
+      "suggested_strength": "supporting",
+      "evidence_type": "trans_observation",
+      "variant_match_level": "exact",
+      "disease_match_level": null,
+      "phenotype_match_level": "specific",
+      "assay_validity": null,
+      "case_count": 1,
+      "segregation_count": null,
+      "de_novo_status": null,
+      "trans_cis_status": "trans",
+      "inheritance_context": "autosomal dominant",
+      "extracted_claims": [
+        "The variant was observed in trans with a pathogenic GENE1 variant in an affected individual."
+      ],
+      "citation": "PMID:44444444",
+      "pmid": "44444444",
+      "doi": "10.0000/example.4",
+      "source": "caller_supplied_literature_record",
+      "confidence": 0.3,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "limitations": [
+        "Literature-derived evidence is suggested only and is never automatically applied.",
+        "Manual review is required before any ACMG evidence code can be used for classification.",
+        "Assay validity, phenotype specificity, phase, segregation, and case independence require expert confirmation."
+      ]
+    },
+    {
+      "candidate_code": "PS1",
+      "suggested_strength": "supporting",
+      "evidence_type": "same_amino_acid_or_residue",
+      "variant_match_level": "exact",
+      "disease_match_level": null,
+      "phenotype_match_level": "specific",
+      "assay_validity": null,
+      "case_count": null,
+      "segregation_count": null,
+      "de_novo_status": null,
+      "trans_cis_status": null,
+      "inheritance_context": "autosomal dominant",
+      "extracted_claims": [
+        "A different nucleotide substitution causing the same amino acid change was previously classified as pathogenic."
+      ],
+      "citation": "PMID:55555555",
+      "pmid": "55555555",
+      "doi": "10.0000/example.5",
+      "source": "caller_supplied_literature_record",
+      "confidence": 0.3,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "limitations": [
+        "Literature-derived evidence is suggested only and is never automatically applied.",
+        "Manual review is required before any ACMG evidence code can be used for classification.",
+        "Assay validity, phenotype specificity, phase, segregation, and case independence require expert confirmation."
+      ]
+    }
+  ],
+  "suggested_evidence": [
+    {
+      "code": "PS3",
+      "strength": "supporting",
+      "candidate_only": false,
+      "applied": false,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "citation": "PMID:11111111",
+      "confidence": 0.3
+    },
+    {
+      "code": "PM6",
+      "strength": "supporting",
+      "candidate_only": false,
+      "applied": false,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "citation": "PMID:22222222",
+      "confidence": 0.3
+    },
+    {
+      "code": "PP1",
+      "strength": "supporting",
+      "candidate_only": false,
+      "applied": false,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "citation": "PMID:33333333",
+      "confidence": 0.3
+    },
+    {
+      "code": "PM3",
+      "strength": "supporting",
+      "candidate_only": false,
+      "applied": false,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "citation": "PMID:44444444",
+      "confidence": 0.3
+    },
+    {
+      "code": "PS1",
+      "strength": "supporting",
+      "candidate_only": false,
+      "applied": false,
+      "requires_manual_review": true,
+      "reason_not_applied": "Suggested literature evidence is not automatically applied to ACMG classification.",
+      "citation": "PMID:55555555",
+      "confidence": 0.3
+    }
+  ],
+  "review_questions": [
+    "Does the cited article describe the exact queried variant, gene, disease, and transcript context?",
+    "Is the evidence independent from other cited records and free from duplicate family or case counting?",
+    "Were functional assay validity, controls, and effect direction explicitly established?",
+    "Was parentage confirmed for every de novo assertion?",
+    "What is the pedigree structure and count of informative segregations?",
+    "Is phase explicitly confirmed as trans?",
+    "Is the claim same amino acid, same residue with different missense, same codon, or nearby residue?"
+  ],
+  "citations": [
+    "PMID:11111111",
+    "PMID:22222222",
+    "PMID:33333333",
+    "PMID:44444444",
+    "PMID:55555555"
+  ],
+  "limitations": [
+    "Literature-derived evidence is suggested only and is never automatically applied.",
+    "Manual review is required before any ACMG evidence code can be used for classification.",
+    "Assay validity, phenotype specificity, phase, segregation, and case independence require expert confirmation."
+  ],
+  "provenance": {
+    "agent": "acmg_literature_evidence",
+    "version": "0.1.0",
+    "offline_by_default": true,
+    "online_search_requested": false,
+    "input_pmids": [],
+    "search_query": "GENE1 NM_000001.1:c.76A>G GENE1-related example disorder"
+  },
+  "applied_evidence": [],
+  "final_classification_changed": false,
+  "human_review": {
+    "required": true,
+    "notice": "Suggested literature evidence is not automatically applied to ACMG classification."
+  }
+}
