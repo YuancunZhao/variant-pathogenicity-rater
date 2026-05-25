@@ -9,6 +9,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from variant_pathogenicity_rater.input_cleaning import (
+    clean_record,
+    is_comment_or_empty_line,
+    is_metadata_line,
+    normalize_chromosome_label,
+)
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
 from variant_pathogenicity_rater.schemas.batch import (
     BatchRecordError,
@@ -45,6 +51,7 @@ VARIANT_FIELDS = {
 class ParsedRecord:
     input_index: int
     record: dict[str, Any]
+    warnings: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -83,6 +90,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
 
     seen_keys: dict[str, int] = {}
     for parsed_record in parsed.records:
+        warnings.extend(parsed_record.warnings or [])
         output_index = _record_output_index(parsed_record)
         preflight_error = _preflight_error(parsed_record.record)
         if preflight_error is not None:
@@ -214,15 +222,18 @@ def parse_batch(arguments: dict[str, Any]) -> ParsedBatch:
 def _parse_records(records: list[Any]) -> ParsedBatch:
     parsed: list[ParsedRecord] = []
     failed: list[FailedBatchRecord] = []
+    warnings: list[str] = []
     for index, record in enumerate(records):
         if isinstance(record, dict):
             try:
-                parsed.append(ParsedRecord(index, _normalize_record(record)))
+                normalized, record_warnings = _normalize_record(record)
+                warnings.extend(f"Record {index}: {warning}" for warning in record_warnings)
+                parsed.append(ParsedRecord(index, normalized, record_warnings))
             except (TypeError, ValueError, json.JSONDecodeError) as exc:
                 failed.append(_malformed(index, record, f"Record normalization failed: {exc}"))
         else:
             failed.append(_malformed(index, record, "Batch JSON array items must be objects."))
-    return ParsedBatch(parsed, failed, [], len(records))
+    return ParsedBatch(parsed, failed, warnings, len(records))
 
 
 def _parse_json_array(text: str) -> ParsedBatch:
@@ -240,60 +251,83 @@ def _parse_json_array(text: str) -> ParsedBatch:
 def _parse_jsonl(text: str) -> ParsedBatch:
     parsed: list[ParsedRecord] = []
     failed: list[FailedBatchRecord] = []
+    warnings: list[str] = []
     index = 0
     for line_number, line in enumerate(text.splitlines(), start=1):
-        if not line.strip():
+        stripped = line.lstrip("\ufeff").strip()
+        if not stripped or stripped.startswith("#"):
             continue
         try:
-            record = json.loads(line)
+            record = json.loads(stripped)
         except json.JSONDecodeError as exc:
             failed.append(_malformed(index, line, f"JSONL line {line_number} parse failed: {exc}"))
             index += 1
             continue
         if isinstance(record, dict):
-            parsed.append(ParsedRecord(index, _normalize_record(record)))
+            try:
+                normalized, record_warnings = _normalize_record(record)
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                failed.append(_malformed(index, record, f"Record normalization failed: {exc}"))
+            else:
+                warnings.extend(f"Record {index}: {warning}" for warning in record_warnings)
+                parsed.append(ParsedRecord(index, normalized, record_warnings))
         else:
             failed.append(_malformed(index, line, f"JSONL line {line_number} must be an object."))
         index += 1
-    return ParsedBatch(parsed, failed, [], index)
+    return ParsedBatch(parsed, failed, warnings, index)
 
 
 def _parse_delimited(text: str, *, delimiter: str, vcf_like: bool) -> ParsedBatch:
-    rows = [line for line in text.splitlines() if line.strip() and not line.startswith("##")]
+    rows = [
+        line.lstrip("\ufeff")
+        for line in text.splitlines()
+        if line.strip()
+        and not is_metadata_line(line)
+        and (not is_comment_or_empty_line(line) or line.lstrip("\ufeff").lstrip().upper().startswith("#CHROM"))
+    ]
     if not rows:
         return ParsedBatch([], [], ["Batch input contained no records."], 0)
     reader = csv.DictReader(io.StringIO("\n".join(rows)), delimiter=delimiter)
     parsed: list[ParsedRecord] = []
     failed: list[FailedBatchRecord] = []
+    warnings: list[str] = []
     for index, row in enumerate(reader):
         if None in row:
             failed.append(_malformed(index, row, "Delimited row has more fields than the header."))
             continue
-        cleaned = {str(key).strip(): value for key, value in row.items() if key is not None}
+        cleaned_record = clean_record(row)
+        cleaned = cleaned_record.record
+        warnings.extend(f"Record {index}: {warning}" for warning in cleaned_record.warnings)
         if not any(value not in (None, "") for value in cleaned.values()):
             failed.append(_malformed(index, cleaned, "Delimited row is empty."))
             continue
         try:
-            record = _normalize_vcf_record(cleaned) if vcf_like else _normalize_record(cleaned)
+            record, record_warnings = (
+                _normalize_vcf_record(cleaned) if vcf_like else _normalize_record(cleaned)
+            )
         except ValueError as exc:
             failed.append(_malformed(index, cleaned, str(exc)))
             continue
-        parsed.append(ParsedRecord(index, record))
-    return ParsedBatch(parsed, failed, [], len(parsed) + len(failed))
+        warnings.extend(f"Record {index}: {warning}" for warning in record_warnings)
+        parsed.append(ParsedRecord(index, record, cleaned_record.warnings + record_warnings))
+    return ParsedBatch(parsed, failed, warnings, len(parsed) + len(failed))
 
 
-def _normalize_record(record: dict[str, Any]) -> dict[str, Any]:
+def _normalize_record(record: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    cleaned = clean_record(record)
     normalized: dict[str, Any] = {}
-    for key, value in record.items():
+    warnings = list(cleaned.warnings)
+    for key, value in cleaned.record.items():
         if value == "":
             continue
         mapped = _map_field_name(str(key))
         normalized[mapped] = _coerce_value(mapped, value)
-    return normalized
+    _normalize_variant_identity_fields(normalized, warnings)
+    return normalized, warnings
 
 
-def _normalize_vcf_record(record: dict[str, Any]) -> dict[str, Any]:
-    normalized = _normalize_record(record)
+def _normalize_vcf_record(record: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    normalized, warnings = _normalize_record(record)
     for source, target in {
         "#CHROM": "chromosome",
         "CHROM": "chromosome",
@@ -305,7 +339,8 @@ def _normalize_vcf_record(record: dict[str, Any]) -> dict[str, Any]:
             normalized[target] = _coerce_value(target, record[source])
     if "alt" in normalized and isinstance(normalized["alt"], str) and "," in normalized["alt"]:
         raise ValueError("Multi-allelic VCF rows are not split silently; submit one ALT per record.")
-    return normalized
+    _normalize_variant_identity_fields(normalized, warnings)
+    return normalized, warnings
 
 
 def _map_field_name(key: str) -> str:
@@ -337,6 +372,26 @@ def _coerce_value(field: str, value: Any) -> Any:
     if field == "options" and isinstance(value, str):
         return json.loads(value)
     return value
+
+
+def _normalize_variant_identity_fields(record: dict[str, Any], warnings: list[str]) -> None:
+    for key in ("chromosome", "chrom"):
+        if key in record and isinstance(record[key], str):
+            original = record[key]
+            record[key] = normalize_chromosome_label(original)
+            if record[key] != original:
+                warnings.append(f"Field '{key}' chromosome label was normalized to '{record[key]}'.")
+    for key in ("gene", "gene_symbol"):
+        if key in record and isinstance(record[key], str):
+            original = record[key]
+            record[key] = original.strip().upper()
+            if record[key] != original:
+                warnings.append(f"Field '{key}' was normalized to uppercase gene symbol.")
+    if "transcript" in record and isinstance(record["transcript"], str):
+        original = record["transcript"]
+        record["transcript"] = original.strip().upper()
+        if record["transcript"] != original:
+            warnings.append("Field 'transcript' was whitespace-trimmed and uppercased.")
 
 
 def _with_default_options(record: dict[str, Any], batch_options: Any) -> dict[str, Any]:

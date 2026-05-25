@@ -12,6 +12,7 @@ from variant_pathogenicity_rater.data_sources.provenance import (
     ProvenanceMetadata,
     provenance_from_raw_record,
 )
+from variant_pathogenicity_rater.input_cleaning import is_metadata_line, strip_bom
 from variant_pathogenicity_rater.schemas.annotation import (
     AnnotationParseResult,
     LofteeFlags,
@@ -227,9 +228,14 @@ def _read_delimited(
 ) -> list[dict[str, Any]]:
     lines = []
     for raw_line in text.splitlines():
+        raw_line = strip_bom(raw_line)
         if not raw_line.strip() and delimiter not in raw_line:
             continue
         if comment_prefix and raw_line.startswith(comment_prefix):
+            continue
+        if not comment_prefix and raw_line.lstrip().startswith("#"):
+            continue
+        if is_metadata_line(raw_line):
             continue
         if raw_line.startswith("#") and not raw_line.startswith("##"):
             raw_line = raw_line.lstrip("#")
@@ -247,7 +253,7 @@ def pick(record: dict[str, Any], *keys: str, default: str | None = None) -> str 
             value = lowered.get(key.lower())
         if value is None or value == "":
             continue
-        return str(value)
+        return str(value).strip()
     return default
 
 

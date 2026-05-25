@@ -13,6 +13,7 @@ from variant_pathogenicity_rater.annotation import (
     select_transcript,
 )
 from variant_pathogenicity_rater.annotation.adapters import AnnotationAdapter, _read_delimited
+from variant_pathogenicity_rater.input_cleaning import clean_record, normalize_chromosome_label
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
@@ -158,6 +159,10 @@ def _parse_annotation_input(
     parsed: list[ParsedAnnotationRow] = []
     failed: list[FailedBatchRecord] = []
     limitations: list[str] = []
+    if not adapter.source_version:
+        limitations.append(
+            f"{adapter.source_name} source_version is missing; provenance is incomplete and should be reviewed."
+        )
     for index, raw in enumerate(records):
         if not isinstance(raw, dict):
             failed.append(_malformed_annotation(index, raw, "Annotation record must be an object."))
@@ -165,19 +170,21 @@ def _parse_annotation_input(
         if None in raw:
             failed.append(_malformed_annotation(index, raw, "Delimited annotation row has more fields than the header."))
             continue
+        cleaned = clean_record(raw)
+        limitations.extend(f"Annotation row {index}: {warning}" for warning in cleaned.warnings)
         try:
-            annotation = adapter.normalize_annotation(adapter.parse_record(raw))
+            annotation = adapter.normalize_annotation(adapter.parse_record(cleaned.record))
             adapter.validate_annotation(annotation)
         except Exception as exc:  # noqa: BLE001 - row-level failure must be preserved.
             failed.append(
                 _malformed_annotation(
                     index,
-                    raw,
+                    cleaned.record or raw,
                     f"Malformed {adapter.source_name} annotation row {index + 1}: {exc.__class__.__name__}: {exc}",
                 )
             )
             continue
-        parsed.append(ParsedAnnotationRow(index, raw, annotation))
+        parsed.append(ParsedAnnotationRow(index, cleaned.record, annotation))
     return parsed, failed, limitations
 
 
@@ -277,7 +284,7 @@ def _genomic_fields(annotation: VariantAnnotation) -> dict[str, Any]:
         alt = alt or parsed.get("alt")
     fields: dict[str, Any] = {}
     if chrom:
-        fields["chromosome"] = str(chrom)
+        fields["chromosome"] = normalize_chromosome_label(chrom)
     if pos:
         try:
             fields["position"] = int(str(pos))

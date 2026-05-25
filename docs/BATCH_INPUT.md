@@ -40,6 +40,25 @@ Minimal VCF-like input expects tab-separated columns such as:
 Multi-allelic VCF rows are not split silently. Submit one alternate allele per
 record or the row is captured as a failed record.
 
+## Noisy Input Cleaning
+
+Batch parsing accepts common export noise before calling the existing
+`rate_variant` pipeline:
+
+- UTF-8 BOM and mixed newline styles.
+- Empty lines and comment lines, while preserving the VCF `#CHROM` header.
+- Case-insensitive CSV/TSV column names and aliases such as `Gene`, `HGVSc`,
+  `Chrom`, `POS`, `REF`, and `ALT`.
+- Excel `Unnamed:*` columns.
+- Surrounding whitespace in values.
+- `chr` prefixes and `chrM`/`MT` mitochondrial labels.
+- Lowercase `ref`/`alt` values.
+- Simple URL/HTML escaping in HGVS fields.
+
+Cleanup warnings are returned in top-level `warnings`; normalization warnings
+also appear in each successful record's classification limitations. These
+warnings are audit context only and do not change ACMG classification.
+
 ## Output Structure
 
 The response follows the `BatchResult` schema:
@@ -74,8 +93,9 @@ batch. The record is added to `failed_records` and also appears in `results` wit
 `status: "error"`.
 
 Malformed JSONL lines, rows with too many delimited fields, invalid positions,
-unsupported CNV/SV/repeat records, symbolic VCF alleles, and multi-allelic ALT
-values are captured explicitly. No input record is skipped silently.
+unsupported CNV/SV/repeat records, symbolic VCF alleles, ambiguous `N`, `ALT=.`,
+and multi-allelic ALT values are captured explicitly. No input record is skipped
+silently.
 
 Duplicate normalized variants are allowed but reported in `warnings`.
 

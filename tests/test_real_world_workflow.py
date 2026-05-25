@@ -271,3 +271,36 @@ def test_mcp_rate_annotated_variants_tool_smoke() -> None:
     assert tool_payload["tool"] == "rate_annotated_variants"
     assert tool_payload["succeeded"] == 1
     assert tool_payload["results"][0]["classification_result"]["human_review_required"] is True
+
+
+def test_annotation_missing_key_fields_is_captured_and_source_version_missing_warns() -> None:
+    result = run_annotation_batch_workflow(
+        {
+            "annotation_format": "generic",
+            "records": [{"consequence": "missense_variant"}],
+            "gene_disease_context": _context(),
+        }
+    )
+
+    assert result["succeeded"] == 0
+    assert result["failed"] == 1
+    assert result["failed_records"][0]["error"]["code"] == "MALFORMED_ANNOTATION_RECORD"
+    assert any("source_version is missing" in limitation for limitation in result["limitations"])
+
+
+def test_annotation_bom_mixed_case_and_unnamed_columns_are_cleaned() -> None:
+    result = run_annotation_batch_workflow(
+        {
+            "annotation_format": "generic",
+            "input_text": (
+                "\ufeffGene,Transcript,HGVSc,Chrom,Pos,Ref,Alt,Unnamed: 0\n"
+                " brca1 , nm_007294.4 ,NM_007294.4:c.68A%3EG,chr17,43092919,a,g,\n"
+            ),
+            "source_version": "generic-fixture-v1",
+            "gene_disease_context": _context(),
+        }
+    )
+
+    assert result["succeeded"] == 1
+    assert result["results"][0]["normalized_variant_key"] == "17-43092919-A-G"
+    assert any("Excel-generated column" in limitation for limitation in result["limitations"])

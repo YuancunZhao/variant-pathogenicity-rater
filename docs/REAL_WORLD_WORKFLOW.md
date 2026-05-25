@@ -11,6 +11,24 @@ Supported inputs:
 - Generic CSV/TSV annotation tables with fields such as `gene`, `transcript`,
   `hgvs_c`, `chrom`, `pos`, `ref`, and `alt`.
 
+## Noisy Annotation Input
+
+The workflow cleans common real-world annotation exports before adapter parsing:
+
+- UTF-8 BOM, empty lines, metadata lines, and ordinary comment lines.
+- Mixed-case or aliased columns such as `Gene`, `HGVSc`, `Chrom`, `POS`,
+  `REF`, and `ALT`.
+- Excel `Unnamed:*` columns.
+- Surrounding whitespace in HGVS, gene, transcript, coordinate, and allele
+  fields.
+- URL/HTML escaped HGVS values.
+- `chr` prefixes and mitochondrial labels such as `chrM` and `MT`.
+- Lowercase alleles.
+
+Cleaning is recorded as limitations or downstream normalization warnings.
+Missing `source_version` is also a limitation because provenance is incomplete,
+but it does not stop the batch.
+
 ## Safety Boundaries
 
 The workflow is intentionally conservative:
@@ -21,6 +39,10 @@ The workflow is intentionally conservative:
 - Transcript selection is descriptive context only and remains
   human-review-required.
 - Malformed annotation rows are returned as failed records; they are not skipped.
+- Annotation rows missing key identifiers are returned as failed records instead
+  of being guessed from nearby columns.
+- Symbolic ALT, ambiguous `N`, and multi-allelic rows are not converted into
+  SNV/small-indel records.
 - Every successful and failed result keeps `review_required` true.
 
 ## Python API
@@ -81,3 +103,9 @@ HGVS is preserved as a limitation when genomic coordinates are sufficient for
 rating. If neither usable HGVS nor usable genomic coordinates are available, the
 record enters the batch and fails during normal rate-variant normalization rather
 than being silently dropped.
+
+Prepare annotation files with one concrete ALT allele per row, concrete
+`chrom/pos/ref/alt` fields when available, source version metadata, and HGVS
+fields that match the selected transcript where possible. VCF-like `INFO`,
+`FORMAT`, and sample columns may be present, but they are not used to infer
+structural or symbolic variants.
