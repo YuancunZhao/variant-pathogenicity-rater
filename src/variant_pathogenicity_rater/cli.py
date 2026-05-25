@@ -15,6 +15,7 @@ from variant_pathogenicity_rater.annotation import (
     select_transcript,
 )
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
+from variant_pathogenicity_rater.pipeline.real_world import run_annotation_batch_workflow
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
 
@@ -143,35 +144,46 @@ def _cmd_batch(args: argparse.Namespace) -> int:
 
 def _cmd_annotated_batch(args: argparse.Namespace) -> int:
     input_text = _read_text(Path(args.input))
-    adapter = _annotation_adapter(args.source)
-    parse_result = adapter.parse_text(input_text)
-    safety = evaluate_annotation_safety(parse_result.annotations)
-    records = _records_from_annotations(parse_result.annotations)
-    batch_result = rate_variant_batch({"records": records, "options": {"mock_mode": True}})
+    batch_result = run_annotation_batch_workflow(
+        {
+            "annotation_format": args.source,
+            "input_text": input_text,
+            "source_version": "cli-input",
+            "options": {"mock_mode": True},
+        }
+    )
     if args.include_report:
         _include_report_text(batch_result)
+    converted = batch_result.get("annotation_to_batch_records") or {}
+    parsed_count = int(converted.get("total_annotation_rows") or batch_result.get("total_records") or 0) - int(
+        converted.get("failed_count") or 0
+    )
     result = {
         "status": "ok",
         "tool": "annotated_batch",
         "annotation_source": args.source,
         "annotation_parse": {
-            "parsed": len(parse_result.annotations),
-            "limitations": parse_result.limitations,
+            "parsed": parsed_count,
+            "limitations": [
+                limitation
+                for limitation in batch_result.get("limitations", [])
+                if "annotation" in str(limitation).lower()
+            ],
         },
         "annotation_safety": {
-            "review_flags": [json.loads(flag.model_dump_json()) for flag in safety.review_flags],
-            "limitations": safety.limitations,
+            "review_flags": converted.get("review_flags") or [],
+            "limitations": converted.get("limitations") or [],
         },
         "summary": {
             "total_records": batch_result.get("total_records", 0),
             "succeeded": batch_result.get("succeeded", 0),
             "failed": batch_result.get("failed", 0),
+            "batch_summary": batch_result.get("summary", {}),
         },
         "batch": batch_result,
         "limitations": _unique(
             [
-                *parse_result.limitations,
-                *safety.limitations,
+                *list(batch_result.get("limitations") or []),
                 "Annotation workflow is descriptive only and does not directly generate ACMG evidence.",
             ]
         ),

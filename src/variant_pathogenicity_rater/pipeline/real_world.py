@@ -384,13 +384,17 @@ def _merge_annotation_failures(
             "normalized_variant_key": None,
             "status": "error",
             "classification_result": None,
+            "applied_evidence": [],
+            "review_note_evidence": [],
             "error": record["error"],
             "review_required": True,
             "review_flags": [],
             "limitations": record["error"].get("limitations") or [],
             "annotation_provenance": [],
+            "provenance": {},
             "normalization_identity": None,
             "transcript_selection_summary": None,
+            "context_consistency_summary": None,
         }
         for record in failed_payloads
     ]

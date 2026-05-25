@@ -90,6 +90,9 @@ before report rendering. The result is returned as:
 - `classification_result.context_consistency`
 - report `summary.context_consistency`
 - batch `context_consistency_summary` per successful record
+- annotated-batch `context_consistency_summary` per successful record
 
 MCP and CLI JSON outputs include the same fields because they return the pipeline
 payload. Markdown reports include a `Context Consistency` section.
+Context consistency can add review flags and limitations, but it is not included
+in `applied_evidence` and cannot change `final_classification`.

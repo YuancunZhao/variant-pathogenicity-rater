@@ -164,10 +164,13 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                 normalized_variant_key=normalized_key,
                 status="ok",
                 classification_result=classification_result,
+                applied_evidence=list(pipeline_result.get("applied_evidence") or []),
+                review_note_evidence=list(pipeline_result.get("review_note_evidence") or []),
                 review_required=bool(pipeline_result.get("human_review_required", True)),
                 review_flags=review_flags,
                 limitations=list(pipeline_result.get("limitations") or []),
                 annotation_provenance=_annotation_provenance(parsed_record.record),
+                provenance=dict(pipeline_result.get("provenance") or {}),
                 normalization_identity=_normalization_identity(pipeline_result),
                 transcript_selection_summary=_transcript_selection_summary(
                     pipeline_result,

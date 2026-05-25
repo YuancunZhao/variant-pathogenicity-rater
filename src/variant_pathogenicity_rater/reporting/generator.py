@@ -547,7 +547,9 @@ def _clinvar_conflict_detected(result: ClassificationResult) -> bool:
 
 def _is_applied_evidence(item: EvidenceItem) -> bool:
     return not (
-        str(item.strength) == EvidenceStrength.NONE.value
+        item.candidate_only
+        or item.applied is False
+        or str(item.strength) == EvidenceStrength.NONE.value
         or item.supporting_data.get("candidate_only")
         or item.supporting_data.get("evidence_status") == "candidate"
         or item.supporting_data.get("applied") is False

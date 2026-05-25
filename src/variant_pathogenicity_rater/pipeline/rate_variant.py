@@ -254,6 +254,9 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             ]
         )
     step_results["classify_acmg"] = json.loads(classification_result.model_dump_json())
+    applied_evidence = _applied_evidence_items(evidence_items)
+    review_note_evidence = _review_note_evidence_items(evidence_items)
+    normalization_identity = (step_results.get("normalize_variant") or {}).get("variant_identity")
 
     report = _run_step(
         "generate_report",
@@ -294,8 +297,13 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             name: source.mode for name, source in data_sources_config.sources.items()
         },
         "normalized_variant": json.loads(normalized_variant.model_dump_json()),
+        "normalization_identity": normalization_identity,
         "classification_result": json.loads(classification_result.model_dump_json()),
         "evidence_items": [json.loads(item.model_dump_json()) for item in evidence_items],
+        "applied_evidence": [json.loads(item.model_dump_json()) for item in applied_evidence],
+        "review_note_evidence": [
+            json.loads(item.model_dump_json()) for item in review_note_evidence
+        ],
         "final_classification": classification_result.final_classification,
         "transcript_selection": (
             json.loads(transcript_selection.model_dump_json())
@@ -315,6 +323,15 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "report_text": classification_result.report_text,
         "report": serialized_report,
         "limitations": classification_result.limitations,
+        "review_flags": [
+            json.loads(flag.model_dump_json()) for flag in classification_result.review_flags
+        ],
+        "provenance": _provenance_summary(
+            evidence_items,
+            normalization_identity=normalization_identity,
+            transcript_selection=transcript_selection,
+            context_consistency=context_consistency,
+        ),
         "human_review_required": True,
         "human_review": {"required": True, "notice": HUMAN_REVIEW_NOTICE},
         "audit_trail": [json.loads(event.model_dump_json()) for event in combined_audit],
@@ -596,6 +613,56 @@ def _unique_review_flags(flags: list[Any]) -> list[Any]:
         seen.add(code)
         unique.append(flag)
     return unique
+
+
+def _applied_evidence_items(items: list[EvidenceItem]) -> list[EvidenceItem]:
+    return [item for item in items if _is_applied_evidence(item)]
+
+
+def _review_note_evidence_items(items: list[EvidenceItem]) -> list[EvidenceItem]:
+    return [item for item in items if not _is_applied_evidence(item)]
+
+
+def _is_applied_evidence(item: EvidenceItem) -> bool:
+    return not (
+        item.candidate_only
+        or item.applied is False
+        or str(item.strength) == "none"
+        or item.supporting_data.get("candidate_only")
+        or item.supporting_data.get("evidence_status") == "candidate"
+        or item.supporting_data.get("applied") is False
+    )
+
+
+def _provenance_summary(
+    items: list[EvidenceItem],
+    *,
+    normalization_identity: Any,
+    transcript_selection: TranscriptSelection | None,
+    context_consistency: ContextConsistency | None,
+) -> dict[str, Any]:
+    return {
+        "normalization_identity": normalization_identity if isinstance(normalization_identity, dict) else None,
+        "evidence_sources": [
+            {
+                "evidence_id": item.evidence_id,
+                "source": item.source.name,
+                "version": item.source.version,
+                "retrieval_timestamp": item.source.retrieval_timestamp,
+                "query": item.source.query,
+                "raw_snapshot_ref": item.source.raw_snapshot_ref,
+                "candidate_only": item.candidate_only,
+                "applied": item.applied,
+            }
+            for item in items
+        ],
+        "transcript_selection": (
+            transcript_selection.provenance if transcript_selection is not None else None
+        ),
+        "context_consistency": (
+            context_consistency.provenance if context_consistency is not None else None
+        ),
+    }
 
 
 def _review_flags_from_context_consistency(consistency: ContextConsistency) -> list[ReviewFlag]:

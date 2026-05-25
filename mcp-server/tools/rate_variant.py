@@ -1056,6 +1056,8 @@ def _evidence_item_schema() -> dict[str, Any]:
             "source": _source_schema(),
             "confidence": {"type": "number"},
             "requires_review": {"type": "boolean"},
+            "candidate_only": {"type": ["boolean", "null"]},
+            "applied": {"type": ["boolean", "null"]},
             "triggered_by": _string_array_schema(),
             "supporting_data": _open_object_schema("Flexible evidence-specific supporting data."),
             "audit_trail": {"type": "array", "items": _audit_trail_schema()},

@@ -54,6 +54,10 @@ compatibility.
 - VUS wording is conservative: a VUS is not described as leaning pathogenic or
   benign.
 - Candidate evidence is always labeled as candidate/review-note only.
+- `EvidenceItem.candidate_only` and `EvidenceItem.applied` mirror the existing
+  `supporting_data.candidate_only`, `supporting_data.evidence_status`, and
+  `supporting_data.applied` flags so candidate/review-note evidence is labeled
+  consistently across single, batch, CLI, and MCP outputs.
 - ClinVar and literature assertions are not reported as applied evidence unless
   they already appear as applied evidence in the supplied classification result.
 - SpliceAI is described as computational splice prediction only, not functional

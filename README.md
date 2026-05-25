@@ -147,7 +147,14 @@ The `rate_variant` output includes:
 
 - `classification_result`: a Pydantic-derived `ClassificationResult` payload
 - `evidence_items`: all applied or candidate evidence items
+- `applied_evidence`: evidence counted by the supplied classification result
+- `review_note_evidence`: candidate/review-note evidence excluded from the combiner
+- `normalization_identity`: stable normalized identity metadata from normalization
+- `transcript_selection`: transcript recommendation context, when supplied
+- `context_consistency`: context checks, when available
 - `final_classification`: one of `pathogenic`, `likely_pathogenic`, `vus`, `likely_benign`, `benign`
+- `review_flags`: review flags carried from classification, transcript selection, and context checks
+- `provenance`: normalization, evidence-source, transcript-selection, and context-check provenance
 - `report_text`: rendered detailed report text
 - `limitations`: module warnings and any failed-step messages
 - `human_review_required`: always `true`
@@ -173,6 +180,10 @@ Batch results include a `summary` object with total, succeeded, failed,
 classification distribution, review-required count, context conflict count,
 failed-record summaries, and duplicate warnings. The summary is for triage only
 and does not override per-record classification or review requirements.
+Successful batch records expose the same integration fields as single-variant
+rating using per-record names: `applied_evidence`, `review_note_evidence`,
+`normalization_identity`, `transcript_selection_summary`,
+`context_consistency_summary`, `review_flags`, `provenance`, and `limitations`.
 
 Normalize a VCF-like SNV or small indel:
 

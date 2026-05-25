@@ -61,6 +61,9 @@ not justify guessing:
 
 Warnings do not change classification. Classification still depends only on the
 existing normalized variant, evidence modules, and ACMG combiner.
+The same noisy record should therefore produce the same per-record `status` via
+Python `rate_variant_batch` and CLI `vpr batch`; differences should be limited
+to wrapper metadata such as output file handling.
 
 ## Why Symbolic and Multi-Allelic ALT Are Not Interpreted
 

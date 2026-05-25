@@ -82,9 +82,16 @@ Each item in `results` includes:
 - `normalized_variant_key`
 - `status`
 - `classification_result` for successful records, or `error` for failed records
+- `applied_evidence`
+- `review_note_evidence`
 - `review_required`
 - `review_flags`
 - `limitations`
+- `annotation_provenance`
+- `provenance`
+- `normalization_identity`
+- `transcript_selection_summary`
+- `context_consistency_summary`
 
 The top-level `summary` includes:
 

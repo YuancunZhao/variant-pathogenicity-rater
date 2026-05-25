@@ -47,6 +47,9 @@ replace qualified clinical, laboratory, or genetics professional review.
   ACMG criteria, modify evidence strength, or change final classification.
 - Candidate/review-note evidence is displayed separately from applied ACMG
   evidence. It should not be interpreted as counted evidence.
+- `EvidenceItem.candidate_only` and `EvidenceItem.applied` are output/schema
+  labels for the existing candidate/applied status; they do not authorize a
+  candidate item to participate in classification.
 - ClinVar and literature sections summarize external assertions or extracted
   claims for review. They are not automatically applied ACMG evidence.
 - SpliceAI is computational splice prediction only. It is not functional

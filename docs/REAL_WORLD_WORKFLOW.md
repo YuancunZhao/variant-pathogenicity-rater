@@ -94,7 +94,10 @@ block. Each successful per-variant result includes:
 - `normalization_identity`
 - `transcript_selection_summary`
 - `context_consistency_summary`
+- `applied_evidence`
+- `review_note_evidence`
 - `review_flags`
+- `provenance`
 - `limitations`
 
 Malformed annotation rows appear in `failed_records` with

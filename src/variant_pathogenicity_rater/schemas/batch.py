@@ -28,11 +28,14 @@ class BatchVariantResult(SchemaModel):
     normalized_variant_key: str | None = None
     status: Literal["ok", "error"] = "ok"
     classification_result: ClassificationResult | dict[str, Any] | None = None
+    applied_evidence: list[dict[str, Any]] = Field(default_factory=list)
+    review_note_evidence: list[dict[str, Any]] = Field(default_factory=list)
     error: BatchRecordError | None = None
     review_required: bool = True
     review_flags: list[dict[str, Any]] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     annotation_provenance: list[dict[str, Any]] = Field(default_factory=list)
+    provenance: dict[str, Any] = Field(default_factory=dict)
     normalization_identity: dict[str, Any] | None = None
     transcript_selection_summary: dict[str, Any] | None = None
     context_consistency_summary: dict[str, Any] | None = None
