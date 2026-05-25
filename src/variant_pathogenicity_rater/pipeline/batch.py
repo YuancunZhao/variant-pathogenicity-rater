@@ -83,10 +83,11 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
 
     seen_keys: dict[str, int] = {}
     for parsed_record in parsed.records:
+        output_index = _record_output_index(parsed_record)
         preflight_error = _preflight_error(parsed_record.record)
         if preflight_error is not None:
             failed = FailedBatchRecord(
-                input_index=parsed_record.input_index,
+                input_index=output_index,
                 input_record_hash=_record_hash(parsed_record.record),
                 raw_record=parsed_record.record,
                 error=preflight_error,
@@ -106,7 +107,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                 limitations=["This record failed independently; the batch continued."],
             )
             failed = FailedBatchRecord(
-                input_index=parsed_record.input_index,
+                input_index=output_index,
                 input_record_hash=_record_hash(parsed_record.record),
                 raw_record=parsed_record.record,
                 error=error,
@@ -123,7 +124,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                 limitations=list(pipeline_result.get("limitations") or []),
             )
             failed = FailedBatchRecord(
-                input_index=parsed_record.input_index,
+                input_index=output_index,
                 input_record_hash=_record_hash(parsed_record.record),
                 raw_record=parsed_record.record,
                 error=error,
@@ -137,11 +138,11 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
             if normalized_key in seen_keys:
                 warnings.append(
                     "Duplicate variant detected: "
-                    f"record {parsed_record.input_index} duplicates record {seen_keys[normalized_key]} "
+                    f"record {output_index} duplicates record {seen_keys[normalized_key]} "
                     f"({normalized_key})."
                 )
             else:
-                seen_keys[normalized_key] = parsed_record.input_index
+                seen_keys[normalized_key] = output_index
 
         classification_result = pipeline_result.get("classification_result")
         review_flags = []
@@ -149,7 +150,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
             review_flags = list(classification_result.get("review_flags") or [])
         results.append(
             BatchVariantResult(
-                input_index=parsed_record.input_index,
+                input_index=output_index,
                 input_record_hash=_record_hash(parsed_record.record),
                 normalized_variant_key=normalized_key,
                 status="ok",
@@ -157,6 +158,12 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                 review_required=bool(pipeline_result.get("human_review_required", True)),
                 review_flags=review_flags,
                 limitations=list(pipeline_result.get("limitations") or []),
+                annotation_provenance=_annotation_provenance(parsed_record.record),
+                normalization_identity=_normalization_identity(pipeline_result),
+                transcript_selection_summary=_transcript_selection_summary(
+                    pipeline_result,
+                    parsed_record.record,
+                ),
             )
         )
 
@@ -391,6 +398,13 @@ def _failed_result(failed: FailedBatchRecord) -> BatchVariantResult:
     )
 
 
+def _record_output_index(parsed_record: ParsedRecord) -> int:
+    value = parsed_record.record.get("_annotation_input_index")
+    if isinstance(value, int) and value >= 0:
+        return value
+    return parsed_record.input_index
+
+
 def _malformed(index: int, raw: Any, message: str) -> FailedBatchRecord:
     error = BatchRecordError(
         code="MALFORMED_RECORD",
@@ -425,6 +439,61 @@ def _normalized_key(pipeline_result: dict[str, Any]) -> str | None:
         if chrom and pos and ref and alt:
             return f"{chrom}-{pos}-{ref}-{alt}"
     return None
+
+
+def _normalization_identity(pipeline_result: dict[str, Any]) -> dict[str, Any] | None:
+    identity = (pipeline_result.get("step_results") or {}).get("normalize_variant", {}).get(
+        "variant_identity"
+    )
+    return identity if isinstance(identity, dict) else None
+
+
+def _transcript_selection_summary(
+    pipeline_result: dict[str, Any],
+    record: dict[str, Any],
+) -> dict[str, Any] | None:
+    workflow = record.get("annotation_workflow")
+    if isinstance(workflow, dict) and isinstance(
+        workflow.get("transcript_selection_summary"), dict
+    ):
+        selection = workflow["transcript_selection_summary"]
+        return {
+            "selected_transcript": selection.get("selected_transcript"),
+            "selected_gene": selection.get("selected_gene"),
+            "selection_reason": selection.get("selection_reason"),
+            "selection_confidence": selection.get("selection_confidence"),
+            "candidate_transcripts": selection.get("candidate_transcripts") or [],
+            "review_flags": selection.get("review_flags") or [],
+            "limitations": selection.get("limitations") or [],
+            "provenance": selection.get("provenance") or {},
+        }
+    selection = pipeline_result.get("transcript_selection") or (
+        (pipeline_result.get("classification_result") or {}).get("transcript_selection")
+        if isinstance(pipeline_result.get("classification_result"), dict)
+        else None
+    )
+    if not isinstance(selection, dict):
+        return None
+    return {
+        "selected_transcript": selection.get("selected_transcript"),
+        "selected_gene": selection.get("selected_gene"),
+        "selection_reason": selection.get("selection_reason"),
+        "selection_confidence": selection.get("selection_confidence"),
+        "candidate_transcripts": selection.get("candidate_transcripts") or [],
+        "review_flags": selection.get("review_flags") or [],
+        "limitations": selection.get("limitations") or [],
+        "provenance": selection.get("provenance") or {},
+    }
+
+
+def _annotation_provenance(record: dict[str, Any]) -> list[dict[str, Any]]:
+    workflow = record.get("annotation_workflow")
+    if not isinstance(workflow, dict):
+        return []
+    provenance = workflow.get("annotation_provenance")
+    if isinstance(provenance, list):
+        return [item for item in provenance if isinstance(item, dict)]
+    return []
 
 
 def _record_hash(record: Any) -> str:

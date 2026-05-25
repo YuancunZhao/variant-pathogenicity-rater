@@ -32,6 +32,9 @@ class BatchVariantResult(SchemaModel):
     review_required: bool = True
     review_flags: list[dict[str, Any]] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
+    annotation_provenance: list[dict[str, Any]] = Field(default_factory=list)
+    normalization_identity: dict[str, Any] | None = None
+    transcript_selection_summary: dict[str, Any] | None = None
 
 
 class BatchResult(SchemaModel):

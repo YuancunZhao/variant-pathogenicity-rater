@@ -45,6 +45,9 @@ from variant_pathogenicity_rater.pipeline.rate_variant import (  # noqa: E402
 from variant_pathogenicity_rater.pipeline.batch import (  # noqa: E402
     rate_variant_batch as rate_variant_batch_pipeline,
 )
+from variant_pathogenicity_rater.pipeline.real_world import (  # noqa: E402
+    run_annotation_batch_workflow,
+)
 from variant_pathogenicity_rater.config.thresholds import (  # noqa: E402
     computational_thresholds_from_options,
     population_thresholds_from_options,
@@ -138,6 +141,18 @@ async def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
             details={"required_any": ["records", "input_text/text/data"]},
         )
     return rate_variant_batch_pipeline(arguments)
+
+
+async def rate_annotated_variants(arguments: dict[str, Any]) -> dict[str, Any]:
+    has_records = isinstance(arguments.get("records"), list)
+    has_text = any(isinstance(arguments.get(key), str) for key in ("input_text", "text", "data"))
+    if not has_records and not has_text:
+        raise McpToolError(
+            "SCHEMA_VALIDATION_ERROR",
+            "rate_annotated_variants requires either annotation 'records' or textual annotation input.",
+            details={"required_any": ["records", "input_text/text/data"]},
+        )
+    return run_annotation_batch_workflow(arguments)
 
 
 async def normalize_variant(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1199,6 +1214,46 @@ def _batch_options_schema() -> dict[str, Any]:
     }
 
 
+def _annotated_variants_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "annotation_format": {
+                "type": "string",
+                "enum": ["vep", "annovar", "bcftools", "generic"],
+            },
+            "source_format": {
+                "type": "string",
+                "enum": ["vep", "annovar", "bcftools", "generic"],
+            },
+            "format": {
+                "type": "string",
+                "enum": ["vep", "annovar", "bcftools", "generic"],
+            },
+            "source_version": {"type": ["string", "null"]},
+            "delimiter": {"type": "string"},
+            "batch_id": {"type": "string"},
+            "records": {
+                "type": "array",
+                "items": _open_object_schema("Raw VEP, ANNOVAR, bcftools csq, or generic annotation row."),
+            },
+            "input_text": {"type": "string"},
+            "text": {"type": "string"},
+            "data": {"type": "string"},
+            "gene_disease_context": _gene_disease_context_schema(),
+            "context": _gene_disease_context_schema(),
+            "options": _pipeline_options_schema(),
+        },
+        "anyOf": [
+            {"required": ["records"]},
+            {"required": ["input_text"]},
+            {"required": ["text"]},
+            {"required": ["data"]},
+        ],
+        "additionalProperties": False,
+    }
+
+
 def _query_clinvar_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
@@ -1368,6 +1423,19 @@ def register_tools(registry: ToolRegistry) -> None:
             ),
             input_schema=_batch_options_schema(),
             handler=rate_variant_batch,
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="rate_annotated_variants",
+            description=(
+                "Parse real-world VEP, ANNOVAR, bcftools csq, or generic annotation "
+                "rows into batch rate_variant records, preserving annotation provenance, "
+                "normalization identity, transcript-selection summaries, failed rows, "
+                "and human-review-required status."
+            ),
+            input_schema=_annotated_variants_input_schema(),
+            handler=rate_annotated_variants,
         )
     )
     registry.register(

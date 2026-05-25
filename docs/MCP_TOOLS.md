@@ -16,6 +16,7 @@ Phase 1 tools:
 - `health_check`
 - `rate_variant`
 - `rate_variant_batch`
+- `rate_annotated_variants`
 - `normalize_variant`
 - `query_clinvar`
 - `query_population_frequency`
@@ -150,6 +151,33 @@ Output includes `batch_id`, `total_records`, `succeeded`, `failed`, per-record
 `completed_at`. Successful records include the per-record
 `classification_result`, `review_required`, review flags, limitations, and
 normalized variant key when available.
+
+## rate_annotated_variants
+
+Required input: either raw annotation `records` or textual annotation input
+through `input_text`, `text`, or `data`.
+
+Optional input:
+
+- `annotation_format`, `source_format`, or `format`: `vep`, `annovar`,
+  `bcftools`, or `generic`.
+- `source_version`: caller-supplied annotation provenance version.
+- `delimiter`: delimiter override for text input.
+- `batch_id`: caller-supplied batch identifier.
+- `gene_disease_context` or `context`: optional context copied into generated
+  batch records.
+- `options`: default options merged into each generated `rate_variant` record.
+
+The tool parses real annotation rows into batch `rate_variant` records, then
+runs the existing batch pipeline. Annotation is descriptive only: it may provide
+variant fields and transcript-selection context, but it does not directly create
+ACMG evidence and does not change the classification combiner.
+
+Successful per-variant results include `annotation_provenance`,
+`normalization_identity`, `transcript_selection_summary`, `review_flags`, and
+`limitations`. Malformed annotation rows are returned as explicit
+`MALFORMED_ANNOTATION_RECORD` failed records; no annotation row is silently
+skipped. All records remain human-review-required.
 
 ## query_clinvar
 
