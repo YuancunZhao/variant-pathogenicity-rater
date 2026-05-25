@@ -110,6 +110,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
         data_source_summary=_data_source_summary(result.evidence_items),
         review_flags=result.review_flags,
         transcript_selection=result.transcript_selection,
+        context_consistency=result.context_consistency,
     )
 
 
@@ -195,6 +196,11 @@ def _json_content(
             if summary.transcript_selection
             else None
         ),
+        "context_consistency": (
+            summary.context_consistency.model_dump(mode="json")
+            if summary.context_consistency
+            else None
+        ),
         "human_review_required": True,
         "human_review_note": summary.human_review_note,
     }
@@ -229,6 +235,7 @@ def _text_content(
 
     lines.extend(_caution_lines(result, summary, language))
     lines.extend(_transcript_selection_lines(summary))
+    lines.extend(_context_consistency_lines(summary))
 
     lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
     lines.extend(_conflicting_evidence_lines(summary))
@@ -327,6 +334,37 @@ def _transcript_selection_lines(summary: VariantReportSummary) -> list[str]:
         )
     if selection.limitations:
         lines.append("- Selection limitations: " + "; ".join(selection.limitations))
+    return lines
+
+
+def _context_consistency_lines(summary: VariantReportSummary) -> list[str]:
+    lines = ["", "## Context Consistency"]
+    consistency = summary.context_consistency
+    if consistency is None:
+        lines.append("- No context consistency summary was supplied.")
+        return lines
+
+    lines.extend(
+        [
+            f"- Status: {consistency.status}",
+            f"- Human review required: {str(consistency.review_required).lower()}",
+            "- Status only; not ACMG evidence and not used by the classification combiner.",
+        ]
+    )
+    if consistency.conflicts:
+        lines.append("- Conflicts:")
+        lines.extend(
+            f"  - {check.check_name}: expected {check.expected}; observed {check.observed}; {check.reason}"
+            for check in consistency.conflicts
+        )
+    if consistency.warnings:
+        lines.append("- Warnings/insufficient context:")
+        lines.extend(
+            f"  - {check.check_name}: expected {check.expected}; observed {check.observed}; {check.reason}"
+            for check in consistency.warnings
+        )
+    if consistency.limitations:
+        lines.append("- Consistency limitations: " + "; ".join(consistency.limitations))
     return lines
 
 

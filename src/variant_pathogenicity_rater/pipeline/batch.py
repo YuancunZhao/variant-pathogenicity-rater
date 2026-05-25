@@ -172,6 +172,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                     pipeline_result,
                     parsed_record.record,
                 ),
+                context_consistency_summary=_context_consistency_summary(pipeline_result),
             )
         )
 
@@ -538,6 +539,25 @@ def _transcript_selection_summary(
         "review_flags": selection.get("review_flags") or [],
         "limitations": selection.get("limitations") or [],
         "provenance": selection.get("provenance") or {},
+    }
+
+
+def _context_consistency_summary(pipeline_result: dict[str, Any]) -> dict[str, Any] | None:
+    consistency = pipeline_result.get("context_consistency") or (
+        (pipeline_result.get("classification_result") or {}).get("context_consistency")
+        if isinstance(pipeline_result.get("classification_result"), dict)
+        else None
+    )
+    if not isinstance(consistency, dict):
+        return None
+    return {
+        "status": consistency.get("status"),
+        "review_required": consistency.get("review_required"),
+        "conflict_count": len(consistency.get("conflicts") or []),
+        "warning_count": len(consistency.get("warnings") or []),
+        "conflicts": consistency.get("conflicts") or [],
+        "warnings": consistency.get("warnings") or [],
+        "limitations": consistency.get("limitations") or [],
     }
 
 

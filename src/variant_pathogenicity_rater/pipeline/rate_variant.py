@@ -12,6 +12,7 @@ from variant_pathogenicity_rater.acmg.combiner import classify_acmg
 from variant_pathogenicity_rater.acmg.computational_rules import evaluate_computational_predictions
 from variant_pathogenicity_rater.acmg.population_rules import evaluate_population_rules
 from variant_pathogenicity_rater.acmg.pvs1 import evaluate_pvs1
+from variant_pathogenicity_rater.context_consistency import evaluate_context_consistency
 from variant_pathogenicity_rater.config.thresholds import (
     computational_thresholds_from_options,
     population_thresholds_from_options,
@@ -32,7 +33,8 @@ from variant_pathogenicity_rater.evidence.literature import (
 )
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.reporting import generate_report
-from variant_pathogenicity_rater.schemas.common import AuditTrail
+from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
+from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
 from variant_pathogenicity_rater.schemas.evidence import ComputationalPrediction, EvidenceItem
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
@@ -54,6 +56,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     ]
     evidence_items: list[EvidenceItem] = []
     step_results: dict[str, Any] = {}
+    context_consistency: ContextConsistency | None = None
 
     normalized_variant: Variant | None = None
     normalization_result = _run_step(
@@ -72,18 +75,20 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     context = _gene_disease_context(arguments, normalized_variant, limitations, audit_trail)
 
     transcript_selection: TranscriptSelection | None = None
+    annotation_records = _annotation_records(options) if _should_select_transcript(options) else []
     if _should_select_transcript(options):
         transcript_selection = _run_step(
             "select_transcript",
             audit_trail,
             limitations,
-            lambda: _select_transcript_step(options, normalized_variant),
+            lambda: _select_transcript_step(annotation_records, normalized_variant, options),
         )
         if transcript_selection is not None:
             limitations.extend(transcript_selection.limitations)
             step_results["select_transcript"] = json.loads(transcript_selection.model_dump_json())
 
     population_frequency = None
+    population_records = []
     if options.get("include_population", True):
         population_frequency = _run_step(
             "query_population_frequency",
@@ -95,6 +100,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             ).query(normalized_variant),
         )
         if population_frequency is not None:
+            population_records.append(population_frequency)
             step_results["query_population_frequency"] = json.loads(
                 population_frequency.model_dump_json()
             )
@@ -148,6 +154,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         if pvs1_result.evidence_item is not None:
             evidence_items.append(pvs1_result.evidence_item)
 
+    clinvar_records = []
     if options.get("include_clinvar", True):
         clinvar_result = _run_step(
             "query_clinvar",
@@ -159,10 +166,12 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             ).query(_clinvar_query(normalized_variant, context)),
         )
         if clinvar_result is not None:
+            clinvar_records = list(clinvar_result.records)
             evidence_items.extend(clinvar_result.candidate_evidence_items)
             limitations.extend(clinvar_result.limitations)
             step_results["query_clinvar"] = json.loads(clinvar_result.model_dump_json())
 
+    literature_records = []
     if options.get("include_literature", True):
         literature_result = _run_step(
             "search_literature_evidence",
@@ -178,6 +187,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             ),
         )
         if literature_result is not None:
+            literature_records = list(literature_result.literature_records)
             evidence_items.extend(literature_result.candidate_evidence_items)
             limitations.extend(literature_result.limitations)
             step_results["search_literature_evidence"] = json.loads(
@@ -196,6 +206,26 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             json.loads(item.model_dump_json()) for item in supplemental_items
         ]
 
+    context_consistency = _run_step(
+        "evaluate_context_consistency",
+        audit_trail,
+        limitations,
+        lambda: evaluate_context_consistency(
+            normalized_variant,
+            context,
+            annotation_records=annotation_records,
+            transcript_selection=transcript_selection,
+            clinvar_records=clinvar_records,
+            population_records=population_records,
+            literature_records=literature_records,
+        ),
+    )
+    if context_consistency is not None:
+        limitations.extend(context_consistency.limitations)
+        step_results["evaluate_context_consistency"] = json.loads(
+            context_consistency.model_dump_json()
+        )
+
     step_results["combine_all_evidence"] = {
         "evidence_item_count": len(evidence_items),
         "evidence_ids": [item.evidence_id for item in evidence_items],
@@ -211,9 +241,17 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     if classification_result is None:
         classification_result = classify_acmg([], normalized_variant, context, _unique(limitations))
     classification_result.transcript_selection = transcript_selection
+    classification_result.context_consistency = context_consistency
     if transcript_selection is not None:
         classification_result.review_flags = _unique_review_flags(
             [*classification_result.review_flags, *transcript_selection.review_flags]
+        )
+    if context_consistency is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [
+                *classification_result.review_flags,
+                *_review_flags_from_context_consistency(context_consistency),
+            ]
         )
     step_results["classify_acmg"] = json.loads(classification_result.model_dump_json())
 
@@ -263,6 +301,16 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             json.loads(transcript_selection.model_dump_json())
             if transcript_selection is not None
             else None
+        ),
+        "context_consistency": (
+            json.loads(context_consistency.model_dump_json())
+            if context_consistency is not None
+            else None
+        ),
+        "consistency_warnings": (
+            [json.loads(check.model_dump_json()) for check in context_consistency.warnings]
+            if context_consistency is not None
+            else []
         ),
         "report_text": classification_result.report_text,
         "report": serialized_report,
@@ -423,10 +471,10 @@ def _should_select_transcript(options: dict[str, Any]) -> bool:
 
 
 def _select_transcript_step(
-    options: dict[str, Any],
+    annotations: list[VariantAnnotation],
     variant: Variant,
+    options: dict[str, Any],
 ) -> TranscriptSelection:
-    annotations = _annotation_records(options)
     user_transcript = options.get("user_transcript") or _variant_transcript_label(variant)
     return select_transcript(annotations, user_transcript=user_transcript)
 
@@ -548,3 +596,17 @@ def _unique_review_flags(flags: list[Any]) -> list[Any]:
         seen.add(code)
         unique.append(flag)
     return unique
+
+
+def _review_flags_from_context_consistency(consistency: ContextConsistency) -> list[ReviewFlag]:
+    flags: list[ReviewFlag] = []
+    for check in [*consistency.conflicts, *consistency.warnings]:
+        flags.append(
+            ReviewFlag(
+                code=f"CONTEXT_{check.check_name.upper()}",
+                message=check.reason,
+                severity="error" if check.severity == "conflict" else "warning",
+                blocking=check.severity in {"conflict", "insufficient"},
+            )
+        )
+    return flags

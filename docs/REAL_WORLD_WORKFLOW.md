@@ -38,6 +38,9 @@ The workflow is intentionally conservative:
 - Annotation records never directly generate ACMG evidence.
 - Transcript selection is descriptive context only and remains
   human-review-required.
+- Context consistency checks compare user/input context with annotation and
+  provider context. They add review flags, limitations, and per-record
+  summaries, but they do not change ACMG classification.
 - Malformed annotation rows are returned as failed records; they are not skipped.
 - Annotation rows missing key identifiers are returned as failed records instead
   of being guessed from nearby columns.
@@ -90,6 +93,7 @@ block. Each successful per-variant result includes:
 - `annotation_provenance`
 - `normalization_identity`
 - `transcript_selection_summary`
+- `context_consistency_summary`
 - `review_flags`
 - `limitations`
 

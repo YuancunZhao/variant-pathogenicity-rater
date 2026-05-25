@@ -19,6 +19,10 @@ from variant_pathogenicity_rater.schemas.classification import (
     ClassificationResult,
 )
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
+from variant_pathogenicity_rater.schemas.consistency import (
+    ContextConsistency,
+    ContextConsistencyCheck,
+)
 from variant_pathogenicity_rater.schemas.evidence import (
     ClinVarRecord,
     ComputationalPrediction,
@@ -64,6 +68,8 @@ __all__ = [
     "BatchVariantResult",
     "ClassificationResult",
     "ClinVarRecord",
+    "ContextConsistency",
+    "ContextConsistencyCheck",
     "ComputationalPrediction",
     "DataSourceSummary",
     "EvidenceCode",

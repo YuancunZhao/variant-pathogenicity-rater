@@ -14,6 +14,9 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Transcript selection and annotation adapters provide review context only.
   They do not generate evidence or substitute for an explicitly supplied user
   transcript.
+- Context consistency checks flag mismatched gene, transcript, disease,
+  ancestry, inheritance, consequence, and genome-build context. They do not
+  generate ACMG evidence and do not change the classification combiner.
 
 ## Evidence Boundaries
 
@@ -30,6 +33,13 @@ replace qualified clinical, laboratory, or genetics professional review.
 - A local or mock provider miss means no matching record was found in that
   configured source. It does not mean the variant is absent from ClinVar,
   gnomAD, or any population database.
+- Provider records cannot automatically override user-provided context. A
+  provider gene, transcript, condition, ancestry, or genome build mismatch is a
+  review flag that must be resolved manually.
+- When disease context is missing, population and PVS1 confidence must not be
+  elevated from the missing context. Population evidence remains candidate-only
+  under missing disease-specific context, and PVS1 is not applied without
+  disease context.
 
 ## Provider Boundaries
 
@@ -40,6 +50,8 @@ replace qualified clinical, laboratory, or genetics professional review.
   implemented for v0.2.0-alpha2.
 - Local-file provider quality depends on the supplied local snapshot, genome
   build, parser compatibility, and source freshness.
+- Provider genome build is checked against input genome build when available.
+  Mismatches are retained as context conflicts instead of being silently ignored.
 
 ## Release Use
 
