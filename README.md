@@ -70,10 +70,13 @@ Implemented tools:
 - `evaluate_population_rules`
 - `evaluate_computational_evidence`
 - `search_literature_evidence`
+- `assess_literature_evidence`
 - `evaluate_pvs1`
 - `generate_report`
 
 Evidence tools return structured evidence or review-note payloads and a mandatory human-review notice. Literature evidence is candidate-only and never auto-applies PS3, BS3, PS2, PM6, PP1, PS4, or PP4.
+
+`assess_literature_evidence` is an optional ACMG literature evidence agent. It is offline by default, produces `suggested_evidence` only, never writes to applied evidence, and never changes final classification. See [docs/ACMG_LITERATURE_AGENT.md](docs/ACMG_LITERATURE_AGENT.md).
 
 ## Reports
 

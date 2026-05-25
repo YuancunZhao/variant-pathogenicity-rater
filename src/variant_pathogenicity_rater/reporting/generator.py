@@ -26,6 +26,7 @@ from variant_pathogenicity_rater.schemas.report import (
     VariantReport,
     VariantReportSummary,
 )
+from variant_pathogenicity_rater.literature_agent.schema import LiteratureAgentResult
 
 
 CLASSIFICATION_LABELS = {
@@ -74,6 +75,47 @@ def generate_report(
         source_result=result,
         human_review_required=True,
     )
+
+
+def render_literature_evidence_section(
+    literature_result: LiteratureAgentResult | dict[str, Any],
+) -> str:
+    """Render an optional literature-agent section without touching classifier output."""
+
+    result = (
+        literature_result
+        if isinstance(literature_result, LiteratureAgentResult)
+        else LiteratureAgentResult.model_validate(literature_result)
+    )
+    lines = [
+        "## Literature Evidence Assessment",
+        "- Not automatically applied to ACMG classification.",
+        "- This section is separate from Applied ACMG Evidence and does not change final classification wording.",
+    ]
+    if not result.literature_evidence_assessments:
+        lines.append("- No literature evidence assessments were supplied.")
+    for item in result.literature_evidence_assessments:
+        lines.append(
+            f"- {item.candidate_code} / {item.suggested_strength}; "
+            f"type: {item.evidence_type}; confidence: {item.confidence:.2f}; "
+            f"citation: {item.citation or item.pmid or item.doi or 'not provided'}"
+        )
+        lines.append(f"  - Why not automatically applied: {item.reason_not_applied}")
+        if item.extracted_claims:
+            lines.append("  - Extracted claims: " + "; ".join(item.extracted_claims))
+        if item.provenance.get("extraction", {}).get("ambiguity_flags"):
+            flags = item.provenance["extraction"]["ambiguity_flags"]
+            lines.append("  - Ambiguity flags: " + ", ".join(flags))
+    if result.review_questions:
+        lines.extend(["", "### Human Review Checklist"])
+        lines.extend(f"- {question}" for question in result.review_questions)
+    if result.citations:
+        lines.extend(["", "### Citations"])
+        lines.extend(f"- {citation}" for citation in result.citations)
+    if result.limitations:
+        lines.extend(["", "### Literature Agent Limitations"])
+        lines.extend(f"- {item}" for item in result.limitations)
+    return "\n".join(lines)
 
 
 def _summary(result: ClassificationResult) -> VariantReportSummary:
