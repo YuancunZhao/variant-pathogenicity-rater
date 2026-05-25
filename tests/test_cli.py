@@ -1,0 +1,172 @@
+from __future__ import annotations
+
+import json
+
+from variant_pathogenicity_rater.cli import main
+
+
+def test_cli_help(capsys) -> None:
+    exit_code = main(["--help"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "vpr" in captured.out
+    assert "annotated-batch" in captured.out
+
+
+def test_single_rate_json(capsys) -> None:
+    exit_code = main(
+        [
+            "rate",
+            "--gene",
+            "BRCA1",
+            "--transcript",
+            "NM_007294.4",
+            "--hgvs-c",
+            "NM_007294.4:c.68_69delAG",
+            "--hgvs-p",
+            "NP_009225.1:p.Glu23ValfsTer17",
+            "--chromosome",
+            "17",
+            "--position",
+            "43092919",
+            "--ref",
+            "AG",
+            "--alt",
+            "A",
+            "--disease",
+            "Hereditary breast and ovarian cancer",
+            "--inheritance",
+            "autosomal dominant",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["status"] == "ok"
+    assert payload["mock_mode"] is True
+    assert payload["classification_result"]["human_review_required"] is True
+
+
+def test_batch_jsonl(capsys, tmp_path) -> None:
+    input_path = tmp_path / "batch.jsonl"
+    input_path.write_text(
+        "\n".join(
+            [
+                json.dumps(_record()),
+                json.dumps(_record(position=43092920, ref="A", alt="G")),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "batch",
+            "--input",
+            str(input_path),
+            "--format",
+            "jsonl",
+            "--output-format",
+            "jsonl",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    lines = [json.loads(line) for line in captured.out.splitlines()]
+    assert exit_code == 0
+    assert [line["type"] for line in lines] == ["result", "result", "summary"]
+    assert lines[-1]["succeeded"] == 2
+    assert lines[-1]["failed"] == 0
+
+
+def test_annotated_vep_fixture(capsys, tmp_path) -> None:
+    input_path = tmp_path / "vep.tsv"
+    input_path.write_text(
+        """## ENSEMBL VARIANT EFFECT PREDICTOR
+#Uploaded_variation\tSYMBOL\tFeature\tHGVSc\tHGVSp\tConsequence\tCANONICAL\tMANE_SELECT\tBIOTYPE
+17_43092919_AG/A\tBRCA1\tNM_007294.4\tNM_007294.4:c.68_69delAG\tNP_009225.1:p.Glu23ValfsTer17\tframeshift_variant\tYES\tYES\tprotein_coding
+""",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "annotated-batch",
+            "--input",
+            str(input_path),
+            "--source",
+            "vep",
+            "--include-report",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["annotation_parse"]["parsed"] == 1
+    assert payload["summary"]["succeeded"] == 1
+    assert payload["summary"]["failed"] == 0
+    assert any("does not directly generate ACMG evidence" in item for item in payload["limitations"])
+    assert payload["batch"]["results"][0]["annotation_provenance"]
+
+
+def test_output_file_writing(tmp_path, capsys) -> None:
+    input_path = tmp_path / "batch.jsonl"
+    output_path = tmp_path / "result.json"
+    input_path.write_text(json.dumps(_record()), encoding="utf-8")
+
+    exit_code = main(
+        [
+            "batch",
+            "--input",
+            str(input_path),
+            "--format",
+            "jsonl",
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert captured.out == ""
+    assert payload["succeeded"] == 1
+
+
+def test_invalid_input_exit_code(capsys, tmp_path) -> None:
+    missing = tmp_path / "missing.jsonl"
+
+    exit_code = main(["batch", "--input", str(missing), "--format", "jsonl"])
+
+    captured = capsys.readouterr()
+    assert exit_code != 0
+    assert "cannot read input file" in captured.err
+
+
+def test_check_env_command(capsys) -> None:
+    exit_code = main(["check-env"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "Python executable:" in captured.out
+    assert "project import status:" in captured.out
+
+
+def _record(**overrides: object) -> dict[str, object]:
+    record: dict[str, object] = {
+        "gene": "BRCA1",
+        "transcript": "NM_007294.4",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "chromosome": "17",
+        "position": 43092919,
+        "ref": "AG",
+        "alt": "A",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+    }
+    record.update(overrides)
+    return record

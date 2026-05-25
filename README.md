@@ -74,6 +74,20 @@ Implemented tools:
 
 Evidence tools return structured evidence or review-note payloads and a mandatory human-review notice. Literature evidence is candidate-only and never auto-applies PS3, BS3, PS2, PM6, PP1, PS4, or PP4.
 
+## CLI
+
+The `vpr` command provides terminal access to the same offline/mock-backed single
+variant, batch, annotated-batch, and environment-check workflows:
+
+```bash
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G
+vpr batch --input variants.jsonl --format jsonl
+vpr annotated-batch --input vep.tsv --source vep --include-report
+vpr check-env
+```
+
+See [docs/CLI.md](docs/CLI.md) for command options and output behavior.
+
 ## Start
 
 After installation, start the MCP server with the same virtual environment
