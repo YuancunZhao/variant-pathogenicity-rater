@@ -19,6 +19,7 @@ from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
 from variant_pathogenicity_rater.schemas.batch import (
     BatchRecordError,
     BatchResult,
+    BatchSummary,
     BatchVariantResult,
     FailedBatchRecord,
 )
@@ -183,6 +184,14 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
         total_records=parsed.total_records,
         succeeded=succeeded,
         failed=failed,
+        summary=_batch_summary(
+            parsed.total_records,
+            succeeded,
+            failed,
+            results,
+            failed_records,
+            warnings,
+        ),
         results=sorted(results, key=lambda item: item.input_index),
         failed_records=sorted(failed_records, key=lambda item: item.input_index),
         warnings=_unique(warnings),
@@ -569,6 +578,59 @@ def _annotation_provenance(record: dict[str, Any]) -> list[dict[str, Any]]:
     if isinstance(provenance, list):
         return [item for item in provenance if isinstance(item, dict)]
     return []
+
+
+def _batch_summary(
+    total_records: int,
+    succeeded: int,
+    failed: int,
+    results: list[BatchVariantResult],
+    failed_records: list[FailedBatchRecord],
+    warnings: list[str],
+) -> BatchSummary:
+    distribution: dict[str, int] = {}
+    review_required_count = 0
+    conflict_count = 0
+    for result in results:
+        if result.review_required:
+            review_required_count += 1
+        if result.status == "ok":
+            classification = _classification_value(result.classification_result)
+            if classification:
+                distribution[classification] = distribution.get(classification, 0) + 1
+            consistency = result.context_consistency_summary or {}
+            if consistency.get("status") == "conflict":
+                conflict_count += 1
+            elif int(consistency.get("conflict_count") or 0) > 0:
+                conflict_count += 1
+
+    return BatchSummary(
+        total_records=total_records,
+        succeeded=succeeded,
+        failed=failed,
+        classification_distribution=dict(sorted(distribution.items())),
+        review_required_count=review_required_count,
+        conflict_count=conflict_count,
+        failed_records_summary=[
+            {
+                "input_index": failed_record.input_index,
+                "code": failed_record.error.code,
+                "message": failed_record.error.message,
+            }
+            for failed_record in sorted(failed_records, key=lambda item: item.input_index)
+        ],
+        duplicate_warnings=_unique(
+            [warning for warning in warnings if "duplicate variant detected" in warning.lower()]
+        ),
+    )
+
+
+def _classification_value(classification_result: Any) -> str | None:
+    if isinstance(classification_result, dict):
+        value = classification_result.get("final_classification")
+        return str(value) if value else None
+    value = getattr(classification_result, "final_classification", None)
+    return str(value) if value else None
 
 
 def _record_hash(record: Any) -> str:

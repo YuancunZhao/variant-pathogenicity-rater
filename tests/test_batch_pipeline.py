@@ -129,6 +129,7 @@ def test_duplicate_warning() -> None:
 
     assert result["succeeded"] == 2
     assert any("Duplicate variant detected" in warning for warning in result["warnings"])
+    assert result["summary"]["duplicate_warnings"]
 
 
 def test_per_record_review_flags_preserved() -> None:
@@ -277,3 +278,46 @@ def test_duplicate_with_formatting_differences_detected_without_merging() -> Non
     assert result["succeeded"] == 2
     assert len(result["results"]) == 2
     assert any("Duplicate variant detected" in warning for warning in result["warnings"])
+
+
+def test_batch_summary_includes_failed_review_conflict_counts() -> None:
+    result = rate_variant_batch(
+        {
+            "records": [
+                _record(
+                    options={
+                        "include_context_consistency": True,
+                        "annotations": [
+                            {
+                                "gene": "TP53",
+                                "transcript": "NM_007294.4",
+                                "hgvs_c": "NM_007294.4:c.68_69delAG",
+                                "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+                                "consequence": "frameshift_variant",
+                                "consequence_terms": ["frameshift_variant"],
+                                "annotation_source": "test_annotation",
+                                "provenance": {
+                                    "data_source": "test_annotation",
+                                    "raw_record_hash": "abc123",
+                                },
+                                "raw_fields": {},
+                            }
+                        ],
+                    }
+                ),
+                _record(variant_type="cnv", alt="<DEL>"),
+                _record(),
+                _record(),
+            ]
+        }
+    )
+
+    summary = result["summary"]
+    assert summary["total_records"] == 4
+    assert summary["succeeded"] == 3
+    assert summary["failed"] == 1
+    assert summary["review_required_count"] == 4
+    assert summary["conflict_count"] == 1
+    assert summary["failed_records_summary"][0]["code"] == "UNSUPPORTED_VARIANT_TYPE"
+    assert summary["duplicate_warnings"]
+    assert sum(summary["classification_distribution"].values()) == 3

@@ -67,6 +67,7 @@ The response follows the `BatchResult` schema:
 - `total_records`
 - `succeeded`
 - `failed`
+- `summary`
 - `results`
 - `failed_records`
 - `warnings`
@@ -84,6 +85,17 @@ Each item in `results` includes:
 - `review_required`
 - `review_flags`
 - `limitations`
+
+The top-level `summary` includes:
+
+- `total_records`
+- `succeeded`
+- `failed`
+- `classification_distribution`
+- `review_required_count`
+- `conflict_count`
+- `failed_records_summary`
+- `duplicate_warnings`
 
 ## Error Handling
 
@@ -103,8 +115,9 @@ Duplicate normalized variants are allowed but reported in `warnings`.
 
 Batch mode cannot replace human review. It repeats the existing SNV/small indel
 pipeline for multiple records and preserves each variant's limitations, errors,
-and review flags. The batch summary is only a count and does not override
-per-record review requirements.
+and review flags. The batch summary is a triage aid only and does not override
+per-record classifications, context conflicts, limitations, or review
+requirements.
 
 The default is offline/mock. Network-backed providers must be enabled explicitly
 through existing per-record or batch `options`, and any provider limitations are

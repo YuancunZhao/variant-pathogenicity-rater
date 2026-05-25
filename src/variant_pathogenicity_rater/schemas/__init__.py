@@ -11,6 +11,7 @@ from variant_pathogenicity_rater.schemas.annotation import (
 from variant_pathogenicity_rater.schemas.batch import (
     BatchRecordError,
     BatchResult,
+    BatchSummary,
     BatchVariantResult,
     FailedBatchRecord,
 )
@@ -65,6 +66,7 @@ __all__ = [
     "AnnotationParseResult",
     "BatchRecordError",
     "BatchResult",
+    "BatchSummary",
     "BatchVariantResult",
     "ClassificationResult",
     "ClinVarRecord",

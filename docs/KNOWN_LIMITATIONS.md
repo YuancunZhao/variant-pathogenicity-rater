@@ -41,6 +41,22 @@ replace qualified clinical, laboratory, or genetics professional review.
   under missing disease-specific context, and PVS1 is not applied without
   disease context.
 
+## Reporting Boundaries
+
+- Reports render the supplied `ClassificationResult`; they do not recalculate
+  ACMG criteria, modify evidence strength, or change final classification.
+- Candidate/review-note evidence is displayed separately from applied ACMG
+  evidence. It should not be interpreted as counted evidence.
+- ClinVar and literature sections summarize external assertions or extracted
+  claims for review. They are not automatically applied ACMG evidence.
+- SpliceAI is computational splice prediction only. It is not functional
+  evidence and does not by itself apply PS3, BS3, or PVS1.
+- Transcript selection is recommendation/review-note context only, not evidence.
+- Context consistency conflicts require manual review but are not classification
+  changes.
+- A VUS report means uncertainty. It must not be read as leaning pathogenic or
+  benign without additional reviewed evidence and a qualified reviewer.
+
 ## Provider Boundaries
 
 - The default data source mode is offline `mock`.

@@ -9,6 +9,8 @@ from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.schemas import (
     AuditTrail,
     ClassificationResult,
+    ContextConsistency,
+    ContextConsistencyCheck,
     EvidenceDirection,
     EvidenceItem,
     EvidenceSource,
@@ -17,6 +19,7 @@ from variant_pathogenicity_rater.schemas import (
     ReportMode,
     ReviewFlag,
     Transcript,
+    TranscriptSelection,
     Variant,
 )
 
@@ -59,6 +62,8 @@ def _classification_result(
     final_classification: str = "vus",
     conflicting_evidence: list[str] | None = None,
     evidence_items: list[EvidenceItem] | None = None,
+    transcript_selection: TranscriptSelection | None = None,
+    context_consistency: ContextConsistency | None = None,
 ) -> ClassificationResult:
     return ClassificationResult(
         result_id="report-test-result",
@@ -81,6 +86,8 @@ def _classification_result(
                 blocking=True,
             )
         ],
+        transcript_selection=transcript_selection,
+        context_consistency=context_consistency,
         audit_trail=[
             AuditTrail(event_id="audit-report-test", event_type="classification_combined")
         ],
@@ -120,6 +127,21 @@ def _computational_evidence() -> EvidenceItem:
     )
 
 
+def _literature_candidate_evidence() -> EvidenceItem:
+    return EvidenceItem(
+        evidence_id="ev-lit-001",
+        code="PS3",
+        strength=EvidenceStrength.NONE,
+        direction=EvidenceDirection.PATHOGENIC,
+        reason="Literature functional claim is candidate-only pending review.",
+        source=EvidenceSource(name="Literature", version="fixture-v1"),
+        confidence=0.4,
+        requires_review=True,
+        triggered_by=["literature"],
+        supporting_data={"candidate_only": True, "evidence_status": "candidate"},
+    )
+
+
 def _clinvar_conflict_evidence() -> EvidenceItem:
     return EvidenceItem(
         evidence_id="ev-clinvar-001",
@@ -132,6 +154,36 @@ def _clinvar_conflict_evidence() -> EvidenceItem:
         requires_review=True,
         triggered_by=["clinvar_record"],
         supporting_data={"conflicting_interpretations": True, "candidate_only": True},
+    )
+
+
+def _transcript_selection() -> TranscriptSelection:
+    return TranscriptSelection(
+        selected_transcript="NM_000059.4",
+        selected_gene="BRCA2",
+        selection_reason="MANE Select transcript was available.",
+        selection_confidence=0.9,
+        mane_select_available=True,
+    )
+
+
+def _context_conflict() -> ContextConsistency:
+    conflict = ContextConsistencyCheck(
+        check_name="selected_transcript_vs_variant_transcript",
+        severity="conflict",
+        field="transcript_selection.selected_transcript",
+        expected="NM_000059.4",
+        observed="NM_000059.3",
+        reason="Selected transcript differs from the normalized variant transcript.",
+        source="transcript_selection",
+    )
+    return ContextConsistency(
+        status="conflict",
+        checks=[conflict],
+        conflicts=[conflict],
+        warnings=[],
+        limitations=["Context conflicts require manual resolution."],
+        review_required=True,
     )
 
 
@@ -178,13 +230,19 @@ def test_computational_evidence_is_described_as_supporting_only() -> None:
 
 def test_all_text_modes_include_auditable_required_sections() -> None:
     required_sections = [
+        "Executive Summary",
         "Variant Summary",
         "Final Classification",
-        "Triggered ACMG Evidence",
+        "Why This Classification",
+        "Applied ACMG Evidence",
         "Candidate / Review-Note Evidence",
+        "Context Consistency",
+        "Transcript Selection",
         "Conflicting Evidence",
         "Limitations",
-        "Data Source Summary",
+        "What Data May Be Missing",
+        "Data Sources / Provenance",
+        "Safety Notes",
         "Human Review Note",
     ]
 
@@ -212,18 +270,7 @@ def test_mcp_generate_report_tool_returns_selected_format() -> None:
 
 
 def test_report_separates_applied_evidence_from_candidate_evidence() -> None:
-    candidate = EvidenceItem(
-        evidence_id="ev-lit-001",
-        code="PS3",
-        strength=EvidenceStrength.NONE,
-        direction=EvidenceDirection.PATHOGENIC,
-        reason="Literature functional claim is candidate-only pending review.",
-        source=EvidenceSource(name="Literature", version="fixture-v1"),
-        confidence=0.4,
-        requires_review=True,
-        triggered_by=["literature"],
-        supporting_data={"candidate_only": True, "evidence_status": "candidate"},
-    )
+    candidate = _literature_candidate_evidence()
     report = generate_report(
         _classification_result(evidence_items=[_population_evidence(), candidate]),
         output_format="json",
@@ -243,3 +290,113 @@ def test_report_separates_applied_evidence_from_candidate_evidence() -> None:
     ]
     assert "ev-lit-001" not in text_report.content.split("## Candidate / Review-Note Evidence")[0]
     assert "candidate/review-note only; not used in classification" in text_report.content
+
+
+def test_clinvar_and_literature_candidates_are_not_under_applied_evidence() -> None:
+    report = generate_report(
+        _classification_result(
+            evidence_items=[
+                _population_evidence(),
+                _literature_candidate_evidence(),
+                _clinvar_conflict_evidence(),
+            ],
+        ),
+        output_format="markdown",
+        mode="laboratory",
+    )
+
+    applied_section = report.content.split("## Candidate / Review-Note Evidence")[0]
+    candidate_section = report.content.split("## Candidate / Review-Note Evidence")[1]
+    assert "ev-lit-001" not in applied_section
+    assert "ev-clinvar-001" not in applied_section
+    assert "ev-lit-001" in candidate_section
+    assert "ev-clinvar-001" in candidate_section
+    assert "not counted by the classification combiner" in candidate_section
+
+
+def test_context_conflict_is_review_required_not_classification_change() -> None:
+    report = generate_report(
+        _classification_result(context_consistency=_context_conflict()),
+        output_format="markdown",
+        mode="detailed",
+    )
+    json_report = generate_report(
+        _classification_result(context_consistency=_context_conflict()),
+        output_format="json",
+        mode="detailed",
+    )
+
+    assert "not a classification change" in report.content
+    assert "- Human review required: true" in report.content
+    assert json_report.content["context_consistency"]["summary"]["status"] == "conflict"
+    assert "does not change the classification" in json_report.content["context_consistency"]["note"]
+
+
+def test_transcript_selection_section_says_not_evidence() -> None:
+    report = generate_report(
+        _classification_result(transcript_selection=_transcript_selection()),
+        output_format="markdown",
+        mode="detailed",
+    )
+
+    assert "Transcript Selection" in report.content
+    assert "not ACMG evidence" in report.content
+    assert "not counted by the classification combiner" in report.content
+
+
+def test_vus_wording_is_conservative_and_markdown_does_not_overstate_pathogenicity() -> None:
+    report = generate_report(
+        _classification_result(
+            final_classification="vus",
+            evidence_items=[_population_evidence(), _literature_candidate_evidence()],
+        ),
+        output_format="markdown",
+        mode="clinician",
+    )
+
+    lowered = report.content.lower()
+    assert "variant of uncertain significance" in lowered
+    assert "insufficient to support a pathogenic or benign classification" in lowered
+    assert "likely pathogenic" not in lowered
+    assert "candidate/review-note only" in lowered
+
+
+def test_spliceai_is_not_described_as_functional_evidence() -> None:
+    report = generate_report(
+        _classification_result(evidence_items=[_computational_evidence()]),
+        output_format="markdown",
+        mode="detailed",
+    )
+
+    assert "SpliceAI is computational splice prediction only" in report.content
+    assert "not functional evidence" in report.content
+
+
+def test_json_summary_has_stable_usability_keys() -> None:
+    report = generate_report(
+        _classification_result(
+            evidence_items=[_population_evidence(), _literature_candidate_evidence()],
+            transcript_selection=_transcript_selection(),
+            context_consistency=_context_conflict(),
+        ),
+        output_format="json",
+        mode="detailed",
+    )
+
+    expected = {
+        "executive_summary",
+        "final_classification",
+        "why_this_classification",
+        "applied_evidence",
+        "review_note_evidence",
+        "context_consistency",
+        "transcript_selection",
+        "data_sources",
+        "limitations",
+        "missing_data",
+        "safety_notes",
+        "human_review_required",
+    }
+    assert expected.issubset(report.content)
+    assert report.content["applied_evidence"]["items"][0]["evidence_id"] == "ev-pop-001"
+    assert report.content["review_note_evidence"]["items"][0]["evidence_id"] == "ev-lit-001"

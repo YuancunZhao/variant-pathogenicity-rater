@@ -75,6 +75,33 @@ Implemented tools:
 
 Evidence tools return structured evidence or review-note payloads and a mandatory human-review notice. Literature evidence is candidate-only and never auto-applies PS3, BS3, PS2, PM6, PP1, PS4, or PP4.
 
+## Reports
+
+`generate_report` renders an existing `ClassificationResult` as markdown,
+plain text, or JSON in `concise`, `detailed`, `laboratory`, or `clinician`
+mode. Reporting is presentation-only: it does not add ACMG criteria, rerun the
+combiner, relax safety rules, or change the final classification.
+
+Reports separate:
+
+- final machine proposal
+- applied ACMG evidence
+- candidate/review-note evidence
+- context consistency
+- transcript selection
+- data sources/provenance
+- limitations and safety notes
+
+ClinVar and literature notes remain candidate/review-note evidence unless they
+already appear as applied evidence in the supplied result. SpliceAI is described
+as computational splice prediction only, not functional evidence. Transcript
+selection and context consistency are review context and are not counted by the
+classification combiner. VUS reports use conservative wording and do not imply
+that the variant is likely pathogenic.
+
+See [docs/REPORTING.md](docs/REPORTING.md) for section definitions, JSON keys,
+batch summary fields, and safety wording.
+
 ## CLI
 
 The `vpr` command provides terminal access to the same offline/mock-backed single
@@ -141,6 +168,11 @@ JSONL, CSV/TSV, and minimal VCF-like TSV input, calls the existing `rate_variant
 pipeline independently for each SNV/small-indel record, and reports malformed or
 unsupported rows in `failed_records` instead of skipping them silently. See
 `docs/BATCH_INPUT.md`.
+
+Batch results include a `summary` object with total, succeeded, failed,
+classification distribution, review-required count, context conflict count,
+failed-record summaries, and duplicate warnings. The summary is for triage only
+and does not override per-record classification or review requirements.
 
 Normalize a VCF-like SNV or small indel:
 

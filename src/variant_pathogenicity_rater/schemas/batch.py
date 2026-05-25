@@ -38,11 +38,23 @@ class BatchVariantResult(SchemaModel):
     context_consistency_summary: dict[str, Any] | None = None
 
 
+class BatchSummary(SchemaModel):
+    total_records: int = Field(..., ge=0)
+    succeeded: int = Field(..., ge=0)
+    failed: int = Field(..., ge=0)
+    classification_distribution: dict[str, int] = Field(default_factory=dict)
+    review_required_count: int = Field(..., ge=0)
+    conflict_count: int = Field(..., ge=0)
+    failed_records_summary: list[dict[str, Any]] = Field(default_factory=list)
+    duplicate_warnings: list[str] = Field(default_factory=list)
+
+
 class BatchResult(SchemaModel):
     batch_id: str = Field(..., min_length=1)
     total_records: int = Field(..., ge=0)
     succeeded: int = Field(..., ge=0)
     failed: int = Field(..., ge=0)
+    summary: BatchSummary
     results: list[BatchVariantResult] = Field(default_factory=list)
     failed_records: list[FailedBatchRecord] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)

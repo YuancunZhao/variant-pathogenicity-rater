@@ -6,7 +6,7 @@ This framework prepares Variant Pathogenicity Rater for future PubMed/LitVar-ass
 
 Literature evidence is noisy, context-dependent, and often ambiguous without expert review of the full paper, assay validation, cohort independence, phenotype fit, and disease mechanism. For that reason, every literature-derived item is stored as candidate/review-note evidence and is never allowed to alter the final ACMG classification.
 
-The report generator displays literature candidates under `Candidate / Review-Note Evidence`. They do not enter `Triggered ACMG Evidence`, and the ACMG combiner ignores them because they are emitted with `strength=none`, `candidate_only=true`, and `automatic_application=false`.
+The report generator displays literature candidates under `Candidate / Review-Note Evidence`. They do not enter `Applied ACMG Evidence`, and the ACMG combiner ignores them because they are emitted with `strength=none`, `candidate_only=true`, and `automatic_application=false`.
 
 ## Candidate Schema
 
