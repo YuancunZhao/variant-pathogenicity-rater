@@ -1,9 +1,9 @@
 # Variant Pathogenicity Rater
 
-Current version: v0.2.0-alpha1 internal test release.
+Current version: v0.2.0-alpha2 internal test release.
 
 Codex Plugin plus MCP server framework for SNV/small indel ACMG variant interpretation tools.
-This phase implements an offline, mock-backed end-to-end `rate_variant` workflow: normalization, population frequency retrieval and BA1/BS1/PM2 evaluation, computational PP3/BP4 evaluation, PVS1 evaluation, ClinVar review-note retrieval, literature review-note retrieval, ACMG classification combining, and report generation. v0.2.0-alpha1 also adds batch input orchestration, annotation adapter scaffolding, transcript selection review notes, stricter MCP schemas, and HGVS/variant identity normalization refinements.
+This phase implements an offline, mock-backed end-to-end `rate_variant` workflow: normalization, population frequency retrieval and BA1/BS1/PM2 evaluation, computational PP3/BP4 evaluation, PVS1 evaluation, ClinVar review-note retrieval, literature review-note retrieval, ACMG classification combining, and report generation. v0.2.0-alpha2 adds the CLI, real-world annotation batch workflow, annotated MCP batch rating, per-record provenance, failed-record preservation, stricter schema validation, and release-readiness documentation around the existing safety boundaries.
 
 All conclusions are machine proposals and always require qualified human review. The default workflow does not use the network.
 
@@ -46,7 +46,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 ```
 
-This editable install is the expected setup for internal v0.2.0-alpha1 testing. It
+This editable install is the expected setup for internal v0.2.0-alpha2 testing. It
 installs the package from `src/`, the MCP server dependencies, and `pytest`.
 
 Validate the environment:
@@ -63,6 +63,7 @@ Implemented tools:
 - `health_check`
 - `rate_variant`
 - `rate_variant_batch`
+- `rate_annotated_variants`
 - `normalize_variant`
 - `query_clinvar` through an offline mock provider
 - `query_population_frequency`
@@ -190,7 +191,7 @@ export VPR_CLINVAR_MODE=online
 export VPR_CLINVAR_ONLINE_ENABLED=true
 export VPR_CLINVAR_TIMEOUT_SECONDS=10
 export VPR_CLINVAR_EMAIL=curator@example.org
-export VPR_CLINVAR_USER_AGENT="variant-pathogenicity-rater/0.2.0-alpha1 curator@example.org"
+export VPR_CLINVAR_USER_AGENT="variant-pathogenicity-rater/0.2.0-alpha2 curator@example.org"
 ```
 
 `VPR_CLINVAR_MODE=future_online` is accepted as an alias for the current online provider when `VPR_CLINVAR_ONLINE_ENABLED=true` is also present. Online query results are stored in the disk cache configured by `cache_dir` and `ttl_seconds`; cache hits reuse the cached payload and preserve provenance metadata.
@@ -274,7 +275,7 @@ Environment variables:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `VPR_SERVER_NAME` | `variant-pathogenicity-rater` | MCP server name |
-| `VPR_SERVER_VERSION` | `0.2.0-alpha1` | MCP server version |
+| `VPR_SERVER_VERSION` | `0.2.0-alpha2` | MCP server version |
 | `VPR_LOG_LEVEL` | `INFO` | Structured log level |
 | `VPR_TOOLS_PACKAGE` | `tools` | Python package used for dynamic discovery |
 | `VPR_ENABLE_HEALTH_TOOL` | `true` | Enable `health_check` |

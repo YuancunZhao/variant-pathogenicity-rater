@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.0-alpha2 - 2026-05-25
+
+Internal alpha release review for CLI and real-world annotation batch workflow
+testing on `develop`.
+
+### Added
+
+- `vpr` CLI with `rate`, `batch`, `annotated-batch`, and `check-env`
+  commands.
+- CLI stdout and file-output paths for single variant, batch, and annotated
+  batch workflows.
+- Real-world annotation batch workflow that connects VEP, ANNOVAR, bcftools
+  csq, and generic annotation rows to normalization, transcript selection, and
+  batch rating.
+- MCP `rate_annotated_variants` workflow with schema validation and per-record
+  provenance.
+- Per-record failed annotation and batch records so malformed rows are reported
+  instead of silently dropped.
+- Release notes and readiness review for v0.2.0-alpha2 internal testing.
+
+### Safety Notes
+
+- ACMG business logic and the classification combiner were not changed.
+- Annotation remains descriptive input only and does not directly generate
+  ACMG evidence.
+- ClinVar/literature candidate evidence remains candidate-only and is not
+  counted in classification.
+- Human review remains required on single, batch, annotated batch, report, and
+  failed-record outputs.
+- Batch summaries preserve per-record review flags and do not override
+  record-level review requirements.
+
 ## 0.2.0-alpha1 - 2026-05-22
 
 Internal alpha release for controlled testing of the v0.2.0 ingestion and safety
