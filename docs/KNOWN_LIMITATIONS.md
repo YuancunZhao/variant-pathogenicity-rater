@@ -40,6 +40,14 @@ replace qualified clinical, laboratory, or genetics professional review.
   elevated from the missing context. Population evidence remains candidate-only
   under missing disease-specific context, and PVS1 is not applied without
   disease context.
+- Applied PVS1 is limited to SNV/small indel contexts with sufficient
+  gene-disease, transcript, and NMD/splice information.
+- Start-loss, stop-loss, uncertain splice effects, transcript mismatch,
+  multiple transcript ambiguity, possible in-frame rescue, missing disease
+  context, and unknown LoF mechanism are candidate-only by default.
+- Canonical splice variants are not automatically treated as PVS1 Very Strong.
+- Online LoF mechanism resolution is disabled by default; opt-in resolver
+  failures are retained as limitations and never crash the pipeline.
 
 ## Reporting Boundaries
 

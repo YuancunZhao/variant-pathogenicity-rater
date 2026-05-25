@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import importlib
+import importlib.metadata
 import json
 import sys
 from pathlib import Path
@@ -200,13 +202,47 @@ def _cmd_annotated_batch(args: argparse.Namespace) -> int:
 
 
 def _cmd_check_env(_args: argparse.Namespace) -> int:
-    try:
-        from scripts.check_env import main as check_env_main
-    except Exception:
-        from importlib import import_module
+    mcp_server = Path(__file__).resolve().parents[2] / "mcp-server"
+    if mcp_server.exists() and str(mcp_server) not in sys.path:
+        sys.path.insert(0, str(mcp_server))
 
-        check_env_main = import_module("check_env").main
-    return int(check_env_main())
+    print(f"Python executable: {sys.executable}")
+    print(f"Python version: {sys.version.split()[0]}")
+
+    print("Package import status:")
+    for import_name, distribution_name in [
+        ("pydantic", "pydantic"),
+        ("pytest", "pytest"),
+        ("variant_pathogenicity_rater", "variant-pathogenicity-rater-mcp"),
+        ("server", None),
+        ("tools", None),
+    ]:
+        print(f"  {import_name}: {_package_status(import_name, distribution_name)}")
+
+    pytest_status = _package_status("pytest", "pytest")
+    print(f"pytest availability: {pytest_status}")
+
+    project_status = _package_status(
+        "variant_pathogenicity_rater",
+        "variant-pathogenicity-rater-mcp",
+    )
+    print(f"project import status: {project_status}")
+
+    return 0
+
+
+def _package_status(import_name: str, distribution_name: str | None = None) -> str:
+    distribution_name = distribution_name or import_name
+    try:
+        importlib.import_module(import_name)
+    except Exception as exc:  # pragma: no cover - diagnostic output only
+        return f"missing ({exc.__class__.__name__}: {exc})"
+
+    try:
+        version = importlib.metadata.version(distribution_name)
+    except importlib.metadata.PackageNotFoundError:
+        version = "installed, version unknown"
+    return f"ok ({version})"
 
 
 def _variant_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:

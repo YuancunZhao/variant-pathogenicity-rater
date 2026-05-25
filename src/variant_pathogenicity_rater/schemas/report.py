@@ -52,6 +52,9 @@ class EvidenceReportEntry(SchemaModel):
     provenance: Any | None = None
     limitations: list[str] = Field(default_factory=list)
     review_flags: list[ReviewFlag] = Field(default_factory=list)
+    pvs1_decision_path: list[str] = Field(default_factory=list)
+    pvs1_downgrade_reasons: list[str] = Field(default_factory=list)
+    pvs1_blocking_reasons: list[str] = Field(default_factory=list)
 
 
 class VariantReportSummary(SchemaModel):

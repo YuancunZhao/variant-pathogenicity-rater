@@ -11,7 +11,7 @@ from variant_pathogenicity_rater.annotation import GenericTableAdapter, select_t
 from variant_pathogenicity_rater.acmg.combiner import classify_acmg
 from variant_pathogenicity_rater.acmg.computational_rules import evaluate_computational_predictions
 from variant_pathogenicity_rater.acmg.population_rules import evaluate_population_rules
-from variant_pathogenicity_rater.acmg.pvs1 import evaluate_pvs1
+from variant_pathogenicity_rater.pvs1 import generate_pvs1_evidence
 from variant_pathogenicity_rater.context_consistency import evaluate_context_consistency
 from variant_pathogenicity_rater.config.thresholds import (
     computational_thresholds_from_options,
@@ -146,13 +146,26 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "evaluate_pvs1",
         audit_trail,
         limitations,
-        lambda: evaluate_pvs1(normalized_variant, normalized_variant.transcript, context),
+        lambda: generate_pvs1_evidence(
+            normalized_variant,
+            annotation=_selected_annotation_for_pvs1(annotation_records, transcript_selection),
+            transcript_selection=transcript_selection,
+            gene_disease_context=context,
+            provider_data=_pvs1_provider_data(options),
+            manual_overrides=_pvs1_manual_overrides(options),
+            config=options.get("pvs1_config"),
+        ),
     )
     if pvs1_result is not None:
-        pvs1_dump = pvs1_result.model_dump()
-        step_results["evaluate_pvs1"] = pvs1_dump
-        if pvs1_result.evidence_item is not None:
-            evidence_items.append(pvs1_result.evidence_item)
+        pvs1_item, pvs1_decision = pvs1_result
+        step_results["evaluate_pvs1"] = {
+            "decision": pvs1_decision.model_dump(mode="json"),
+            "evidence_item": json.loads(pvs1_item.model_dump_json()) if pvs1_item else None,
+        }
+        limitations.extend(pvs1_decision.limitations)
+        limitations.extend(pvs1_decision.blocking_reasons)
+        if pvs1_item is not None:
+            evidence_items.append(pvs1_item)
 
     clinvar_records = []
     if options.get("include_clinvar", True):
@@ -494,6 +507,30 @@ def _select_transcript_step(
 ) -> TranscriptSelection:
     user_transcript = options.get("user_transcript") or _variant_transcript_label(variant)
     return select_transcript(annotations, user_transcript=user_transcript)
+
+
+def _selected_annotation_for_pvs1(
+    annotations: list[VariantAnnotation],
+    transcript_selection: TranscriptSelection | None,
+) -> VariantAnnotation | None:
+    if not annotations:
+        return None
+    selected = transcript_selection.selected_transcript if transcript_selection else None
+    if selected:
+        for annotation in annotations:
+            if annotation.transcript == selected:
+                return annotation
+    return annotations[0]
+
+
+def _pvs1_provider_data(options: dict[str, Any]) -> dict[str, Any] | None:
+    data = options.get("pvs1_provider_data") or options.get("pvs1_mock_context")
+    return dict(data) if isinstance(data, dict) else None
+
+
+def _pvs1_manual_overrides(options: dict[str, Any]) -> dict[str, Any] | None:
+    data = options.get("pvs1_manual_overrides")
+    return dict(data) if isinstance(data, dict) else None
 
 
 def _annotation_records(options: dict[str, Any]) -> list[VariantAnnotation]:

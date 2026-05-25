@@ -1,0 +1,49 @@
+[
+  {
+    "gene": "BRCA1",
+    "disease": "hereditary breast and ovarian cancer syndrome",
+    "inheritance": "autosomal_dominant",
+    "lof_is_known_mechanism": true,
+    "confidence": 0.9,
+    "source": "local_curated_example"
+  },
+  {
+    "gene": "BRCA2",
+    "disease": "hereditary breast and ovarian cancer syndrome",
+    "inheritance": "autosomal_dominant",
+    "lof_is_known_mechanism": true,
+    "confidence": 0.9,
+    "source": "local_curated_example"
+  },
+  {
+    "gene": "CFTR",
+    "disease": "cystic fibrosis",
+    "inheritance": "autosomal_recessive",
+    "lof_is_known_mechanism": true,
+    "context_dependent": true,
+    "confidence": 0.75,
+    "limitations": ["CFTR has context-dependent mechanisms; variant and phenotype review is required."]
+  },
+  {
+    "gene": "GJB2",
+    "disease": "hearing loss",
+    "inheritance": "autosomal_recessive",
+    "lof_is_known_mechanism": true,
+    "confidence": 0.82
+  },
+  {
+    "gene": "PAH",
+    "disease": "phenylketonuria",
+    "inheritance": "autosomal_recessive",
+    "lof_is_known_mechanism": true,
+    "confidence": 0.82
+  },
+  {
+    "gene": "DMD",
+    "disease": "dystrophinopathy",
+    "inheritance": "x_linked",
+    "lof_is_known_mechanism": true,
+    "confidence": 0.6,
+    "limitations": ["DMD SV/CNV and reading-frame-specific PVS1 are reserved for a future extension."]
+  }
+]

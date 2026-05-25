@@ -159,6 +159,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
 
 
 def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
+    pvs1_decision = item.supporting_data.get("pvs1_decision") or {}
     return EvidenceReportEntry(
         evidence_id=item.evidence_id,
         code=str(item.code),
@@ -173,6 +174,9 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         provenance=item.source.provenance,
         limitations=list(item.supporting_data.get("limitations") or []),
         review_flags=item.review_flags,
+        pvs1_decision_path=list(item.supporting_data.get("decision_path") or pvs1_decision.get("decision_path") or []),
+        pvs1_downgrade_reasons=list(item.supporting_data.get("downgrade_reasons") or pvs1_decision.get("downgrade_reasons") or []),
+        pvs1_blocking_reasons=list(item.supporting_data.get("blocking_reasons") or pvs1_decision.get("blocking_reasons") or []),
     )
 
 
@@ -383,6 +387,10 @@ def _evidence_chain_lines(
                 lines.append(f"  - Requires review: {str(entry.requires_review).lower()}")
                 if entry.triggered_by:
                     lines.append(f"  - Triggered by: {', '.join(entry.triggered_by)}")
+                if entry.pvs1_decision_path:
+                    lines.append("  - PVS1 decision path: " + " | ".join(entry.pvs1_decision_path))
+                if entry.pvs1_downgrade_reasons:
+                    lines.append("  - PVS1 downgrade reasons: " + "; ".join(entry.pvs1_downgrade_reasons))
     lines.extend(["", "## Candidate / Review-Note Evidence", f"- {CANDIDATE_EVIDENCE_CAUTION}"])
     if not summary.candidate_acmg_evidence:
         lines.append("- No candidate-only ACMG evidence items were supplied.")
@@ -401,6 +409,12 @@ def _evidence_chain_lines(
                 lines.append(f"  - Citation: {entry.citation}")
             if entry.provenance:
                 lines.append("  - Provenance: retained on evidence source")
+            if entry.pvs1_decision_path:
+                lines.append("  - PVS1 decision path: " + " | ".join(entry.pvs1_decision_path))
+            if entry.pvs1_downgrade_reasons:
+                lines.append("  - PVS1 downgrade reasons: " + "; ".join(entry.pvs1_downgrade_reasons))
+            if entry.pvs1_blocking_reasons:
+                lines.append("  - PVS1 blocking reasons: " + "; ".join(entry.pvs1_blocking_reasons))
     return lines
 
 
