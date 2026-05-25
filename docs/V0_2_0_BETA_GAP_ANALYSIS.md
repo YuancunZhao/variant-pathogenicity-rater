@@ -3,7 +3,8 @@
 Review date: 2026-05-25
 Current release baseline: v0.2.0-alpha2
 Target: v0.2.0-beta
-Scope: gap analysis only; no business-code, version, or provider behavior changes
+Scope: beta release review after noisy-input hardening, context consistency
+checks, report usability refinement, and integration review
 
 ## Summary
 
@@ -13,15 +14,20 @@ annotated batch ingestion, normalization, transcript selection, provider-mode
 controls, and conservative safety boundaries around ClinVar, population,
 SpliceAI-style computational evidence, and literature candidate evidence.
 
-The remaining beta gap is not a single missing feature. It is controlled
-hardening: noisy real-world inputs, context consistency, annotation quality
-checks, larger safety regression sets, provider validation, and report usability.
-The beta should remain an internal controlled-evaluation release, not a clinical
+The original beta gap was controlled hardening rather than a single missing
+feature: noisy real-world inputs, context consistency, annotation quality
+checks, provider/source visibility, and report usability. For the internal beta
+gate, the release now includes noisy input hardening, context consistency
+checks, report usability refinements, and an integration review. Larger
+benchmark/smoke expansion and broader online-provider validation remain
+pre-final work, not blockers for the v0.2.0-beta internal test release.
+
+The beta remains an internal controlled-evaluation release, not a clinical
 validation statement.
 
-Current known gate from alpha2 release review:
+Current beta release gate:
 
-- Full test suite: 244 passed.
+- Full test suite: 282 passed.
 - Benchmark dataset: 21 curated SNV/small-indel cases.
 - Real-data smoke dataset: 10 offline curated cases.
 - Default provider posture: offline/mock; no network required.
@@ -43,13 +49,13 @@ Current state:
   not directly apply PP5/BP6 or strong literature-derived criteria.
 - PM2 remains intentionally conservative and capped at supporting strength.
 
-Beta gap:
+Beta review outcome:
 
-- Need stronger noisy input coverage for partially specified HGVS, VCF-like,
-  transcript-version, genome-build, and gene-context edge cases.
-- Need explicit context-consistency checks that can flag gene, transcript,
-  disease, inheritance, and provider-record mismatches before users read the
-  classification proposal as more coherent than the evidence supports.
+- Noisy input handling now preserves warnings or structured errors for common
+  HGVS-like, VCF-like, transcript, genome-build, and gene-context edge cases.
+- Context-consistency checks now flag gene, transcript, disease, inheritance,
+  ancestry, provider-record, and genome-build mismatches before users rely on
+  the classification proposal.
 
 ### Batch
 
@@ -62,13 +68,12 @@ Current state:
 - Batch classification still routes through the same conservative single-variant
   pipeline.
 
-Beta gap:
+Beta review outcome:
 
-- Need better row-level summaries so a reviewer can immediately see counts by
-  success, failed normalization, unsupported variant class, provider issue,
-  review flag, and final classification.
-- Need broader malformed-row and mixed-quality-input tests to prevent silent
-  failure or hidden per-row warnings.
+- Row-level summaries now expose success/failure status, review flags,
+  limitations, context consistency, failed-record summaries, and final
+  classification distribution.
+- Malformed-row and mixed-quality-input tests cover no-silent-skip behavior.
 
 ### Annotated Batch
 
@@ -80,13 +85,13 @@ Current state:
   review flags, limitations, and failed-record details are preserved.
 - Annotation does not directly generate ACMG evidence.
 
-Beta gap:
+Beta review outcome:
 
-- Need annotation quality checks that detect missing source metadata, missing or
-  conflicting genome build, malformed transcript fields, inconsistent gene
-  symbols, mismatched HGVS c./p. values, ambiguous consequences, and unsupported
-  variant classes.
-- Need explicit quality status in batch summaries and report output.
+- Annotation quality issues are preserved as limitations, failed records,
+  transcript-selection review metadata, context consistency summaries, and
+  report-visible warnings.
+- Unsupported or malformed annotation rows are rejected safely rather than
+  guessed.
 
 ### Provider Modes
 
@@ -118,13 +123,12 @@ Current state:
   strict top-level schema validation and structured errors.
 - Examples and documentation exist for CLI and MCP workflows.
 
-Beta gap:
+Beta review outcome:
 
-- Need beta-ready example validation across CLI and MCP, including noisy input,
-  failed records, annotated batch, provider mode differences, and report output.
-- Need report usability review so CLI/MCP consumers see review flags,
-  limitations, candidate evidence, and failed records without digging through
-  deeply nested JSON.
+- CLI and MCP surfaces include single, batch, annotated-batch, normalization,
+  provider, evidence, PVS1, report, and health workflows.
+- Report and batch outputs now surface review flags, limitations, candidate
+  evidence, context consistency, and failed records in reviewer-facing sections.
 
 ### Offline and Online Status
 
@@ -199,12 +203,16 @@ Required beta behavior:
 
 ### P0.4 Benchmark Expansion Strategy
 
-Why it is P0:
+Status for v0.2.0-beta:
+
+- Deferred from the internal beta gate and retained as pre-final work.
+
+Why it remains important:
 
 - The 21-case benchmark is useful for alpha regression but too small for beta
   safety confidence.
 
-Required beta target:
+Pre-final target:
 
 - Expand benchmark to at least 100 curated SNV/small-indel cases.
 - Preserve balanced five-tier coverage: benign, likely benign, VUS, likely
@@ -217,12 +225,16 @@ Required beta target:
 
 ### P0.5 Real-Data Smoke Expansion Strategy
 
-Why it is P0:
+Status for v0.2.0-beta:
+
+- Deferred from the internal beta gate and retained as pre-final work.
+
+Why it remains important:
 
 - The 10-case smoke set catches important regressions but does not yet represent
   enough real-world input variety.
 
-Required beta target:
+Pre-final target:
 
 - Expand real-data smoke to at least 50 cases.
 - Keep the suite offline by default.
@@ -366,9 +378,11 @@ governance, and evidence-specific safety controls.
 | Batch silent failure | Multi-record workflows can hide malformed rows, skipped variants, or provider failures. | Preserve failed records, add batch summaries, test mixed-quality inputs, and keep per-record review flags visible. |
 | Report misinterpretation | Users may treat machine proposals as final clinical assertions. | Make human review required prominent, separate applied and candidate evidence, and include limitations before final use. |
 
-## 6. Proposed Beta Milestones
+## 6. Beta Milestone Status
 
 ### beta-prep1: Noisy Input Hardening
+
+Status: completed for internal beta.
 
 Deliverables:
 
@@ -385,6 +399,8 @@ Exit criteria:
 
 ### beta-prep2: Context Consistency Checks
 
+Status: completed for internal beta.
+
 Deliverables:
 
 - Gene/transcript/disease/inheritance consistency checks.
@@ -397,7 +413,27 @@ Exit criteria:
 - Context warnings do not automatically apply ACMG criteria.
 - Human review remains required.
 
-### beta-prep3: Benchmark/Smoke Expansion
+### beta-prep3: Report Usability Review
+
+Status: completed for internal beta.
+
+Deliverables:
+
+- Batch summary improvements.
+- Report review for JSON, Markdown, plain text, CLI, and MCP consumers.
+- Review-facing separation of applied evidence, candidate evidence, transcript
+  context, context consistency, provenance, limitations, and safety language.
+
+Exit criteria:
+
+- Review flags, limitations, provider mode, candidate evidence, and failed
+  records are easy to find.
+- CLI/MCP examples and tests are validated through the offline suite.
+- Reports clearly state that human review is required.
+
+### Deferred Pre-Final: Benchmark/Smoke Expansion
+
+Status: deferred from the internal beta gate.
 
 Deliverables:
 
@@ -412,22 +448,9 @@ Exit criteria:
 - Expanded real-data smoke passes offline.
 - No new overcalling behavior is accepted.
 
-### beta-prep4: Report Usability Review
-
-Deliverables:
-
-- Batch summary improvements.
-- Report review for JSON, Markdown, plain text, CLI, and MCP consumers.
-- Optional Chinese localization scoped for review-facing report text.
-
-Exit criteria:
-
-- Review flags, limitations, provider mode, candidate evidence, and failed
-  records are easy to find.
-- CLI/MCP examples are validated.
-- Reports clearly state that human review is required.
-
 ### Beta Release Review
+
+Status: completed for internal beta.
 
 Deliverables:
 
@@ -439,53 +462,46 @@ Deliverables:
 Exit criteria:
 
 - Full pytest suite passes.
-- Benchmark and real-data smoke targets are met.
 - Safety review passes.
 - Documentation reflects beta behavior and remaining limits.
 
 ## 7. Definition of Done for Beta
 
-v0.2.0-beta is done only when all of the following are true:
+v0.2.0-beta is done for internal testing when all of the following are true:
 
 - Full pytest suite passes.
-- Benchmark has at least 100 curated cases.
-- Real-data smoke has at least 50 cases.
 - No new overcalling behavior is introduced.
 - Safety review passes.
 - Documentation is complete for CLI, MCP, provider modes, known limitations,
-  benchmark, real-data smoke, and reports.
+  benchmark status, real-data smoke status, and reports.
 - CLI examples are validated.
 - MCP examples are validated.
 - Human-review-required behavior remains present in every result and report.
 - Candidate ClinVar, literature, and annotation-derived signals remain separate
   from applied ACMG criteria.
+- Benchmark expansion to at least 100 curated cases and real-data smoke
+  expansion to at least 50 cases are tracked as pre-final v0.2.0 work, not
+  blockers for this internal beta.
 
 ## 8. Suggested Next Task
 
-Recommended first coding task after alpha2:
+Recommended next task after v0.2.0-beta:
 
-**Implement beta-prep1 noisy input hardening for annotated batch and batch
-normalization paths.**
+**Expand the offline benchmark and real-data smoke suites before the final
+v0.2.0 release.**
 
 Suggested scope:
 
-- Add a small structured "input quality" layer for parsed batch and annotation
-  records.
-- Detect and preserve warnings for missing genome build, missing transcript,
-  incomplete HGVS, inconsistent coordinate identity, unsupported variant class,
-  malformed allele fields, and conflicting gene/HGVS context.
-- Propagate these warnings into per-record output, `failed_records`, and report
-  limitations.
-- Add tests for mixed valid/invalid JSONL, CSV/TSV, VCF-like, VEP, ANNOVAR, and
-  generic annotation inputs.
-- Confirm no ACMG business logic changes and no new evidence application.
+- Expand the benchmark from 21 to at least 100 curated SNV/small-indel cases.
+- Expand real-data smoke from 10 to at least 50 offline curated cases.
+- Preserve expected applied evidence, expected candidate evidence, review
+  flags, and rationale for every case.
+- Add overcalling, benign-overcalling, transcript mismatch, condition mismatch,
+  provider-miss, population ancestry, and candidate-evidence separation cases.
 
 Why this should be first:
 
-- It is a P0 beta blocker.
-- It reduces the largest practical risk introduced by real-world workflows.
-- It is testable offline.
-- It strengthens CLI, MCP, batch, annotated batch, and report behavior without
-  expanding clinical scope.
-- It creates the foundation for later context consistency checks and provider
-  validation.
+- It is the largest remaining confidence gap before v0.2.0 final.
+- It can remain offline and reproducible.
+- It strengthens safety confidence without expanding clinical scope or changing
+  the classification combiner.

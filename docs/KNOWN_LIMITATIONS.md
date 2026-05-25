@@ -1,6 +1,6 @@
 # Known Limitations
 
-Variant Pathogenicity Rater v0.2.0-alpha2 is an internal testing release. It does not
+Variant Pathogenicity Rater v0.2.0-beta is an internal testing release. It does not
 replace qualified clinical, laboratory, or genetics professional review.
 
 ## Scope
@@ -66,7 +66,7 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Online ClinVar is opt-in only and requires both `mode=online` or
   `future_online` and `online_enabled=true`.
 - Population, literature, and computational online providers are not
-  implemented for v0.2.0-alpha2.
+  implemented for v0.2.0-beta.
 - Local-file provider quality depends on the supplied local snapshot, genome
   build, parser compatibility, and source freshness.
 - Provider genome build is checked against input genome build when available.
