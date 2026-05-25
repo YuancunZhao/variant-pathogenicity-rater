@@ -118,6 +118,32 @@ def evaluate_pvs1(
         )
     reasoning.append(f"Predicted LoF consequence detected: {consequence}.")
 
+    if gene_disease_context.disease_name.strip().lower() in {
+        "not provided",
+        "unknown",
+        "unspecified",
+        "not specified",
+    }:
+        flags.append(
+            ReviewFlag(
+                code="MISSING_DISEASE_CONTEXT",
+                message=(
+                    "Disease context is missing; PVS1 confidence must not be elevated "
+                    "from gene/transcript information alone."
+                ),
+                blocking=True,
+            )
+        )
+        return _not_triggered(
+            variant,
+            reasoning,
+            downgrades,
+            flags,
+            "PVS1 is not applied without disease context.",
+            transcript,
+            consequence=consequence,
+        )
+
     if gene_disease_context.lof_is_known_mechanism is not True:
         flags.append(
             ReviewFlag(

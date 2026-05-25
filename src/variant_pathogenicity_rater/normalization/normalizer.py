@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from variant_pathogenicity_rater.annotation.resolvers import OnlineVariantNormalizer
+from variant_pathogenicity_rater.input_cleaning import clean_record, normalize_chromosome_label
 from variant_pathogenicity_rater.schemas.common import ReviewFlag
 from variant_pathogenicity_rater.schemas.variant import (
     GenomeBuild,
@@ -20,7 +21,7 @@ from variant_pathogenicity_rater.schemas.variant import (
 
 SUPPORTED_INPUT_FORMATS = {"hgvs", "vcf_like", "structured"}
 SMALL_INDEL_MAX_BP = 50
-ALLELE_RE = re.compile(r"^[ACGTN]+$", re.IGNORECASE)
+ALLELE_RE = re.compile(r"^[ACGT]+$", re.IGNORECASE)
 CHROM_RE = re.compile(r"^(?:[1-9]|1[0-9]|2[0-2]|X|Y|M|MT|unresolved)$", re.I)
 TRANSCRIPT_RE = re.compile(r"^(?P<accession>[A-Z]{2}_[0-9]+)(?:\.(?P<version>[0-9]+))?")
 HGVS_C_SUB_RE = re.compile(r":c\.(?P<pos>[-*]?\d+(?:[+-]\d+)?)(?P<ref>[ACGT])>(?P<alt>[ACGT])$", re.I)
@@ -66,9 +67,11 @@ def normalize_variant(
     if not isinstance(payload, dict):
         raise NormalizationError("Variant normalization input must be a JSON object.")
 
-    data = _unwrap_variant(payload)
+    raw_data = _unwrap_variant(payload)
+    cleaned = clean_record(raw_data)
+    data = cleaned.record
     input_format = _detect_input_format(data)
-    warnings: list[str] = []
+    warnings: list[str] = list(cleaned.warnings)
     review_flags: list[str] = []
     limitations: list[str] = []
     unresolved: list[str] = []
@@ -77,9 +80,18 @@ def normalize_variant(
             "source": "local_normalizer",
             "version": "hgvs-normalization-v2",
             "scope": "SNV/small-indel descriptive normalization",
-            "input_hash": _input_hash(data),
+            "input_hash": _input_hash(raw_data),
         }
     ]
+    if cleaned.warnings:
+        provenance.append(
+            {
+                "source": "input_cleaning",
+                "status": "cleaned",
+                "warnings": cleaned.warnings,
+                "input_hash": _input_hash(raw_data),
+            }
+        )
 
     if input_format == "vcf_like":
         variant = _normalize_vcf_like(data, warnings, review_flags, limitations, unresolved)
@@ -206,7 +218,7 @@ def _normalize_vcf_like(
         pos=pos,
         ref=ref,
         alt=alt,
-        gene_symbol=_optional_str(vcf.get("gene") or vcf.get("gene_symbol")),
+        gene_symbol=_normalize_gene_symbol(_optional_str(vcf.get("gene") or vcf.get("gene_symbol")), warnings),
         hgvs_c=_optional_str(vcf.get("hgvs_c")),
         hgvs_p=_optional_str(vcf.get("hgvs_p")),
         hgvs_g=_optional_str(vcf.get("hgvs_g")),
@@ -244,11 +256,19 @@ def _normalize_hgvs_like(
 ) -> Variant:
     hgvs_c = _optional_str(data.get("hgvs_c") or data.get("hgvs"))
     hgvs_p = _optional_str(data.get("hgvs_p"))
-    gene_symbol = _optional_str(data.get("gene") or data.get("gene_symbol"))
-    transcript_value = _optional_str(data.get("transcript") or data.get("transcript_accession"))
+    gene_symbol = _normalize_gene_symbol(
+        _optional_str(data.get("gene") or data.get("gene_symbol")), warnings
+    )
+    transcript_value = _normalize_transcript_input(
+        _optional_str(data.get("transcript") or data.get("transcript_accession")),
+        warnings,
+    )
 
     if hgvs_c and ":" in hgvs_c:
-        transcript_value = transcript_value or hgvs_c.split(":", 1)[0]
+        transcript_value = transcript_value or _normalize_transcript_input(
+            hgvs_c.split(":", 1)[0],
+            warnings,
+        )
     if not transcript_value:
         warnings.append("Missing transcript; transcript-dependent HGVS mapping is unresolved.")
         unresolved.append("transcript")
@@ -415,7 +435,10 @@ def _build_variant(
 
 
 def _transcript_from_fields(data: dict[str, Any], warnings: list[str]) -> Transcript | None:
-    accession_value = _optional_str(data.get("transcript") or data.get("transcript_accession"))
+    accession_value = _normalize_transcript_input(
+        _optional_str(data.get("transcript") or data.get("transcript_accession")),
+        warnings,
+    )
     if not accession_value:
         return None
 
@@ -425,7 +448,10 @@ def _transcript_from_fields(data: dict[str, Any], warnings: list[str]) -> Transc
     if match and match.group("version"):
         version = version or match.group("version")
 
-    gene_symbol = _optional_str(data.get("gene") or data.get("gene_symbol"))
+    gene_symbol = _normalize_gene_symbol(
+        _optional_str(data.get("gene") or data.get("gene_symbol")),
+        warnings,
+    )
     if not gene_symbol:
         gene_symbol = "unknown"
         warnings.append("Missing gene_symbol; transcript.gene_symbol set to 'unknown'.")
@@ -474,12 +500,8 @@ def _trim_ref_alt(pos: int, ref: str, alt: str, warnings: list[str]) -> tuple[in
 
 
 def _normalize_chrom(chrom: str) -> str:
-    value = chrom.strip()
-    if value.lower().startswith("chr"):
-        value = value[3:]
-    if value in {"m", "M"}:
-        value = "MT"
-    elif value.upper() in {"X", "Y", "MT", "UNRESOLVED"}:
+    value = normalize_chromosome_label(chrom)
+    if value.upper() in {"X", "Y", "MT", "UNRESOLVED"}:
         value = value.upper().replace("UNRESOLVED", "unresolved")
     if not CHROM_RE.fullmatch(value):
         raise NormalizationError(
@@ -610,6 +632,10 @@ def _candidate_matches_variant(candidate: dict[str, Any], variant: Variant) -> b
 
 def _genome_build(data: dict[str, Any]) -> GenomeBuild:
     raw = _optional_str(data.get("genome_build") or data.get("build")) or GenomeBuild.GRCH38
+    if raw.upper() == "GRCH37":
+        raw = GenomeBuild.GRCH37
+    elif raw.upper() == "GRCH38":
+        raw = GenomeBuild.GRCH38
     try:
         return GenomeBuild(raw)
     except ValueError as exc:
@@ -674,9 +700,21 @@ def _allele_field(data: dict[str, Any], name: str, required: bool = False) -> st
             unresolved_fields=[name],
         )
     allele = (value or "").upper()
+    if allele == ".":
+        raise NormalizationError(
+            f"Field '{name}' cannot be '.'; missing or non-variant alleles are not rated.",
+            code="INVALID_ALLELE",
+            unresolved_fields=[name],
+        )
+    if "N" in allele:
+        raise NormalizationError(
+            f"Field '{name}' contains N; ambiguous bases are not interpreted silently.",
+            code="INVALID_ALLELE",
+            unresolved_fields=[name],
+        )
     if not ALLELE_RE.fullmatch(allele):
         raise NormalizationError(
-            f"Field '{name}' must contain only A, C, G, T, or N bases.",
+            f"Field '{name}' must contain only A, C, G, or T bases.",
             code="INVALID_ALLELE",
             unresolved_fields=[name],
         )
@@ -718,6 +756,24 @@ def _transcript_label(transcript: Transcript | None) -> str | None:
 
 def _normalize_transcript_label(transcript: str) -> str:
     return transcript.strip().upper()
+
+
+def _normalize_gene_symbol(value: str | None, warnings: list[str]) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().upper()
+    if normalized != value:
+        warnings.append("Gene symbol was whitespace-trimmed and uppercased.")
+    return normalized
+
+
+def _normalize_transcript_input(value: str | None, warnings: list[str]) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().upper()
+    if normalized != value:
+        warnings.append("Transcript accession was whitespace-trimmed and uppercased.")
+    return normalized
 
 
 def _input_hash(value: Any) -> str:

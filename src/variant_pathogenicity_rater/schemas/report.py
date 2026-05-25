@@ -8,6 +8,7 @@ from pydantic import Field
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection
 from variant_pathogenicity_rater.schemas.classification import ClassificationResult
 from variant_pathogenicity_rater.schemas.common import ReviewFlag, SchemaModel
+from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
 
 
 class ReportFormat(StrEnum):
@@ -75,6 +76,7 @@ class VariantReportSummary(SchemaModel):
     data_source_summary: list[DataSourceSummary] = Field(default_factory=list)
     review_flags: list[ReviewFlag] = Field(default_factory=list)
     transcript_selection: TranscriptSelection | None = None
+    context_consistency: ContextConsistency | None = None
 
 
 class VariantReport(SchemaModel):

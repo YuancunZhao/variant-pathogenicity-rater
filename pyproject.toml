@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "variant-pathogenicity-rater-mcp"
-version = "0.2.0a2"
+version = "0.2.0b1"
 description = "Extensible MCP server framework for ACMG variant interpretation tools."
 requires-python = ">=3.11"
 dependencies = [

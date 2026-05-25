@@ -6,6 +6,7 @@ import json
 from server import McpServer, build_registry
 from config import ServerConfig
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
+from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
 
 
 def _server() -> McpServer:
@@ -51,6 +52,11 @@ def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
         "benign",
     }
     assert result["evidence_items"]
+    assert "normalization_identity" in result
+    assert "applied_evidence" in result
+    assert "review_note_evidence" in result
+    assert "review_flags" in result
+    assert "provenance" in result
     assert result["report_text"]
     assert result["limitations"]
     assert result["human_review_required"] is True
@@ -120,3 +126,119 @@ def test_mcp_rate_variant_tool_calls_integrated_pipeline() -> None:
     assert tool_payload["stage"] == "integrated_snv_small_indel_acmg_pipeline"
     assert tool_payload["classification_result"]["human_review_required"] is True
     assert tool_payload["report"]["human_review_required"] is True
+
+
+def test_report_json_stable_keys_present_for_single_and_batch() -> None:
+    single = rate_variant(_flat_variant_payload())
+    batch = rate_variant_batch({"records": [_flat_variant_payload()]})
+    batch_record = batch["results"][0]
+
+    assert {
+        "report_id",
+        "result_id",
+        "summary",
+        "content",
+        "source_result",
+        "human_review_required",
+    }.issubset(single["report"])
+    assert {
+        "applied_evidence",
+        "review_note_evidence",
+        "normalization_identity",
+        "transcript_selection_summary",
+        "context_consistency_summary",
+        "review_flags",
+        "provenance",
+    }.issubset(batch_record)
+    assert {"total_records", "succeeded", "failed", "classification_distribution"}.issubset(
+        batch["summary"]
+    )
+
+
+def test_context_conflict_is_reported_without_changing_classification() -> None:
+    base_payload = {
+        **_flat_variant_payload(),
+        "hgvs_c": "NM_007294.4:c.68A>G",
+        "hgvs_p": "NP_009225.1:p.Glu23Val",
+        "ref": "A",
+        "alt": "G",
+        "options": {
+            "include_population": False,
+            "include_computational": False,
+            "include_clinvar": False,
+            "include_literature": False,
+        },
+    }
+    conflict_payload = {
+        **base_payload,
+        "options": {
+            **base_payload["options"],
+            "include_transcript_selection": True,
+            "annotations": [
+                {
+                    "gene": "TP53",
+                    "transcript": "NM_007294.4",
+                    "hgvs_c": "NM_007294.4:c.68A>G",
+                    "hgvs_p": "NP_009225.1:p.Glu23Val",
+                    "consequence": "missense_variant",
+                    "annotation_source": "test_annotation",
+                    "provenance": {
+                        "data_source": "test_annotation",
+                        "raw_record_hash": "abc123",
+                    },
+                    "raw_fields": {},
+                }
+            ],
+        },
+    }
+
+    base = rate_variant(base_payload)
+    conflict = rate_variant(conflict_payload)
+
+    assert conflict["context_consistency"]["status"] == "conflict"
+    assert "user_gene_vs_annotation_gene" in conflict["report_text"]
+    assert conflict["final_classification"] == base["final_classification"]
+
+
+def test_candidate_evidence_remains_excluded_in_single_and_batch_workflows() -> None:
+    candidate = {
+        "evidence_id": "ev-candidate-ps3",
+        "code": "PS3",
+        "strength": "strong",
+        "direction": "pathogenic",
+        "reason": "Candidate-only functional note should not be counted.",
+        "source": {"name": "manual_review_note", "version": "test"},
+        "confidence": 0.9,
+        "requires_review": True,
+        "candidate_only": True,
+        "applied": False,
+        "supporting_data": {
+            "candidate_only": True,
+            "applied": False,
+            "evidence_status": "candidate",
+        },
+    }
+    payload = {
+        **_flat_variant_payload(),
+        "hgvs_c": "NM_007294.4:c.68A>G",
+        "hgvs_p": "NP_009225.1:p.Glu23Val",
+        "ref": "A",
+        "alt": "G",
+        "options": {
+            "include_population": False,
+            "include_computational": False,
+            "include_clinvar": False,
+            "include_literature": False,
+            "mock_supplemental_evidence_items": [candidate],
+        },
+    }
+
+    single = rate_variant(payload)
+    batch = rate_variant_batch({"records": [payload]})
+
+    assert single["final_classification"] == "vus"
+    assert single["applied_evidence"] == []
+    assert single["review_note_evidence"][0]["evidence_id"] == "ev-candidate-ps3"
+    assert batch["results"][0]["classification_result"]["final_classification"] == "vus"
+    assert batch["results"][0]["applied_evidence"] == []
+    assert batch["results"][0]["review_note_evidence"][0]["evidence_id"] == "ev-candidate-ps3"

@@ -23,9 +23,20 @@ COMPUTATIONAL_CAUTION = (
     "population evidence as applicable."
 )
 
+SPLICEAI_CAUTION = (
+    "SpliceAI is computational splice prediction only. It is not functional "
+    "evidence and does not by itself apply PS3, BS3, or PVS1."
+)
+
 CLINVAR_CONFLICT_ALERT = (
     "ClinVar conflict detected: conflicting external assertions require prominent "
     "manual review and should not be resolved by this report alone."
+)
+
+CANDIDATE_EVIDENCE_CAUTION = (
+    "Candidate/review-note evidence is listed for manual evaluation only. It was "
+    "not counted by the classification combiner unless it also appears under "
+    "Applied ACMG Evidence."
 )
 
 ZH_PLACEHOLDER = (

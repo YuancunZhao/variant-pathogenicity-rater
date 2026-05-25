@@ -689,6 +689,57 @@ def _transcript_selection_schema() -> dict[str, Any]:
     }
 
 
+def _context_consistency_check_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "check_name": {"type": "string"},
+            "severity": {
+                "type": "string",
+                "enum": ["ok", "warning", "conflict", "insufficient"],
+            },
+            "field": {"type": "string"},
+            "expected": {},
+            "observed": {},
+            "reason": {"type": "string"},
+            "source": {"type": "string"},
+            "requires_review": {"type": "boolean"},
+        },
+        "required": [
+            "check_name",
+            "severity",
+            "field",
+            "reason",
+            "source",
+        ],
+        "additionalProperties": False,
+    }
+
+
+def _context_consistency_schema() -> dict[str, Any]:
+    check_schema = _context_consistency_check_schema()
+    return {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ok", "warning", "conflict", "insufficient"],
+            },
+            "checks": {"type": "array", "items": check_schema},
+            "conflicts": {"type": "array", "items": check_schema},
+            "warnings": {"type": "array", "items": check_schema},
+            "limitations": _string_array_schema(),
+            "review_required": {"type": "boolean"},
+            "provenance": {
+                "type": "array",
+                "items": _open_object_schema("Context consistency provenance."),
+            },
+        },
+        "required": ["status"],
+        "additionalProperties": False,
+    }
+
+
 def _source_schema() -> dict[str, Any]:
     return {
         "type": "object",
@@ -1005,6 +1056,8 @@ def _evidence_item_schema() -> dict[str, Any]:
             "source": _source_schema(),
             "confidence": {"type": "number"},
             "requires_review": {"type": "boolean"},
+            "candidate_only": {"type": ["boolean", "null"]},
+            "applied": {"type": ["boolean", "null"]},
             "triggered_by": _string_array_schema(),
             "supporting_data": _open_object_schema("Flexible evidence-specific supporting data."),
             "audit_trail": {"type": "array", "items": _audit_trail_schema()},
@@ -1036,6 +1089,7 @@ def _classification_result_schema(description: str | None = None) -> dict[str, A
             "report_text": {"type": "string"},
             "review_flags": {"type": "array", "items": _review_flag_schema()},
             "transcript_selection": {"oneOf": [_transcript_selection_schema(), {"type": "null"}]},
+            "context_consistency": {"oneOf": [_context_consistency_schema(), {"type": "null"}]},
             "audit_trail": {"type": "array", "items": _audit_trail_schema()},
         },
         "required": ["result_id", "variant", "final_classification", "confidence", "report_text"],

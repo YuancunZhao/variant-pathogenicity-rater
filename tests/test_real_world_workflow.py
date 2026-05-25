@@ -271,3 +271,115 @@ def test_mcp_rate_annotated_variants_tool_smoke() -> None:
     assert tool_payload["tool"] == "rate_annotated_variants"
     assert tool_payload["succeeded"] == 1
     assert tool_payload["results"][0]["classification_result"]["human_review_required"] is True
+    assert {
+        "normalization_identity",
+        "transcript_selection_summary",
+        "context_consistency_summary",
+        "applied_evidence",
+        "review_note_evidence",
+        "provenance",
+    }.issubset(tool_payload["results"][0])
+
+
+def test_mcp_rate_annotated_variants_schema_accepts_required_sections() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 44,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_annotated_variants",
+            "arguments": {
+                "annotation_format": "generic",
+                "source_version": "generic-test-v1",
+                "records": [
+                    {
+                        "gene": "BRCA1",
+                        "transcript": "NM_007294.4",
+                        "hgvs_c": "NM_007294.4:c.68A>G",
+                        "hgvs_p": "NP_009225.1:p.Glu23Val",
+                        "chrom": "17",
+                        "pos": 43092919,
+                        "ref": "A",
+                        "alt": "G",
+                    }
+                ],
+                "gene_disease_context": _context(),
+                "options": {
+                    "mock_mode": True,
+                    "include_population": False,
+                    "include_computational": False,
+                    "include_clinvar": False,
+                    "include_literature": False,
+                    "mock_supplemental_evidence_items": [
+                        {
+                            "evidence_id": "ev-candidate-ps3-annotated",
+                            "code": "PS3",
+                            "strength": "strong",
+                            "direction": "pathogenic",
+                            "reason": "Candidate-only annotation workflow note.",
+                            "source": {"name": "manual_review_note", "version": "test"},
+                            "confidence": 0.9,
+                            "requires_review": True,
+                            "candidate_only": True,
+                            "applied": False,
+                            "supporting_data": {
+                                "candidate_only": True,
+                                "applied": False,
+                                "evidence_status": "candidate",
+                            },
+                        }
+                    ],
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+    result = tool_payload["results"][0]
+
+    assert result["status"] == "ok"
+    assert result["normalization_identity"]["normalized_variant_key"] == "17-43092919-A-G"
+    assert result["transcript_selection_summary"]["selected_transcript"] == "NM_007294.4"
+    assert result["context_consistency_summary"]["status"] in {
+        "ok",
+        "warning",
+        "conflict",
+        "insufficient",
+    }
+    assert result["applied_evidence"] == []
+    assert result["review_note_evidence"][0]["evidence_id"] == "ev-candidate-ps3-annotated"
+    assert result["classification_result"]["final_classification"] == "vus"
+
+
+def test_annotation_missing_key_fields_is_captured_and_source_version_missing_warns() -> None:
+    result = run_annotation_batch_workflow(
+        {
+            "annotation_format": "generic",
+            "records": [{"consequence": "missense_variant"}],
+            "gene_disease_context": _context(),
+        }
+    )
+
+    assert result["succeeded"] == 0
+    assert result["failed"] == 1
+    assert result["failed_records"][0]["error"]["code"] == "MALFORMED_ANNOTATION_RECORD"
+    assert any("source_version is missing" in limitation for limitation in result["limitations"])
+
+
+def test_annotation_bom_mixed_case_and_unnamed_columns_are_cleaned() -> None:
+    result = run_annotation_batch_workflow(
+        {
+            "annotation_format": "generic",
+            "input_text": (
+                "\ufeffGene,Transcript,HGVSc,Chrom,Pos,Ref,Alt,Unnamed: 0\n"
+                " brca1 , nm_007294.4 ,NM_007294.4:c.68A%3EG,chr17,43092919,a,g,\n"
+            ),
+            "source_version": "generic-fixture-v1",
+            "gene_disease_context": _context(),
+        }
+    )
+
+    assert result["succeeded"] == 1
+    assert result["results"][0]["normalized_variant_key"] == "17-43092919-A-G"
+    assert any("Excel-generated column" in limitation for limitation in result["limitations"])

@@ -168,11 +168,11 @@ def test_benchmark_case_runs_full_rate_variant_pipeline(case: dict[str, Any]) ->
     assert set(case["expected_review_flags"]).issubset(review_codes)
 
     report_text = result["report_text"]
-    assert "## Triggered ACMG Evidence" in report_text
+    assert "## Applied ACMG Evidence" in report_text
     assert "## Candidate / Review-Note Evidence" in report_text
     applied_section = _section(
         report_text,
-        "## Triggered ACMG Evidence",
+        "## Applied ACMG Evidence",
         "## Candidate / Review-Note Evidence",
     )
     candidate_section = _section(

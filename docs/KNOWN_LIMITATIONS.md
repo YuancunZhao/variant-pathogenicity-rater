@@ -1,6 +1,6 @@
 # Known Limitations
 
-Variant Pathogenicity Rater v0.2.0-alpha2 is an internal testing release. It does not
+Variant Pathogenicity Rater v0.2.0-beta is an internal testing release. It does not
 replace qualified clinical, laboratory, or genetics professional review.
 
 ## Scope
@@ -14,6 +14,9 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Transcript selection and annotation adapters provide review context only.
   They do not generate evidence or substitute for an explicitly supplied user
   transcript.
+- Context consistency checks flag mismatched gene, transcript, disease,
+  ancestry, inheritance, consequence, and genome-build context. They do not
+  generate ACMG evidence and do not change the classification combiner.
 
 ## Evidence Boundaries
 
@@ -30,6 +33,32 @@ replace qualified clinical, laboratory, or genetics professional review.
 - A local or mock provider miss means no matching record was found in that
   configured source. It does not mean the variant is absent from ClinVar,
   gnomAD, or any population database.
+- Provider records cannot automatically override user-provided context. A
+  provider gene, transcript, condition, ancestry, or genome build mismatch is a
+  review flag that must be resolved manually.
+- When disease context is missing, population and PVS1 confidence must not be
+  elevated from the missing context. Population evidence remains candidate-only
+  under missing disease-specific context, and PVS1 is not applied without
+  disease context.
+
+## Reporting Boundaries
+
+- Reports render the supplied `ClassificationResult`; they do not recalculate
+  ACMG criteria, modify evidence strength, or change final classification.
+- Candidate/review-note evidence is displayed separately from applied ACMG
+  evidence. It should not be interpreted as counted evidence.
+- `EvidenceItem.candidate_only` and `EvidenceItem.applied` are output/schema
+  labels for the existing candidate/applied status; they do not authorize a
+  candidate item to participate in classification.
+- ClinVar and literature sections summarize external assertions or extracted
+  claims for review. They are not automatically applied ACMG evidence.
+- SpliceAI is computational splice prediction only. It is not functional
+  evidence and does not by itself apply PS3, BS3, or PVS1.
+- Transcript selection is recommendation/review-note context only, not evidence.
+- Context consistency conflicts require manual review but are not classification
+  changes.
+- A VUS report means uncertainty. It must not be read as leaning pathogenic or
+  benign without additional reviewed evidence and a qualified reviewer.
 
 ## Provider Boundaries
 
@@ -37,9 +66,11 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Online ClinVar is opt-in only and requires both `mode=online` or
   `future_online` and `online_enabled=true`.
 - Population, literature, and computational online providers are not
-  implemented for v0.2.0-alpha2.
+  implemented for v0.2.0-beta.
 - Local-file provider quality depends on the supplied local snapshot, genome
   build, parser compatibility, and source freshness.
+- Provider genome build is checked against input genome build when available.
+  Mismatches are retained as context conflicts instead of being silently ignored.
 
 ## Release Use
 

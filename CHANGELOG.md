@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.2.0-beta - 2026-05-25
+
+Internal beta release review for controlled testing on
+`feature/beta-gap-analysis`.
+
+### Added
+
+- Noisy input hardening for single, batch, and annotated-batch workflows,
+  including structured handling for malformed rows, unsupported CNV/SV-like
+  inputs, ambiguous alleles, multiallelic records, and common export noise.
+- Context consistency checks for gene, transcript, disease, inheritance,
+  ancestry, provider-record, and genome-build mismatches.
+- Report usability refinements that separate applied ACMG evidence from
+  candidate/review-note evidence, context checks, transcript selection,
+  provenance, limitations, and human-review-required language.
+- Batch summaries for review-required counts, context conflicts, failed-record
+  summaries, duplicate warnings, and classification distribution.
+- Release notes and readiness review for v0.2.0-beta internal testing.
+
+### Safety Notes
+
+- ACMG business logic and the classification combiner were not changed.
+- Candidate evidence remains excluded from classification.
+- Annotation, normalization, transcript selection, and context consistency
+  remain review context only and do not generate ACMG evidence.
+- ClinVar and literature evidence remain candidate/review-note only.
+- SpliceAI remains computational splice prediction only and does not trigger
+  PS3, BS3, or PVS1.
+- Malformed or unsupported batch/annotation records are preserved explicitly
+  instead of skipped silently.
+- Human review remains required on every result, report, batch record, and
+  failed record.
+
 ## 0.2.0-alpha2 - 2026-05-25
 
 Internal alpha release review for CLI and real-world annotation batch workflow

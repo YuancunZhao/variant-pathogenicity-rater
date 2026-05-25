@@ -258,3 +258,60 @@ def test_mcp_normalize_variant_tool_returns_standard_payload() -> None:
     assert payload["tool"] == "normalize_variant"
     assert payload["normalized_variant"]["variant_type"] == "snv"
     assert payload["human_review_required"] is True
+
+
+def test_chr_m_and_mt_normalize_to_same_identity() -> None:
+    chr_m = normalize_variant({"chrom": "chrM", "pos": 10, "ref": "A", "alt": "G"})
+    mt = normalize_variant({"chrom": "MT", "pos": 10, "ref": "A", "alt": "G"})
+
+    assert chr_m.normalized_variant is not None
+    assert mt.normalized_variant is not None
+    assert chr_m.normalized_variant.chrom == "MT"
+    assert chr_m.variant_identity is not None
+    assert mt.variant_identity is not None
+    assert chr_m.variant_identity.normalized_variant_key == mt.variant_identity.normalized_variant_key
+
+
+def test_lowercase_ref_alt_and_spaced_gene_transcript_are_cleaned_with_warnings() -> None:
+    result = normalize_variant(
+        {
+            "chrom": "chr17",
+            "pos": "43092919",
+            "ref": " a ",
+            "alt": " g ",
+            "gene": " brca1 ",
+            "transcript": " nm_007294.4 ",
+            "hgvs_c": "NM_007294.4:c.68A>G",
+        }
+    )
+
+    variant = result.normalized_variant
+    assert variant is not None
+    assert variant.ref == "A"
+    assert variant.alt == "G"
+    assert variant.gene_symbol == "BRCA1"
+    assert variant.transcript is not None
+    assert variant.transcript.accession == "NM_007294"
+    assert any("uppercased" in warning for warning in result.normalization_warnings)
+
+
+def test_url_and_html_escaped_hgvs_is_cleaned() -> None:
+    result = normalize_variant(
+        {
+            "gene": "GENE1",
+            "transcript": "NM_000001.1",
+            "hgvs_c": "NM_000001.1:c.76A%3EG",
+            "hgvs_p": "NP_000001.1:p.Lys26Arg&amp;",
+        }
+    )
+
+    variant = result.normalized_variant
+    assert variant is not None
+    assert variant.hgvs_c == "NM_000001.1:c.76A>G"
+    assert any("URL/HTML-decoded" in warning for warning in result.normalization_warnings)
+
+
+def test_dot_symbolic_n_and_multiallelic_alt_are_rejected_safely() -> None:
+    for alt in [".", "<DEL>", "N", "G,T"]:
+        with pytest.raises(NormalizationError):
+            normalize_variant({"chrom": "1", "pos": 10, "ref": "A", "alt": alt})

@@ -5,10 +5,12 @@ from hashlib import sha256
 from typing import Any
 
 from variant_pathogenicity_rater.reporting.templates import (
+    CANDIDATE_EVIDENCE_CAUTION,
     CLINVAR_CONFLICT_ALERT,
     COMPUTATIONAL_CAUTION,
     HUMAN_REVIEW_NOTE,
     MODE_TEMPLATES,
+    SPLICEAI_CAUTION,
     VUS_NOTE,
     ZH_PLACEHOLDER,
 )
@@ -110,6 +112,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
         data_source_summary=_data_source_summary(result.evidence_items),
         review_flags=result.review_flags,
         transcript_selection=result.transcript_selection,
+        context_consistency=result.context_consistency,
     )
 
 
@@ -155,12 +158,26 @@ def _json_content(
     language: ReportLanguage,
 ) -> dict[str, Any]:
     cautions = _cautions(result, summary)
+    applied_items = [entry.model_dump(mode="json") for entry in summary.triggered_acmg_evidence]
+    candidate_items = [entry.model_dump(mode="json") for entry in summary.candidate_acmg_evidence]
+    context_consistency = (
+        summary.context_consistency.model_dump(mode="json")
+        if summary.context_consistency
+        else None
+    )
+    transcript_selection = (
+        summary.transcript_selection.model_dump(mode="json")
+        if summary.transcript_selection
+        else None
+    )
     return {
         "mode": mode,
         "language": language,
+        "executive_summary": _executive_summary(summary),
         "variant": {
             "variant_id": summary.variant_id,
             "gene_symbol": summary.gene_symbol,
+            "transcript": summary.transcript,
             "genomic_location": summary.genomic_location,
             "hgvs_c": summary.hgvs_c,
             "hgvs_p": summary.hgvs_p,
@@ -172,29 +189,45 @@ def _json_content(
             "confidence": summary.confidence,
             "machine_proposal_only": True,
         },
+        "why_this_classification": _why_this_classification(summary),
+        "applied_evidence": {
+            "note": "Only these ACMG evidence items were treated as applied evidence in the supplied classification result.",
+            "items": applied_items,
+        },
+        "review_note_evidence": {
+            "note": "Candidate/review-note evidence was not counted by the classification combiner.",
+            "items": candidate_items,
+        },
         "evidence": {
             "pathogenic": summary.pathogenic_evidence_summary,
             "benign": summary.benign_evidence_summary,
             "conflicting": summary.conflicting_evidence,
-            "applied_items": [
-                entry.model_dump(mode="json") for entry in summary.triggered_acmg_evidence
-            ],
-            "candidate_items": [
-                entry.model_dump(mode="json") for entry in summary.candidate_acmg_evidence
+            "applied_items": applied_items,
+            "candidate_items": candidate_items,
+        },
+        "context_consistency": {
+            "note": "Context consistency is review context only; it is not ACMG evidence and does not change the classification.",
+            "summary": context_consistency,
+        },
+        "transcript_selection": {
+            "note": "Transcript selection is recommendation/review-note context only; it is not ACMG evidence.",
+            "summary": transcript_selection,
+        },
+        "data_sources": {
+            "note": "Source provenance describes where evidence or review notes came from; it does not determine whether evidence was applied.",
+            "items": [
+                source.model_dump(mode="json") for source in summary.data_source_summary
             ],
         },
         "limitations": summary.limitations,
+        "missing_data": _missing_data(summary),
+        "safety_notes": cautions + [HUMAN_REVIEW_NOTE],
         "cautions": cautions,
         "clinvar_conflict_detected": summary.clinvar_conflict_detected,
         "data_source_summary": [
             source.model_dump(mode="json") for source in summary.data_source_summary
         ],
         "review_flags": [flag.model_dump(mode="json") for flag in summary.review_flags],
-        "transcript_selection": (
-            summary.transcript_selection.model_dump(mode="json")
-            if summary.transcript_selection
-            else None
-        ),
         "human_review_required": True,
         "human_review_note": summary.human_review_note,
     }
@@ -212,6 +245,13 @@ def _text_content(
         "",
         template.opening_label,
         "",
+        "## Executive Summary",
+        f"- Final machine proposal: {summary.classification_label}",
+        "- This is not a final clinical or laboratory assertion.",
+        f"- Applied ACMG evidence items: {len(summary.triggered_acmg_evidence)}",
+        f"- Candidate/review-note evidence items: {len(summary.candidate_acmg_evidence)}",
+        f"- Human review required: true",
+        "",
         "## Variant Summary",
         f"- Variant: {summary.variant_id}",
         f"- Gene: {summary.gene_symbol or 'not provided'}",
@@ -225,10 +265,20 @@ def _text_content(
         f"- Applied combination rule: {summary.applied_combination_rule or 'none'}",
         f"- Confidence: {summary.confidence:.2f}",
         "- Human review required: true",
+        "",
+        "## Why This Classification",
+        f"- Machine proposal: {summary.classification_label}",
+        f"- Combination rule supplied by classifier: {summary.applied_combination_rule or 'none'}",
+        "- The report does not recompute or modify the classification.",
     ]
+    if summary.pathogenic_evidence_summary:
+        lines.append("- Applied pathogenic evidence summary: " + "; ".join(summary.pathogenic_evidence_summary))
+    if summary.benign_evidence_summary:
+        lines.append("- Applied benign evidence summary: " + "; ".join(summary.benign_evidence_summary))
 
     lines.extend(_caution_lines(result, summary, language))
     lines.extend(_transcript_selection_lines(summary))
+    lines.extend(_context_consistency_lines(summary))
 
     lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
     lines.extend(_conflicting_evidence_lines(summary))
@@ -239,7 +289,15 @@ def _text_content(
     else:
         lines.append("- No additional limitations were supplied beyond mandatory human review.")
 
+    lines.extend(["", "## What Data May Be Missing"])
+    lines.extend(f"- {item}" for item in _missing_data(summary))
+
     lines.extend(_data_source_lines(summary, include_details=template.include_audit_details))
+
+    lines.extend(["", "## Safety Notes"])
+    for note in _cautions(result, summary):
+        lines.append(f"- {note}")
+    lines.append(f"- {HUMAN_REVIEW_NOTE}")
 
     if template.include_reviewer_checklist:
         lines.extend(
@@ -269,7 +327,7 @@ def _evidence_chain_lines(
     *,
     include_details: bool,
 ) -> list[str]:
-    lines = ["", "## Triggered ACMG Evidence"]
+    lines = ["", "## Applied ACMG Evidence", "- Only this section lists evidence counted by the supplied classification result."]
     if not summary.triggered_acmg_evidence:
         lines.append("- No ACMG evidence items were supplied.")
     else:
@@ -283,7 +341,7 @@ def _evidence_chain_lines(
                 lines.append(f"  - Requires review: {str(entry.requires_review).lower()}")
                 if entry.triggered_by:
                     lines.append(f"  - Triggered by: {', '.join(entry.triggered_by)}")
-    lines.extend(["", "## Candidate / Review-Note Evidence"])
+    lines.extend(["", "## Candidate / Review-Note Evidence", f"- {CANDIDATE_EVIDENCE_CAUTION}"])
     if not summary.candidate_acmg_evidence:
         lines.append("- No candidate-only ACMG evidence items were supplied.")
         return lines
@@ -291,7 +349,8 @@ def _evidence_chain_lines(
     for entry in summary.candidate_acmg_evidence:
         lines.append(
             f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
-            f"{entry.direction}; source: {entry.source}; rationale: {entry.rationale}"
+            f"{entry.direction}; status: candidate/review-note only; source: {entry.source}; "
+            f"rationale: {entry.rationale}"
         )
         if include_details:
             lines.append(f"  - Confidence: {entry.confidence:.2f}")
@@ -316,7 +375,7 @@ def _transcript_selection_lines(summary: VariantReportSummary) -> list[str]:
             f"- Gene: {selection.selected_gene or 'not provided'}",
             f"- Reason: {selection.selection_reason}",
             f"- Confidence: {selection.selection_confidence:.2f}",
-            "- Status: recommendation/review-note only; not ACMG evidence",
+            "- Status: recommendation/review-note only; not ACMG evidence and not counted by the classification combiner",
             "- Human review required: true",
         ]
     )
@@ -327,6 +386,37 @@ def _transcript_selection_lines(summary: VariantReportSummary) -> list[str]:
         )
     if selection.limitations:
         lines.append("- Selection limitations: " + "; ".join(selection.limitations))
+    return lines
+
+
+def _context_consistency_lines(summary: VariantReportSummary) -> list[str]:
+    lines = ["", "## Context Consistency"]
+    consistency = summary.context_consistency
+    if consistency is None:
+        lines.append("- No context consistency summary was supplied.")
+        return lines
+
+    lines.extend(
+        [
+            f"- Status: {consistency.status}",
+            f"- Human review required: {str(consistency.review_required).lower()}",
+            "- Review context only; not ACMG evidence, not a classification change, and not used by the classification combiner.",
+        ]
+    )
+    if consistency.conflicts:
+        lines.append("- Conflicts:")
+        lines.extend(
+            f"  - {check.check_name}: expected {check.expected}; observed {check.observed}; {check.reason}"
+            for check in consistency.conflicts
+        )
+    if consistency.warnings:
+        lines.append("- Warnings/insufficient context:")
+        lines.extend(
+            f"  - {check.check_name}: expected {check.expected}; observed {check.observed}; {check.reason}"
+            for check in consistency.warnings
+        )
+    if consistency.limitations:
+        lines.append("- Consistency limitations: " + "; ".join(consistency.limitations))
     return lines
 
 
@@ -346,10 +436,11 @@ def _data_source_lines(
     *,
     include_details: bool,
 ) -> list[str]:
-    lines = ["", "## Data Source Summary"]
+    lines = ["", "## Data Sources / Provenance"]
     if not summary.data_source_summary:
         lines.append("- No evidence data sources were supplied.")
         return lines
+    lines.append("- Provenance describes source origin and retrieval context; it does not mean a source was applied as ACMG evidence.")
 
     for source in summary.data_source_summary:
         version = f" ({source.version})" if source.version else ""
@@ -390,9 +481,55 @@ def _cautions(result: ClassificationResult, summary: VariantReportSummary) -> li
         cautions.append(VUS_NOTE)
     if any(str(item.code) in {"PP3", "BP4"} for item in result.evidence_items):
         cautions.append(COMPUTATIONAL_CAUTION)
+    if any("spliceai" in trigger.lower() for item in result.evidence_items for trigger in item.triggered_by):
+        cautions.append(SPLICEAI_CAUTION)
+    if summary.candidate_acmg_evidence:
+        cautions.append(CANDIDATE_EVIDENCE_CAUTION)
     if summary.clinvar_conflict_detected:
         cautions.append(CLINVAR_CONFLICT_ALERT)
     return cautions
+
+
+def _executive_summary(summary: VariantReportSummary) -> dict[str, Any]:
+    return {
+        "final_machine_proposal": summary.final_classification,
+        "classification_label": summary.classification_label,
+        "human_review_required": True,
+        "applied_evidence_count": len(summary.triggered_acmg_evidence),
+        "candidate_review_note_count": len(summary.candidate_acmg_evidence),
+        "context_consistency_status": (
+            summary.context_consistency.status if summary.context_consistency else None
+        ),
+        "clinvar_conflict_detected": summary.clinvar_conflict_detected,
+    }
+
+
+def _why_this_classification(summary: VariantReportSummary) -> list[str]:
+    lines = [
+        f"Final machine proposal: {summary.classification_label}.",
+        f"Applied combination rule: {summary.applied_combination_rule or 'none'}.",
+        "The report presents the supplied classifier output without changing the final classification.",
+    ]
+    if summary.pathogenic_evidence_summary:
+        lines.append("Applied pathogenic evidence: " + "; ".join(summary.pathogenic_evidence_summary))
+    if summary.benign_evidence_summary:
+        lines.append("Applied benign evidence: " + "; ".join(summary.benign_evidence_summary))
+    return lines
+
+
+def _missing_data(summary: VariantReportSummary) -> list[str]:
+    missing: list[str] = []
+    if not summary.transcript:
+        missing.append("No transcript was supplied in the variant summary.")
+    if not summary.transcript_selection:
+        missing.append("No transcript selection summary was supplied.")
+    if not summary.context_consistency:
+        missing.append("No context consistency summary was supplied.")
+    if not summary.data_source_summary:
+        missing.append("No evidence data source provenance was supplied.")
+    if not summary.limitations:
+        missing.append("No source-specific limitations were supplied beyond mandatory human review.")
+    return missing or ["No additional missing-data notes were generated by the report renderer."]
 
 
 def _clinvar_conflict_detected(result: ClassificationResult) -> bool:
@@ -410,7 +547,9 @@ def _clinvar_conflict_detected(result: ClassificationResult) -> bool:
 
 def _is_applied_evidence(item: EvidenceItem) -> bool:
     return not (
-        str(item.strength) == EvidenceStrength.NONE.value
+        item.candidate_only
+        or item.applied is False
+        or str(item.strength) == EvidenceStrength.NONE.value
         or item.supporting_data.get("candidate_only")
         or item.supporting_data.get("evidence_status") == "candidate"
         or item.supporting_data.get("applied") is False

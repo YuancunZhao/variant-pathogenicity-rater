@@ -40,6 +40,25 @@ Minimal VCF-like input expects tab-separated columns such as:
 Multi-allelic VCF rows are not split silently. Submit one alternate allele per
 record or the row is captured as a failed record.
 
+## Noisy Input Cleaning
+
+Batch parsing accepts common export noise before calling the existing
+`rate_variant` pipeline:
+
+- UTF-8 BOM and mixed newline styles.
+- Empty lines and comment lines, while preserving the VCF `#CHROM` header.
+- Case-insensitive CSV/TSV column names and aliases such as `Gene`, `HGVSc`,
+  `Chrom`, `POS`, `REF`, and `ALT`.
+- Excel `Unnamed:*` columns.
+- Surrounding whitespace in values.
+- `chr` prefixes and `chrM`/`MT` mitochondrial labels.
+- Lowercase `ref`/`alt` values.
+- Simple URL/HTML escaping in HGVS fields.
+
+Cleanup warnings are returned in top-level `warnings`; normalization warnings
+also appear in each successful record's classification limitations. These
+warnings are audit context only and do not change ACMG classification.
+
 ## Output Structure
 
 The response follows the `BatchResult` schema:
@@ -48,6 +67,7 @@ The response follows the `BatchResult` schema:
 - `total_records`
 - `succeeded`
 - `failed`
+- `summary`
 - `results`
 - `failed_records`
 - `warnings`
@@ -62,9 +82,27 @@ Each item in `results` includes:
 - `normalized_variant_key`
 - `status`
 - `classification_result` for successful records, or `error` for failed records
+- `applied_evidence`
+- `review_note_evidence`
 - `review_required`
 - `review_flags`
 - `limitations`
+- `annotation_provenance`
+- `provenance`
+- `normalization_identity`
+- `transcript_selection_summary`
+- `context_consistency_summary`
+
+The top-level `summary` includes:
+
+- `total_records`
+- `succeeded`
+- `failed`
+- `classification_distribution`
+- `review_required_count`
+- `conflict_count`
+- `failed_records_summary`
+- `duplicate_warnings`
 
 ## Error Handling
 
@@ -74,8 +112,9 @@ batch. The record is added to `failed_records` and also appears in `results` wit
 `status: "error"`.
 
 Malformed JSONL lines, rows with too many delimited fields, invalid positions,
-unsupported CNV/SV/repeat records, symbolic VCF alleles, and multi-allelic ALT
-values are captured explicitly. No input record is skipped silently.
+unsupported CNV/SV/repeat records, symbolic VCF alleles, ambiguous `N`, `ALT=.`,
+and multi-allelic ALT values are captured explicitly. No input record is skipped
+silently.
 
 Duplicate normalized variants are allowed but reported in `warnings`.
 
@@ -83,8 +122,9 @@ Duplicate normalized variants are allowed but reported in `warnings`.
 
 Batch mode cannot replace human review. It repeats the existing SNV/small indel
 pipeline for multiple records and preserves each variant's limitations, errors,
-and review flags. The batch summary is only a count and does not override
-per-record review requirements.
+and review flags. The batch summary is a triage aid only and does not override
+per-record classifications, context conflicts, limitations, or review
+requirements.
 
 The default is offline/mock. Network-backed providers must be enabled explicitly
 through existing per-record or batch `options`, and any provider limitations are

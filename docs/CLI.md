@@ -67,7 +67,8 @@ format, return a non-zero exit code and write the error to stderr.
 
 Supported annotation sources are `vep`, `annovar`, `bcftools`, and `generic`.
 The CLI parses annotations, records safety limitations and transcript-selection
-review metadata, then calls the existing batch rating workflow.
+review metadata, then calls the same annotated batch workflow used by the
+Python API and MCP `rate_annotated_variants` tool.
 
 ```bash
 vpr annotated-batch --input vep.tsv --source vep --include-report
@@ -77,6 +78,13 @@ vpr annotated-batch --input csq.tsv --source bcftools --output-format jsonl
 
 `--include-report` copies report text from each classification result into the
 per-record batch result when available.
+
+Annotated-batch JSON wraps the normal batch result under `batch`. Each
+successful per-record result preserves `normalization_identity`,
+`transcript_selection_summary`, `context_consistency_summary`,
+`applied_evidence`, `review_note_evidence`, `review_flags`, `provenance`, and
+`limitations`. Annotation-derived fields are descriptive context only and do not
+generate ACMG evidence.
 
 ## Environment Check
 

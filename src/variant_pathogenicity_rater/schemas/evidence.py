@@ -190,7 +190,22 @@ class EvidenceItem(SchemaModel):
     source: EvidenceSource
     confidence: float = Field(..., ge=0, le=1)
     requires_review: bool = True
+    candidate_only: bool | None = None
+    applied: bool | None = None
     triggered_by: list[str] = Field(default_factory=list)
     supporting_data: dict[str, Any] = Field(default_factory=dict)
     audit_trail: list[AuditTrail] = Field(default_factory=list)
     review_flags: list[ReviewFlag] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def synchronize_review_note_status(self) -> "EvidenceItem":
+        supporting_candidate = bool(
+            self.supporting_data.get("candidate_only")
+            or self.supporting_data.get("evidence_status") == "candidate"
+            or self.supporting_data.get("applied") is False
+        )
+        if self.candidate_only is None:
+            self.candidate_only = supporting_candidate
+        if self.applied is None:
+            self.applied = not bool(self.candidate_only) and self.strength != EvidenceStrength.NONE
+        return self

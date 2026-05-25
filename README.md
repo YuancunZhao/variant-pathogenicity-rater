@@ -1,9 +1,9 @@
 # Variant Pathogenicity Rater
 
-Current version: v0.2.0-alpha2 internal test release.
+Current version: v0.2.0-beta internal test release.
 
 Codex Plugin plus MCP server framework for SNV/small indel ACMG variant interpretation tools.
-This phase implements an offline, mock-backed end-to-end `rate_variant` workflow: normalization, population frequency retrieval and BA1/BS1/PM2 evaluation, computational PP3/BP4 evaluation, PVS1 evaluation, ClinVar review-note retrieval, literature review-note retrieval, ACMG classification combining, and report generation. v0.2.0-alpha2 adds the CLI, real-world annotation batch workflow, annotated MCP batch rating, per-record provenance, failed-record preservation, stricter schema validation, and release-readiness documentation around the existing safety boundaries.
+This phase implements an offline, mock-backed end-to-end `rate_variant` workflow: normalization, population frequency retrieval and BA1/BS1/PM2 evaluation, computational PP3/BP4 evaluation, PVS1 evaluation, ClinVar review-note retrieval, literature review-note retrieval, ACMG classification combining, and report generation. v0.2.0-beta adds noisy input hardening, context consistency checks, report usability refinements, CLI and MCP batch workflows, real-world annotated batch ingestion, per-record provenance, failed-record preservation, stricter schema validation, and release-readiness documentation around the existing safety boundaries.
 
 All conclusions are machine proposals and always require qualified human review. The default workflow does not use the network.
 
@@ -46,7 +46,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 ```
 
-This editable install is the expected setup for internal v0.2.0-alpha2 testing. It
+This editable install is the expected setup for internal v0.2.0-beta testing. It
 installs the package from `src/`, the MCP server dependencies, and `pytest`.
 
 Validate the environment:
@@ -74,6 +74,33 @@ Implemented tools:
 - `generate_report`
 
 Evidence tools return structured evidence or review-note payloads and a mandatory human-review notice. Literature evidence is candidate-only and never auto-applies PS3, BS3, PS2, PM6, PP1, PS4, or PP4.
+
+## Reports
+
+`generate_report` renders an existing `ClassificationResult` as markdown,
+plain text, or JSON in `concise`, `detailed`, `laboratory`, or `clinician`
+mode. Reporting is presentation-only: it does not add ACMG criteria, rerun the
+combiner, relax safety rules, or change the final classification.
+
+Reports separate:
+
+- final machine proposal
+- applied ACMG evidence
+- candidate/review-note evidence
+- context consistency
+- transcript selection
+- data sources/provenance
+- limitations and safety notes
+
+ClinVar and literature notes remain candidate/review-note evidence unless they
+already appear as applied evidence in the supplied result. SpliceAI is described
+as computational splice prediction only, not functional evidence. Transcript
+selection and context consistency are review context and are not counted by the
+classification combiner. VUS reports use conservative wording and do not imply
+that the variant is likely pathogenic.
+
+See [docs/REPORTING.md](docs/REPORTING.md) for section definitions, JSON keys,
+batch summary fields, and safety wording.
 
 ## CLI
 
@@ -120,7 +147,14 @@ The `rate_variant` output includes:
 
 - `classification_result`: a Pydantic-derived `ClassificationResult` payload
 - `evidence_items`: all applied or candidate evidence items
+- `applied_evidence`: evidence counted by the supplied classification result
+- `review_note_evidence`: candidate/review-note evidence excluded from the combiner
+- `normalization_identity`: stable normalized identity metadata from normalization
+- `transcript_selection`: transcript recommendation context, when supplied
+- `context_consistency`: context checks, when available
 - `final_classification`: one of `pathogenic`, `likely_pathogenic`, `vus`, `likely_benign`, `benign`
+- `review_flags`: review flags carried from classification, transcript selection, and context checks
+- `provenance`: normalization, evidence-source, transcript-selection, and context-check provenance
 - `report_text`: rendered detailed report text
 - `limitations`: module warnings and any failed-step messages
 - `human_review_required`: always `true`
@@ -141,6 +175,15 @@ JSONL, CSV/TSV, and minimal VCF-like TSV input, calls the existing `rate_variant
 pipeline independently for each SNV/small-indel record, and reports malformed or
 unsupported rows in `failed_records` instead of skipping them silently. See
 `docs/BATCH_INPUT.md`.
+
+Batch results include a `summary` object with total, succeeded, failed,
+classification distribution, review-required count, context conflict count,
+failed-record summaries, and duplicate warnings. The summary is for triage only
+and does not override per-record classification or review requirements.
+Successful batch records expose the same integration fields as single-variant
+rating using per-record names: `applied_evidence`, `review_note_evidence`,
+`normalization_identity`, `transcript_selection_summary`,
+`context_consistency_summary`, `review_flags`, `provenance`, and `limitations`.
 
 Normalize a VCF-like SNV or small indel:
 
@@ -191,7 +234,7 @@ export VPR_CLINVAR_MODE=online
 export VPR_CLINVAR_ONLINE_ENABLED=true
 export VPR_CLINVAR_TIMEOUT_SECONDS=10
 export VPR_CLINVAR_EMAIL=curator@example.org
-export VPR_CLINVAR_USER_AGENT="variant-pathogenicity-rater/0.2.0-alpha2 curator@example.org"
+export VPR_CLINVAR_USER_AGENT="variant-pathogenicity-rater/0.2.0-beta curator@example.org"
 ```
 
 `VPR_CLINVAR_MODE=future_online` is accepted as an alias for the current online provider when `VPR_CLINVAR_ONLINE_ENABLED=true` is also present. Online query results are stored in the disk cache configured by `cache_dir` and `ttl_seconds`; cache hits reuse the cached payload and preserve provenance metadata.
@@ -275,7 +318,7 @@ Environment variables:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `VPR_SERVER_NAME` | `variant-pathogenicity-rater` | MCP server name |
-| `VPR_SERVER_VERSION` | `0.2.0-alpha2` | MCP server version |
+| `VPR_SERVER_VERSION` | `0.2.0-beta` | MCP server version |
 | `VPR_LOG_LEVEL` | `INFO` | Structured log level |
 | `VPR_TOOLS_PACKAGE` | `tools` | Python package used for dynamic discovery |
 | `VPR_ENABLE_HEALTH_TOOL` | `true` | Enable `health_check` |
