@@ -37,6 +37,57 @@ def _flat_variant_payload() -> dict:
     }
 
 
+def _complete_brca1_pvs1_payload() -> dict:
+    annotation = {
+        "gene": "BRCA1",
+        "transcript": "NM_007294.4",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "consequence": "frameshift_variant",
+        "consequence_terms": ["frameshift_variant"],
+        "exon": "2/24",
+        "canonical": True,
+        "mane_select": True,
+        "transcript_biotype": "protein_coding",
+        "annotation_source": "pytest",
+        "provenance": {"data_source": "pytest", "source_version": "v1", "raw_record_hash": "brca1-pvs1"},
+        "raw_fields": {"case": "brca1-pvs1"},
+    }
+    return {
+        "gene": "BRCA1",
+        "transcript": "NM_007294.4",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "chromosome": "17",
+        "position": 43124027,
+        "ref": "CA",
+        "alt": "C",
+        "disease": "Hereditary breast and ovarian cancer syndrome",
+        "inheritance": "autosomal_dominant",
+        "options": {
+            "include_population": False,
+            "include_computational": False,
+            "include_clinvar": False,
+            "include_literature": False,
+            "annotations": [annotation],
+            "gene_disease_context": {
+                "gene": "BRCA1",
+                "disease": "Hereditary breast and ovarian cancer syndrome",
+                "inheritance": "autosomal_dominant",
+                "lof_is_known_mechanism": True,
+                "transcript_is_biologically_relevant": True,
+                "nmd_prediction_available": True,
+                "nmd_predicted": True,
+                "last_exon_information": {
+                    "is_in_last_exon": False,
+                    "exon_number": 2,
+                    "total_exons": 24,
+                },
+            },
+        },
+    }
+
+
 def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
     result = rate_variant(_flat_variant_payload())
 
@@ -242,3 +293,105 @@ def test_candidate_evidence_remains_excluded_in_single_and_batch_workflows() -> 
     assert batch["results"][0]["classification_result"]["final_classification"] == "vus"
     assert batch["results"][0]["applied_evidence"] == []
     assert batch["results"][0]["review_note_evidence"][0]["evidence_id"] == "ev-candidate-ps3"
+
+
+def test_pipeline_applies_pvs1_only_with_complete_context_and_preserves_decision_path() -> None:
+    result = rate_variant(_complete_brca1_pvs1_payload())
+    pvs1_items = [item for item in result["applied_evidence"] if item["code"] == "PVS1"]
+
+    assert len(pvs1_items) == 1
+    pvs1 = pvs1_items[0]
+    assert pvs1["applied"] is True
+    assert pvs1["candidate_only"] is False
+    assert pvs1["requires_review"] is True
+    assert pvs1["supporting_data"]["requires_manual_review"] is True
+    assert pvs1["supporting_data"]["pvs1_decision"]["decision_path"]
+    assert "PVS1 decision path" in result["report_text"]
+
+
+def test_pipeline_missing_nmd_and_exon_annotation_keeps_pvs1_candidate_only() -> None:
+    payload = _complete_brca1_pvs1_payload()
+    payload["options"]["annotations"][0].pop("exon")
+    payload["options"]["gene_disease_context"].update(
+        {
+            "nmd_prediction_available": False,
+            "nmd_predicted": None,
+            "last_exon_information": None,
+        }
+    )
+
+    result = rate_variant(payload)
+    applied_pvs1 = [item for item in result["applied_evidence"] if item["code"] == "PVS1"]
+    candidate_pvs1 = [item for item in result["review_note_evidence"] if item["code"] == "PVS1"]
+
+    assert result["final_classification"] == "vus"
+    assert applied_pvs1 == []
+    assert len(candidate_pvs1) == 1
+    assert candidate_pvs1[0]["supporting_data"]["evidence_status"] == "candidate"
+    assert candidate_pvs1[0]["supporting_data"]["pvs1_decision"]["blocking_reasons"]
+
+
+def test_context_conflict_blocks_applied_pvs1_before_combiner() -> None:
+    payload = _complete_brca1_pvs1_payload()
+    payload["options"]["annotations"][0]["gene"] = "TP53"
+    payload["options"]["annotations"][0]["raw_fields"] = {"case": "context-conflict"}
+
+    result = rate_variant(payload)
+    candidate_pvs1 = [item for item in result["review_note_evidence"] if item["code"] == "PVS1"]
+
+    assert result["context_consistency"]["status"] == "conflict"
+    assert result["applied_evidence"] == []
+    assert len(candidate_pvs1) == 1
+    assert "Major context consistency conflict is present." in candidate_pvs1[0]["supporting_data"]["blocking_reasons"]
+
+
+def test_mcp_rate_variant_output_includes_pvs1_supporting_data() -> None:
+    server = _server()
+    request = {
+        "jsonrpc": "2.0",
+        "id": 9,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant",
+            "arguments": _complete_brca1_pvs1_payload(),
+        },
+    }
+
+    response = asyncio.run(server.handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+    pvs1 = next(item for item in tool_payload["applied_evidence"] if item["code"] == "PVS1")
+
+    assert pvs1["supporting_data"]["pvs1_decision"]["decision_path"]
+    assert pvs1["supporting_data"]["requires_manual_review"] is True
+
+
+def test_mcp_rate_annotated_variants_preserves_pvs1_decision_path_per_record() -> None:
+    payload = _complete_brca1_pvs1_payload()
+    annotation = payload["options"]["annotations"][0]
+    server = _server()
+    request = {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_annotated_variants",
+            "arguments": {
+                "annotation_format": "generic",
+                "records": [annotation["raw_fields"] | annotation],
+                "gene_disease_context": payload["options"]["gene_disease_context"],
+                "options": {
+                    "include_population": False,
+                    "include_computational": False,
+                    "include_clinvar": False,
+                    "include_literature": False,
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(server.handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+    record = tool_payload["results"][0]
+    pvs1 = next(item for item in record["applied_evidence"] if item["code"] == "PVS1")
+
+    assert pvs1["supporting_data"]["decision_path"]

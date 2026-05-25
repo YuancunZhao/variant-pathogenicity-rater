@@ -66,6 +66,7 @@ def run_pvs1_decision_tree(
     limitations.extend(nmd.limitations)
     if nmd.nmd_likely is None:
         downgrades.append("NMD likelihood is unknown; PVS1 strength is capped below Strong.")
+        blocking.append("NMD likelihood is unknown because exon/NMD context is incomplete.")
         review_flags.append(_flag("NMD_UNKNOWN", "NMD likelihood cannot be assumed from incomplete exon data.", False))
     if nmd.terminal_region_risk:
         downgrades.append("Last exon or terminal-region NMD escape risk.")

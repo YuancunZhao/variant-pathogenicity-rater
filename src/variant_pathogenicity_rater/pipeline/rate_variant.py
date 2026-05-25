@@ -142,6 +142,24 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 "summary": summary,
             }
 
+    context_consistency = _run_step(
+        "evaluate_context_consistency",
+        audit_trail,
+        limitations,
+        lambda: evaluate_context_consistency(
+            normalized_variant,
+            context,
+            annotation_records=annotation_records,
+            transcript_selection=transcript_selection,
+            population_records=population_records,
+        ),
+    )
+    if context_consistency is not None:
+        limitations.extend(context_consistency.limitations)
+        step_results["evaluate_context_consistency"] = json.loads(
+            context_consistency.model_dump_json()
+        )
+
     pvs1_result = _run_step(
         "evaluate_pvs1",
         audit_trail,
@@ -151,6 +169,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             annotation=_selected_annotation_for_pvs1(annotation_records, transcript_selection),
             transcript_selection=transcript_selection,
             gene_disease_context=context,
+            context_consistency=context_consistency,
             provider_data=_pvs1_provider_data(options),
             manual_overrides=_pvs1_manual_overrides(options),
             config=options.get("pvs1_config"),

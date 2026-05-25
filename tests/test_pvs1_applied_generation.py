@@ -158,7 +158,7 @@ def test_last_exon_nonsense_is_downgraded() -> None:
     assert any("NMD escape" in reason or "terminal" in reason for reason in decision.downgrade_reasons)
 
 
-def test_nmd_unknown_is_not_strong() -> None:
+def test_nmd_unknown_is_candidate_only() -> None:
     item, decision = generate_pvs1_evidence(
         _brca1_variant(),
         annotation=_annotation(exon=None),
@@ -166,7 +166,10 @@ def test_nmd_unknown_is_not_strong() -> None:
     )
 
     assert item is not None
-    assert decision.strength == "PVS1_Supporting"
+    assert decision.applied is False
+    assert decision.strength == "PVS1_candidate"
+    assert item.candidate_only is True
+    assert "NMD likelihood is unknown because exon/NMD context is incomplete." in decision.blocking_reasons
 
 
 def test_start_lost_and_stop_lost_are_candidate_only() -> None:

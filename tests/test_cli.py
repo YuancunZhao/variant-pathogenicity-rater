@@ -50,6 +50,41 @@ def test_single_rate_json(capsys) -> None:
     assert payload["classification_result"]["human_review_required"] is True
 
 
+def test_single_rate_markdown_shows_pvs1_decision_path(capsys) -> None:
+    exit_code = main(
+        [
+            "rate",
+            "--gene",
+            "BRCA1",
+            "--transcript",
+            "NM_007294.4",
+            "--hgvs-c",
+            "NM_007294.4:c.68_69delAG",
+            "--hgvs-p",
+            "NP_009225.1:p.Glu23ValfsTer17",
+            "--chromosome",
+            "17",
+            "--position",
+            "43092919",
+            "--ref",
+            "AG",
+            "--alt",
+            "A",
+            "--disease",
+            "Hereditary breast and ovarian cancer",
+            "--inheritance",
+            "autosomal dominant",
+            "--output",
+            "markdown",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "PVS1 decision path" in captured.out
+    assert "Candidate / Review-Note Evidence" in captured.out
+
+
 def test_batch_jsonl(capsys, tmp_path) -> None:
     input_path = tmp_path / "batch.jsonl"
     input_path.write_text(
@@ -151,6 +186,8 @@ def test_annotated_vep_fixture(capsys, tmp_path) -> None:
         "conflict",
         "insufficient",
     }
+    pvs1 = next(item for item in result["review_note_evidence"] if item["code"] == "PVS1")
+    assert pvs1["supporting_data"]["pvs1_decision"]["decision_path"]
 
 
 def test_output_file_writing(tmp_path, capsys) -> None:
