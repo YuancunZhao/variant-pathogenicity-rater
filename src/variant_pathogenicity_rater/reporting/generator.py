@@ -526,7 +526,7 @@ def _clingen_erepo_section(summary: VariantReportSummary) -> list[str]:
     lines = [
         "",
         "## ClinGen Evidence Repository Match",
-        "- ClinGen ERepo results are curated external assertions for review only; they were not counted as applied ACMG evidence.",
+        "- ClinGen ERepo results are curated external assertions for review only; they were not automatically applied and were not counted as applied ACMG evidence.",
     ]
     for entry in entries:
         record = entry.clingen_erepo_record or {}

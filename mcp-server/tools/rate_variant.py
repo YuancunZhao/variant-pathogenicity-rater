@@ -323,6 +323,7 @@ async def query_clingen_erepo(arguments: dict[str, Any]) -> dict[str, Any]:
         "status": "ok",
         "tool": "query_clingen_erepo",
         "stage": "mock_clingen_erepo_provider",
+        "records": [json.loads(record.model_dump_json()) for record in result.records],
         "erepo_records": [json.loads(record.model_dump_json()) for record in result.records],
         "matches": [json.loads(match.model_dump_json()) for match in result.matches],
         "vcep_signals": [json.loads(signal.model_dump_json()) for signal in result.vcep_signals],
