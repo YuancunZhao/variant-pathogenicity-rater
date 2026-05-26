@@ -8,28 +8,30 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 ## Recommended Next Task
 
-The recommended next task is `52_manual_reviewed_evidence_workflow`.
+The recommended next task is `54_vcep_clingen_rule_knowledge_base`.
 
-It is the best next step because PS1/PM5 applied generation is now implemented,
-while literature, segregation, functional, case-count, PM3, and phenotype
-evidence remain candidate suggestions or unsupported for automatic applied
-evidence. A manual reviewed evidence workflow is the needed safety bridge for
-explicitly human-reviewed evidence to enter classification without silently
-promoting machine suggestions. The classification combiner should remain
-unchanged.
+It is the best next step because the post-v0.2.0-beta interpretation loop is
+now complete: automatic applied evidence generation exists for PVS1,
+population, computational, and ClinVar-derived PS1/PM5 evidence; candidate and
+literature suggestions are retained for review; manual reviewed evidence can
+explicitly supply curator-approved applied evidence; and the combiner remains
+unchanged. The next constraint is rule knowledge: disease/gene-specific VCEP or
+ClinGen guidance must be versioned, explicitly selected, provenance-backed, and
+validated before the system broadens beyond generic ACMG support.
 
 ## Prioritized Task List
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
-| `52_manual_reviewed_evidence_workflow` | P0 | Allow explicitly human-reviewed evidence input while keeping it distinct from machine candidate suggestions. | High | Input schemas, validation, provenance, reports, batch, CLI, MCP, docs, tests | Yes, unless an explicit combiner review proves no logic change |
-| `53_literature_suggested_evidence_review_workflow` | P1 | Improve literature suggestion structure, deduplication, limitations, and review workflow for PS3/BS3, PS2/PM6, PP1/PS4/PP4, PM3, and PS1/PM5-related claims while keeping suggestions candidate-only by default. | High | Literature agent, suggestion schemas, reports, docs, tests | Yes |
-| `54_vcep_profile_framework` | P1 | Design and implement explicit disease/gene-specific profile selection, version provenance, and profile mismatch safety gates. | High | Profile docs/config schemas, evidence generator inputs, reports, tests | Yes unless a separate impact review is approved |
-| `55_benchmark_expansion` | P1 | Expand the offline benchmark beyond 21 curated cases with rationale, expected applied/candidate evidence, and safety checks. | Medium | Data fixtures, benchmark docs, benchmark tests | Yes |
+| `54_vcep_clingen_rule_knowledge_base` | P0 | Design and implement explicit versioned VCEP/ClinGen rule knowledge with profile selection and mismatch safety gates. | High | Profile docs/config schemas, evidence generator inputs, reports, tests | Yes unless a separate impact review is approved |
+| `56_real_provider_validation_clinvar_gnomad_mane` | P0 | Validate ClinVar, gnomAD, and MANE provider behavior with provenance, local fixtures or opt-in online mode, and failure-to-limitation checks. | High | Provider adapters/fixtures, validation docs, smoke tests, provenance reports | Yes |
+| `55_benchmark_expansion` | P1 | Expand the offline benchmark beyond 21 curated cases with rationale, expected applied/candidate/reviewed evidence, literature drafts, and safety checks. | Medium | Data fixtures, benchmark docs, benchmark tests | Yes |
+| `57_chinese_report_template` | P1 | Add Chinese report output while preserving human-review-required language, VUS caution, provenance, applied/candidate separation, and reviewed-evidence labeling. | Medium | Reporting templates, docs, report tests | Yes |
+| `61_disease_specific_profile_pilot` | P1 | Add one narrow disease-specific profile only after the rule knowledge base is versioned and explicit profile activation is available. | High | Profile config, evidence generator inputs, reports, benchmark cases | Yes unless a separate impact review is approved |
+| `52_manual_reviewed_evidence_workflow` | Done | Implemented explicit curator-reviewed evidence input with strict validation, provenance, batch/CLI/MCP support, and no silent candidate promotion. | High | Input schemas, validation, provenance, reports, batch, CLI, MCP, docs, tests | Yes |
+| `53_literature_suggested_evidence_review_workflow` | Done | Implemented literature suggested-evidence to reviewed-draft workflow; drafts default to needs-more-info and require curator edits before reviewed_applied use. | High | Literature agent, suggestion schemas, reviewed draft tool, CLI/MCP, reports, docs, tests | Yes |
 | `51_clinvar_and_ps1_pm5_generation` | Done | Implemented conservative ClinVar-derived PS1/PM5 applied generator with candidate-only fallbacks and no PP5/BP6 reuse. | Medium-high | ClinVar comparator workflow, reports, CLI/MCP serialization, docs, focused tests | Yes |
-| `56_real_world_validation_expansion` | P1 | Expand offline real-data smoke coverage beyond 10 cases using local fixtures and conservative allowed outcomes. | Medium | Smoke fixtures, smoke docs, smoke tests, report snapshots if present | Yes |
-| `57_chinese_report_template` | P2 | Add Chinese report output while preserving human-review-required language, VUS caution, provenance, and applied/candidate separation. | Medium | Reporting templates, docs, report tests | Yes |
-| `legacy_vcep_profile_design` | Superseded by `54_vcep_profile_framework` | Design explicit disease/gene-specific VCEP profile configuration before implementation. | High | Design docs, schema proposal, roadmap docs | Yes for design; any later implementation needs explicit impact review |
+| `legacy_vcep_profile_design` | Superseded by `54_vcep_clingen_rule_knowledge_base` | Design explicit disease/gene-specific VCEP profile configuration before implementation. | High | Design docs, schema proposal, roadmap docs | Yes for design; any later implementation needs explicit impact review |
 | `58_release_review_standardization` | P2 | Convert release review into a repeatable checklist-driven gate tied to docs, benchmarks, smoke, provenance, and leakage checks. | Low-medium | Docs, release notes template, optional scripts later | Yes |
 | `59_provider_provenance_audit` | P3 | Audit all provider outputs for source version, query, snapshot, timestamps, limitations, and offline/online mode labels. | Medium | Provider adapters, schemas, reports, docs, tests | Yes |
 | `60_batch_report_consistency_audit` | P3 | Verify single, batch, annotated-batch, CLI, and MCP outputs preserve the same evidence separation and safety language. | Medium | Batch orchestration, reports, CLI/MCP output tests, docs | Yes |

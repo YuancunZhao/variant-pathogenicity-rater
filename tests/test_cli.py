@@ -117,6 +117,50 @@ def test_batch_jsonl(capsys, tmp_path) -> None:
     assert lines[-1]["failed"] == 0
 
 
+def test_single_rate_with_clingen_erepo_local_file(capsys, tmp_path) -> None:
+    erepo = tmp_path / "erepo.tsv"
+    erepo.write_text(
+        "record_id\tgene\tca_id\thgvs_c\tdisease_condition\tclassification\tclassification_date\tclassification_version\tsource_url\n"
+        "erepo-cli\tBRCA1\tCA000000001\tNM_007294.4:c.68_69delAG\tHereditary breast and ovarian cancer\tPathogenic\t2025-01-15\tv1\thttps://erepo.example/erepo-cli\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "rate",
+            "--gene",
+            "BRCA1",
+            "--transcript",
+            "NM_007294.4",
+            "--hgvs-c",
+            "NM_007294.4:c.68_69delAG",
+            "--hgvs-p",
+            "NP_009225.1:p.Glu23ValfsTer17",
+            "--chromosome",
+            "17",
+            "--position",
+            "43092919",
+            "--ref",
+            "AG",
+            "--alt",
+            "A",
+            "--disease",
+            "Hereditary breast and ovarian cancer",
+            "--inheritance",
+            "autosomal dominant",
+            "--include-clingen-erepo",
+            "--clingen-erepo-local-file",
+            str(erepo),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["clingen_erepo"]["records"][0]["record_id"] == "erepo-cli"
+    assert "ClinGen Evidence Repository Match" in payload["report_text"]
+
+
 def test_noisy_input_cli_batch_and_python_batch_have_consistent_status(capsys, tmp_path) -> None:
     text = (
         "\ufeff# exported by spreadsheet\n"

@@ -51,7 +51,14 @@ class DataSourcesConfig(SchemaModel):
         )
 
 
-DEFAULT_SOURCE_NAMES = ("clinvar", "population", "literature", "computational")
+DEFAULT_SOURCE_NAMES = (
+    "clinvar",
+    "population",
+    "literature",
+    "computational",
+    "clingen_erepo",
+    "clingen_allele_registry",
+)
 
 
 def default_data_sources_config() -> DataSourcesConfig:

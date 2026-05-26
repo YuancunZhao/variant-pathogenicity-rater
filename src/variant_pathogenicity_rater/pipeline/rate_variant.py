@@ -18,6 +18,15 @@ from variant_pathogenicity_rater.config.thresholds import (
     computational_thresholds_from_options,
     population_thresholds_from_options,
 )
+from variant_pathogenicity_rater.clingen_erepo import (
+    ClinGenERepoQuery,
+    build_clingen_erepo_provider,
+)
+from variant_pathogenicity_rater.clingen_erepo.provider import (
+    EREPO_REVIEW_NOTE,
+    clingen_erepo_candidate_evidence_id,
+)
+from variant_pathogenicity_rater.clingen_erepo.schema import ClinGenERepoMatchLevel
 from variant_pathogenicity_rater.data_sources.config import (
     DataSourcesConfig,
     load_data_sources_config,
@@ -35,9 +44,16 @@ from variant_pathogenicity_rater.evidence.literature import (
 from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.reporting import generate_report
+from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
 from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
-from variant_pathogenicity_rater.schemas.evidence import ComputationalPrediction, EvidenceItem
+from variant_pathogenicity_rater.schemas.evidence import (
+    ComputationalPrediction,
+    EvidenceDirection,
+    EvidenceItem,
+    EvidenceSource,
+    EvidenceStrength,
+)
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
 
@@ -234,6 +250,33 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             limitations.extend(clinvar_result.limitations)
             step_results["query_clinvar"] = json.loads(clinvar_result.model_dump_json())
 
+    clingen_erepo_result = None
+    clingen_erepo_candidate_items: list[EvidenceItem] = []
+    if options.get("include_clingen_erepo", False):
+        clingen_erepo_result = _run_step(
+            "query_clingen_erepo",
+            audit_trail,
+            limitations,
+            lambda: build_clingen_erepo_provider(
+                data_sources_config.source("clingen_erepo"),
+                options.get("clingen_erepo_records"),
+            ).query(
+                _clingen_erepo_query(normalized_variant, context, options),
+                variant=normalized_variant,
+                context=context,
+                clinvar_records=clinvar_records,
+            ),
+        )
+        if clingen_erepo_result is not None:
+            clingen_erepo_candidate_items = _clingen_erepo_candidate_items(
+                clingen_erepo_result.matches
+            )
+            evidence_items.extend(clingen_erepo_candidate_items)
+            limitations.extend(clingen_erepo_result.limitations)
+            step_results["query_clingen_erepo"] = json.loads(
+                clingen_erepo_result.model_dump_json()
+            )
+
     literature_records = []
     if options.get("include_literature", True):
         literature_result = _run_step(
@@ -375,6 +418,10 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         classification_result.review_flags = _unique_review_flags(
             [*classification_result.review_flags, *reviewed_review_flags]
         )
+    if clingen_erepo_result is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *clingen_erepo_result.review_flags]
+        )
     step_results["classify_acmg"] = json.loads(classification_result.model_dump_json())
     applied_evidence = _applied_evidence_items(evidence_items)
     review_note_evidence = _review_note_evidence_items(evidence_items)
@@ -427,6 +474,19 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             json.loads(item.model_dump_json()) for item in review_note_evidence
         ],
         "reviewed_evidence": reviewed_evidence_records,
+        "clingen_erepo": (
+            json.loads(clingen_erepo_result.model_dump_json())
+            if clingen_erepo_result is not None
+            else None
+        ),
+        "clingen_erepo_reviewed_evidence_drafts": (
+            [
+                json.loads(draft.model_dump_json())
+                for draft in clingen_erepo_result.reviewed_evidence_drafts
+            ]
+            if clingen_erepo_result is not None
+            else []
+        ),
         "final_classification": classification_result.final_classification,
         "transcript_selection": (
             json.loads(transcript_selection.model_dump_json())
@@ -514,6 +574,96 @@ def _clinvar_query(variant: Variant, context: GeneDiseaseContext) -> ClinVarQuer
     query.condition = context.disease_name
     query.include_gene_comparators = True
     return query
+
+
+def _clingen_erepo_query(
+    variant: Variant,
+    context: GeneDiseaseContext,
+    options: dict[str, Any],
+) -> ClinGenERepoQuery:
+    query_payload = dict(options.get("clingen_erepo_query") or {})
+    query = ClinGenERepoQuery.from_variant(
+        variant,
+        context,
+        ca_id=query_payload.get("ca_id") or query_payload.get("canonical_allele_id"),
+        clinvar_variation_id=(
+            query_payload.get("clinvar_variation_id")
+            or query_payload.get("variation_id")
+            or query_payload.get("variationID")
+        ),
+    )
+    payload = query.model_dump(mode="json", exclude_none=True)
+    payload.update(query_payload)
+    return ClinGenERepoQuery.model_validate(payload)
+
+
+def _clingen_erepo_candidate_items(matches: list[Any]) -> list[EvidenceItem]:
+    items: list[EvidenceItem] = []
+    for match in matches:
+        record = match.record
+        direction = _erepo_direction(record.classification)
+        code = EvidenceCode.BP6 if direction == EvidenceDirection.BENIGN else EvidenceCode.PP5
+        item = EvidenceItem(
+            evidence_id=clingen_erepo_candidate_evidence_id(record.record_id),
+            code=code,
+            strength=EvidenceStrength.NONE,
+            direction=direction,
+            reason=(
+                "ClinGen Evidence Repository curated external assertion. "
+                "This is a review note only and was not counted as applied ACMG evidence."
+            ),
+            source=EvidenceSource(
+                name="ClinGen Evidence Repository",
+                version=record.classification_version,
+                url=record.source_url,
+                database_id=record.record_id,
+                query=match.query_variant,
+                raw_snapshot_ref=record.raw_snapshot_hash,
+                provenance=record.provenance,
+            ),
+            confidence=match.confidence,
+            requires_review=True,
+            candidate_only=True,
+            applied=False,
+            triggered_by=["clingen_erepo_match"],
+            supporting_data={
+                "candidate_only": True,
+                "applied": False,
+                "evidence_status": "candidate",
+                "automatic_application": False,
+                "review_note": EREPO_REVIEW_NOTE,
+                "clingen_erepo_match": match.model_dump(mode="json"),
+                "clingen_erepo_record": record.model_dump(mode="json"),
+                "vcep_classification": record.classification,
+                "vcep_name": record.vcep_name,
+                "match_level": match.match_level,
+                "criteria_applied": [
+                    item.model_dump(mode="json") for item in record.criteria_applied
+                ],
+                "evidence_summaries": [
+                    item.model_dump(mode="json") for item in record.evidence_summaries
+                ],
+                "limitations": match.limitations,
+            },
+            review_flags=match.review_flags,
+        )
+        if match.match_level == ClinGenERepoMatchLevel.SAME_GENE:
+            item.reason = (
+                "ClinGen VCEP gene-level curation activity signal only. "
+                "No variant-level ClinGen ERepo match was identified."
+            )
+            item.triggered_by = ["clingen_erepo_gene_signal"]
+        items.append(item)
+    return items
+
+
+def _erepo_direction(classification: str) -> EvidenceDirection:
+    text = classification.lower()
+    if "benign" in text:
+        return EvidenceDirection.BENIGN
+    if "pathogenic" in text:
+        return EvidenceDirection.PATHOGENIC
+    return EvidenceDirection.NEUTRAL
 
 
 def _gene_disease_context(

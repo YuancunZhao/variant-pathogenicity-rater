@@ -27,6 +27,10 @@ from variant_pathogenicity_rater.evidence.clinvar import (  # noqa: E402
     ClinVarQuery,
     MockClinVarProvider,
 )
+from variant_pathogenicity_rater.clingen_erepo import (  # noqa: E402
+    ClinGenERepoQuery,
+    MockClinGenERepoProvider,
+)
 from variant_pathogenicity_rater.acmg.population_rules import (  # noqa: E402
     evaluate_population_rules as evaluate_population_rules_service,
 )
@@ -263,6 +267,79 @@ async def query_clinvar(arguments: dict[str, Any]) -> dict[str, Any]:
                     "query": json.loads(query.model_dump_json(exclude_none=True)),
                 }
             ],
+            "limitations": result.limitations,
+        },
+    }
+
+
+async def query_clingen_erepo(arguments: dict[str, Any]) -> dict[str, Any]:
+    query_payload = arguments.get("query")
+    variant_payload = arguments.get("variant") or arguments.get("normalized_variant")
+    context_payload = arguments.get("gene_disease_context") or arguments.get("context") or {}
+
+    try:
+        if isinstance(variant_payload, dict):
+            variant = Variant.model_validate(variant_payload)
+            context = (
+                GeneDiseaseContext.model_validate(context_payload)
+                if isinstance(context_payload, dict) and context_payload
+                else GeneDiseaseContext(
+                    gene_symbol=variant.gene_symbol or "unknown",
+                    disease_name=str(arguments.get("condition") or "not provided"),
+                )
+            )
+            query = ClinGenERepoQuery.from_variant(
+                variant,
+                context,
+                ca_id=arguments.get("ca_id"),
+                clinvar_variation_id=arguments.get("clinvar_variation_id")
+                or arguments.get("variation_id"),
+            )
+            if isinstance(query_payload, dict):
+                payload = query.model_dump(mode="json", exclude_none=True)
+                payload.update(query_payload)
+                query = ClinGenERepoQuery.model_validate(payload)
+        elif isinstance(query_payload, dict):
+            query = ClinGenERepoQuery.model_validate(query_payload)
+            variant = Variant.model_validate(arguments.get("variant_for_matching"))
+            context = GeneDiseaseContext.model_validate(context_payload)
+        else:
+            query = ClinGenERepoQuery.model_validate(arguments)
+            variant = Variant.model_validate(arguments.get("variant_for_matching"))
+            context = GeneDiseaseContext.model_validate(context_payload)
+    except ValidationError as exc:
+        raise McpToolError(
+            "SCHEMA_VALIDATION_ERROR",
+            "Invalid payload for query_clingen_erepo.",
+            details={"errors": exc.errors()},
+        ) from exc
+
+    result = MockClinGenERepoProvider(arguments.get("clingen_erepo_records")).query(
+        query,
+        variant=variant,
+        context=context,
+    )
+    return {
+        "status": "ok",
+        "tool": "query_clingen_erepo",
+        "stage": "mock_clingen_erepo_provider",
+        "erepo_records": [json.loads(record.model_dump_json()) for record in result.records],
+        "matches": [json.loads(match.model_dump_json()) for match in result.matches],
+        "vcep_signals": [json.loads(signal.model_dump_json()) for signal in result.vcep_signals],
+        "reviewed_evidence_drafts": [
+            json.loads(draft.model_dump_json()) for draft in result.reviewed_evidence_drafts
+        ],
+        "review_flags": [json.loads(flag.model_dump_json()) for flag in result.review_flags],
+        "limitations": result.limitations,
+        "provenance": result.provenance,
+        "human_review": {
+            "required": True,
+            "notice": HUMAN_REVIEW_NOTICE,
+        },
+        "audit": {
+            "input": arguments,
+            "retrieval_timestamp": _timestamp(),
+            "provenance": result.provenance,
             "limitations": result.limitations,
         },
     }
@@ -1173,12 +1250,18 @@ def _data_sources_override_schema() -> dict[str, Any]:
     source_override = {
         "type": "object",
         "properties": {
-            "mode": {"type": "string", "enum": ["mock", "online", "disabled"]},
+            "mode": {
+                "type": "string",
+                "enum": ["mock", "local_file", "online_disabled", "future_online", "online", "disabled"],
+            },
             "timeout_seconds": {"type": "number"},
             "cache_enabled": {"type": "boolean"},
             "endpoint": {"type": ["string", "null"]},
             "api_key_env": {"type": ["string", "null"]},
             "fixture_path": {"type": ["string", "null"]},
+            "local_file": {"type": ["string", "null"]},
+            "source_version": {"type": ["string", "null"]},
+            "online_enabled": {"type": "boolean"},
         },
         "additionalProperties": False,
     }
@@ -1189,6 +1272,8 @@ def _data_sources_override_schema() -> dict[str, Any]:
             "population": source_override,
             "computational": source_override,
             "literature": source_override,
+            "clingen_erepo": source_override,
+            "clingen_allele_registry": source_override,
         },
         "additionalProperties": False,
     }
@@ -1211,6 +1296,7 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "include_computational": {"type": "boolean"},
             "include_clinvar": {"type": "boolean"},
             "include_literature": {"type": "boolean"},
+            "include_clingen_erepo": {"type": "boolean"},
             "include_transcript_selection": {"type": "boolean"},
             "data_sources": _data_sources_override_schema(),
             "annotations": {
@@ -1250,6 +1336,13 @@ def _pipeline_options_schema() -> dict[str, Any]:
                 "type": "array",
                 "items": _open_object_schema("Flexible mock literature raw record."),
             },
+            "clingen_erepo_records": {
+                "type": "array",
+                "items": _open_object_schema("Flexible mock ClinGen ERepo raw record."),
+            },
+            "clingen_erepo_query": _open_object_schema(
+                "Optional ClinGen ERepo identifier hints such as ca_id or clinvar_variation_id."
+            ),
             "mock_supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
             "supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
             "reviewed_evidence": _reviewed_evidence_array_schema(),
@@ -1391,6 +1484,48 @@ def _query_clinvar_input_schema() -> dict[str, Any]:
             "normalized_variant": _variant_schema(),
             **_clinvar_query_properties(),
         },
+        "additionalProperties": False,
+    }
+
+
+def _query_clingen_erepo_input_schema() -> dict[str, Any]:
+    query_properties = {
+        "gene": {"type": ["string", "null"]},
+        "ca_id": {"type": ["string", "null"]},
+        "clinvar_variation_id": {"type": ["string", "null"]},
+        "variation_id": {"type": ["string", "null"]},
+        "rsid": {"type": ["string", "null"]},
+        "hgvs_g": {"type": ["string", "null"]},
+        "hgvs_c": {"type": ["string", "null"]},
+        "hgvs_p": {"type": ["string", "null"]},
+        "genomic_key": {"type": ["string", "null"]},
+        "condition": {"type": ["string", "null"]},
+        "transcript": {"type": ["string", "null"]},
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "object",
+                "properties": query_properties,
+                "additionalProperties": False,
+            },
+            "variant": _variant_schema(),
+            "normalized_variant": _variant_schema(),
+            "variant_for_matching": _variant_schema(),
+            "gene_disease_context": _gene_disease_context_schema(),
+            "context": _gene_disease_context_schema(),
+            "clingen_erepo_records": {
+                "type": "array",
+                "items": _open_object_schema("Flexible mock ClinGen ERepo raw record."),
+            },
+            **query_properties,
+        },
+        "anyOf": [
+            {"required": ["variant"]},
+            {"required": ["normalized_variant"]},
+            {"required": ["query", "variant_for_matching", "gene_disease_context"]},
+        ],
         "additionalProperties": False,
     }
 
@@ -1580,6 +1715,14 @@ def register_tools(registry: ToolRegistry) -> None:
             description="Offline mock ClinVar record lookup and candidate evidence mapping framework.",
             input_schema=_query_clinvar_input_schema(),
             handler=query_clinvar,
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="query_clingen_erepo",
+            description="Offline mock ClinGen Evidence Repository lookup, matching, VCEP signal, and reviewed draft framework.",
+            input_schema=_query_clingen_erepo_input_schema(),
+            handler=query_clingen_erepo,
         )
     )
     registry.register(

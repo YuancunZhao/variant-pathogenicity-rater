@@ -26,11 +26,24 @@ testing, and safety-boundary validation. This is not a clinical validation
 statement and does not authorize autonomous clinical interpretation.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
-Rater is an ACMG-oriented machine proposal system for SNV/small-indel workflows.
-It provides normalized variant context, auditable evidence, criterion
-assessments, candidate/review-note evidence, reports, and human-review-required
-classification proposals. It is not a clinical sign-out system, not a substitute
-for qualified genetics review, and not a general genome interpretation platform.
+Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
+workflows. It provides normalized variant context, auditable evidence,
+criterion assessments, candidate/review-note evidence, manual reviewed evidence
+intake, reports, and human-review-required classification proposals. It is not
+a clinical sign-out system, not a substitute for qualified genetics review, and
+not a general genome interpretation platform.
+
+The current complete interpretation workflow is:
+
+```text
+variant input
+  -> normalization / annotation / context consistency
+  -> automatic applied evidence generation
+  -> candidate/suggested evidence
+  -> manual reviewed evidence
+  -> combiner
+  -> report
+```
 
 ## Current Capabilities
 
@@ -93,10 +106,24 @@ human-review-required language.
 
 The literature workflow is a review-note and suggestion workflow. It may
 surface claims relevant to PS3/BS3, PS2/PM6, PP1/PS4/PP4, PM3, and PS1/PM5,
-but those outputs remain candidate-only unless a separate, explicitly reviewed
-future workflow converts evidence into applied ACMG items under strict gates.
-Literature retrieval, extraction, and confidence scoring do not by themselves
-authorize applied evidence.
+but those outputs remain candidate-only unless the manual reviewed evidence
+workflow explicitly supplies a valid `reviewed_applied` record under strict
+gates. Literature retrieval, extraction, and confidence scoring do not by
+themselves authorize applied evidence.
+
+### Manual Reviewed Evidence Workflow
+
+Manual reviewed evidence is implemented as the explicit curator bridge from
+candidate/suggested evidence or independent curated knowledge into applied ACMG
+evidence. Only records with `evidence_status=reviewed_applied`, valid strength
+and direction, curator decision, rationale, review date, and citation or
+provenance are converted into applied `EvidenceItem` records. `reviewed_rejected`
+and `needs_more_info` records remain review notes.
+
+This workflow supports curator-reviewed application of high-risk criteria such
+as `PS3`, `BS3`, `PS2`, `PM6`, `PP1`, `PS4`, `PP4`, and `PM3` when the reviewer
+explicitly supplies the reviewed record. Candidate evidence is never changed in
+place and `source_candidate_evidence_id` is only a trace link.
 
 ## Applied Evidence Currently Implemented
 
@@ -111,7 +138,14 @@ The current applied evidence generation surface includes:
 - `PS1`
 - `PM5`
 
-These are generated before the classification combiner runs. The combiner
+These are generated before the classification combiner runs. In addition,
+curator-reviewed `reviewed_applied` records can supply applied ACMG evidence,
+including reviewed `PS3`, `BS3`, `PS2`, `PM6`, `PP1`, `PS4`, `PP4`, and `PM3`.
+Manual reviewed evidence is not automatic evidence generation; it is an
+explicit curator action with provenance and audit trail requirements.
+
+Generated and reviewed applied evidence are supplied upstream of the
+classification combiner. The combiner
 remains isolated: it combines only the evidence it receives and should not be
 modified merely to support a new evidence generator. Applied generated evidence
 requires review, must include provenance, and must preserve limitations when
@@ -132,6 +166,8 @@ and context consistency. ClinVar assertions do not become PP5/BP6 evidence.
 The current candidate/review-note surface includes:
 
 - ClinVar review notes.
+- ClinGen Evidence Repository review notes, VCEP activity signals, and
+  reviewed-evidence drafts.
 - Literature evidence agent output.
 - `PS3` / `BS3` suggestions.
 - `PS2` / `PM6` suggestions.
@@ -143,9 +179,9 @@ The current candidate/review-note surface includes:
 
 These items are intentionally outside the classification combiner. They may
 guide human review, report questions, benchmark expectations, or future
-workflow design, but they must not count as applied ACMG evidence unless a
-future reviewed evidence workflow explicitly promotes them under documented
-release gates.
+workflow design, but they must not count as applied ACMG evidence unless the
+manual reviewed evidence workflow explicitly supplies a valid
+`reviewed_applied` record under documented release gates.
 
 ## Safety Architecture
 
@@ -154,7 +190,9 @@ release gates.
 Candidate and review-note evidence is structurally separate from applied ACMG
 evidence. Candidate-only items must remain visible for review but excluded from
 classification. This separation is a core safety boundary, not a presentation
-preference.
+preference. There must be no silent candidate conversion: candidate, suggested,
+or review-note evidence can enter the combiner only through explicit curator
+review and a valid `reviewed_applied` record.
 
 ### Combiner Isolation
 
@@ -167,8 +205,9 @@ neutral, conflicting, and `strength: none` evidence remains uncounted.
 ### Review Requirement
 
 All generated applied evidence and all classification results require human
-review. The system may propose, organize, and explain; it must not sign out.
-Report, CLI, MCP, batch, and annotated-batch outputs must keep
+review. Reviewed evidence also requires explicit curator action and retained
+review provenance. The system may propose, organize, and explain; it must not
+sign out. Report, CLI, MCP, batch, and annotated-batch outputs must keep
 review-required language intact.
 
 ### Provenance
@@ -231,6 +270,8 @@ The current project does not support:
 - Automatic literature-applied evidence.
 - Trio/family-aware automation.
 - Disease-specific VCEP rule profiles.
+- Automatic `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`, `PP4`, or `PM3`
+  application unless explicitly supplied through manual reviewed evidence.
 
 Additional excluded or limited areas include RNA-seq evidence, long-read
 phasing evidence, exon-level deletion interpretation, complex rearrangements,

@@ -165,6 +165,8 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
     ps1_pm5_decision = item.supporting_data.get("ps1_pm5_decision") or {}
     ps1_pm5_generation = item.supporting_data.get("evidence_generation") or {}
     reviewed = item.supporting_data.get("reviewed_evidence") or {}
+    clingen_match = item.supporting_data.get("clingen_erepo_match")
+    clingen_record = item.supporting_data.get("clingen_erepo_record")
     return EvidenceReportEntry(
         evidence_id=item.evidence_id,
         code=str(item.code),
@@ -206,6 +208,10 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         ),
         reviewed_evidence_status=item.supporting_data.get("evidence_status") or reviewed.get("evidence_status"),
         reviewed_provenance=item.supporting_data.get("provenance") or reviewed.get("provenance"),
+        clingen_erepo_match=clingen_match if isinstance(clingen_match, dict) else None,
+        clingen_erepo_record=clingen_record if isinstance(clingen_record, dict) else None,
+        clingen_erepo_criteria=list(item.supporting_data.get("criteria_applied") or []),
+        clingen_erepo_summaries=list(item.supporting_data.get("evidence_summaries") or []),
     )
 
 
@@ -272,6 +278,14 @@ def _json_content(
         "review_note_evidence": {
             "note": "Candidate/review-note evidence was not counted by the classification combiner.",
             "items": candidate_items,
+        },
+        "clingen_erepo": {
+            "note": "ClinGen ERepo assertions are curated external review notes and were not counted as applied ACMG evidence.",
+            "items": [
+                item
+                for item in candidate_items
+                if item.get("source") == "ClinGen Evidence Repository"
+            ],
         },
         "evidence": {
             "pathogenic": summary.pathogenic_evidence_summary,
@@ -354,6 +368,7 @@ def _text_content(
     lines.extend(_caution_lines(result, summary, language))
     lines.extend(_transcript_selection_lines(summary))
     lines.extend(_context_consistency_lines(summary))
+    lines.extend(_clingen_erepo_section(summary))
 
     lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
     lines.extend(_manual_reviewed_evidence_section(summary))
@@ -499,6 +514,55 @@ def _evidence_chain_lines(
                 lines.append("  - PS1/PM5 downgrade reasons: " + "; ".join(entry.ps1_pm5_downgrade_reasons))
             if entry.ps1_pm5_blocking_reasons:
                 lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
+    return lines
+
+
+def _clingen_erepo_section(summary: VariantReportSummary) -> list[str]:
+    entries = [
+        entry for entry in summary.candidate_acmg_evidence if entry.source == "ClinGen Evidence Repository"
+    ]
+    if not entries:
+        return []
+    lines = [
+        "",
+        "## ClinGen Evidence Repository Match",
+        "- ClinGen ERepo results are curated external assertions for review only; they were not counted as applied ACMG evidence.",
+    ]
+    for entry in entries:
+        record = entry.clingen_erepo_record or {}
+        match = entry.clingen_erepo_match or {}
+        lines.append(
+            f"- {record.get('record_id') or entry.evidence_id}: "
+            f"{record.get('classification') or 'classification not provided'}; "
+            f"match level: {match.get('match_level') or 'not provided'}; "
+            f"confidence: {entry.confidence:.2f}"
+        )
+        lines.append(f"  - VCEP: {record.get('vcep_name') or 'not provided'}")
+        lines.append(f"  - Condition: {record.get('disease_condition') or 'not provided'}")
+        lines.append(
+            f"  - Classification date/version: "
+            f"{record.get('classification_date') or 'not provided'} / "
+            f"{record.get('classification_version') or 'not provided'}"
+        )
+        if entry.clingen_erepo_criteria:
+            criteria = [
+                str(item.get("criterion") or item.get("code") or item)
+                for item in entry.clingen_erepo_criteria
+            ]
+            lines.append("  - VCEP criteria summary: " + ", ".join(criteria))
+        if entry.clingen_erepo_summaries:
+            summaries = [
+                str(item.get("summary_text") or item.get("summary") or item)
+                for item in entry.clingen_erepo_summaries
+            ]
+            lines.append("  - Supporting summary: " + "; ".join(summaries))
+        citations = record.get("citations") or []
+        if citations:
+            lines.append("  - Citations: " + ", ".join(str(item) for item in citations))
+        if record.get("source_url"):
+            lines.append(f"  - Source URL: {record['source_url']}")
+        if entry.limitations:
+            lines.append("  - Limitations: " + "; ".join(entry.limitations))
     return lines
 
 

@@ -32,6 +32,12 @@ workflow. It is not automatic evidence generation: only records with
 objects, while `reviewed_rejected` and `needs_more_info` records remain
 review-note evidence.
 
+The current applied evidence surface therefore includes automatic generated
+`PVS1`, `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, and `PM5`, plus
+curator-reviewed applied evidence such as `PS3`, `BS3`, `PS2`, `PM6`, `PP1`,
+`PS4`, `PP4`, and `PM3` when, and only when, explicitly supplied as
+`reviewed_applied`.
+
 ## Evidence-Specific Status
 
 ### PVS1
@@ -162,6 +168,12 @@ Candidate-only fallback occurs when:
 Candidate-only evidence uses `strength=none`, `candidate_only=true`, and
 `applied=false` where represented as an `EvidenceItem`.
 
+ClinGen Evidence Repository matches are part of this candidate/review-note
+surface. Exact ERepo matches, VCEP criteria summaries, and gene-level VCEP
+activity signals do not automatically create applied ACMG evidence. ERepo
+reviewed-evidence drafts default to `needs_more_info` and require the existing
+manual reviewed evidence workflow before any evidence can be applied.
+
 ## Not Implemented For Automatic Applied Evidence
 
 The following are not implemented as automatic applied evidence:
@@ -190,6 +202,12 @@ these criteria, but suggestions remain candidate-only unless the manual
 reviewed evidence workflow explicitly supplies applied evidence under strict
 validation.
 
+The current software can count `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`, `PP4`,
+and `PM3` only through explicit manual reviewed evidence. It does not
+automatically infer these criteria from literature, ClinVar notes,
+computational predictions, family text, case counts, phenotype descriptions, or
+PM3-like trans observations.
+
 ## Remaining Risks
 
 - Disease-specific thresholds and VCEP profiles are still limited; generic
@@ -208,18 +226,19 @@ validation.
 
 ## Recommended Next Task
 
-The recommended next task is the manual reviewed evidence workflow.
+The recommended next task is a VCEP / ClinGen rule knowledge base with real
+provider validation.
 
-This workflow is the necessary bridge between high-risk candidate suggestions
-and combiner-counted evidence. It should allow explicitly human-reviewed ACMG
-evidence input while keeping it distinct from machine-generated applied
-evidence and from machine-suggested candidate evidence. It should require strict
-schema validation, reviewer and source provenance, clear report labeling, batch
-and MCP compatibility, and tests proving candidate evidence cannot be silently
-promoted.
+The applied evidence loop is now complete enough for controlled internal
+interpretation workflow review: generated applied evidence, candidate/suggested
+evidence, manual reviewed evidence, combiner, and reporting are connected while
+preserving candidate separation. The next risk is knowledge and data validity:
+rule profiles need versioned VCEP/ClinGen provenance, and ClinVar, gnomAD, and
+MANE provider behavior needs real validation without weakening the combiner or
+the no-silent-conversion boundary.
 
 After that, the next priorities are:
 
-- Literature suggested evidence review workflow.
-- VCEP profile framework.
 - Benchmark expansion.
+- Chinese report template.
+- Disease-specific profiles.

@@ -76,6 +76,10 @@ class EvidenceReportEntry(SchemaModel):
     source_candidate_evidence_id: str | None = None
     reviewed_evidence_status: str | None = None
     reviewed_provenance: Any | None = None
+    clingen_erepo_match: dict[str, Any] | None = None
+    clingen_erepo_record: dict[str, Any] | None = None
+    clingen_erepo_criteria: list[dict[str, Any]] = Field(default_factory=list)
+    clingen_erepo_summaries: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class VariantReportSummary(SchemaModel):

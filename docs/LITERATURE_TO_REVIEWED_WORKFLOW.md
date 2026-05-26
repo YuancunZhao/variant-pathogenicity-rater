@@ -4,6 +4,22 @@ This workflow converts ACMG Literature Evidence Agent suggestions into a
 manual curation draft. It does not apply evidence and does not change the
 classification combiner.
 
+It is part of the current semi-automated interpretation loop:
+
+```text
+variant input
+  -> normalization / annotation / context consistency
+  -> automatic applied evidence generation
+  -> candidate/suggested evidence
+  -> manual reviewed evidence
+  -> combiner
+  -> report
+```
+
+Literature suggestions are review material. They can become combiner-counted
+evidence only after a curator edits the draft into a valid `reviewed_applied`
+record and supplies it through the manual reviewed evidence workflow.
+
 ## Flow
 
 1. Life Science Research gathers literature context.
@@ -30,6 +46,11 @@ classification combiner.
   `reviewed_applied` records after curator confirmation.
 - `reviewed_rejected` and `needs_more_info` records remain review notes and are
   not counted.
+- The workflow does not silently convert literature candidates for `PS3`,
+  `BS3`, `PS2`, `PM6`, `PP1`, `PS4`, `PP4`, `PM3`, `PS1`, or `PM5` into applied
+  evidence.
+- Provenance and audit trail fields are required to preserve article,
+  extraction, draft, and curator-review traceability.
 
 ## CLI
 

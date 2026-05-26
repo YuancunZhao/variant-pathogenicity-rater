@@ -33,3 +33,19 @@ sources:
     parser_version: computational-parser-v1
     ttl_seconds: 86400
     cache_dir: .cache/variant_pathogenicity_rater/computational
+  clingen_erepo:
+    mode: mock
+    enabled: true
+    online_enabled: false
+    source_version: offline-fixture-v1
+    parser_version: clingen-erepo-parser-v1
+    ttl_seconds: 86400
+    cache_dir: .cache/variant_pathogenicity_rater/clingen_erepo
+  clingen_allele_registry:
+    mode: online_disabled
+    enabled: false
+    online_enabled: false
+    source_version: offline-disabled
+    parser_version: clingen-allele-registry-parser-v1
+    ttl_seconds: 86400
+    cache_dir: .cache/variant_pathogenicity_rater/clingen_allele_registry

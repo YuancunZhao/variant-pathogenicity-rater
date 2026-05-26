@@ -52,6 +52,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_variant_arguments(rate)
     rate.add_argument("--output", choices=["json", "markdown"], default="json")
     rate.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
+    rate.add_argument(
+        "--include-clingen-erepo",
+        action="store_true",
+        help="Include ClinGen Evidence Repository review-note lookup.",
+    )
+    rate.add_argument(
+        "--clingen-erepo-local-file",
+        help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
+    )
     rate.set_defaults(handler=_cmd_rate)
 
     batch = subparsers.add_parser("batch", help="Rate a batch of variants.")
@@ -65,6 +74,15 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--output", help="Optional output file path.")
     batch.add_argument("--output-format", choices=["json", "jsonl"], default="json")
     batch.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
+    batch.add_argument(
+        "--include-clingen-erepo",
+        action="store_true",
+        help="Include ClinGen Evidence Repository review-note lookup for each record.",
+    )
+    batch.add_argument(
+        "--clingen-erepo-local-file",
+        help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
+    )
     batch.add_argument(
         "--continue-on-error",
         dest="continue_on_error",
@@ -134,7 +152,7 @@ def _cmd_rate(args: argparse.Namespace) -> int:
     payload = _variant_payload_from_args(args)
     if args.reviewed_evidence:
         payload["reviewed_evidence"] = _single_reviewed_evidence_payload(args.reviewed_evidence)
-    payload["options"] = {"mock_mode": True}
+    payload["options"] = _clingen_erepo_options(args)
     result = rate_variant(payload)
     if args.output == "markdown":
         print(str(result.get("report_text") or ""))
@@ -151,7 +169,7 @@ def _cmd_batch(args: argparse.Namespace) -> int:
     payload = {
         "input_format": _batch_format(args.format),
         "input_text": input_text,
-        "options": {"mock_mode": True},
+        "options": _clingen_erepo_options(args),
     }
     if args.reviewed_evidence:
         payload["reviewed_evidence"] = _load_json_file(args.reviewed_evidence)
@@ -269,6 +287,24 @@ def _cmd_check_env(_args: argparse.Namespace) -> int:
     print(f"project import status: {project_status}")
 
     return 0
+
+
+def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
+    options: dict[str, Any] = {"mock_mode": True}
+    if getattr(args, "include_clingen_erepo", False) or getattr(args, "clingen_erepo_local_file", None):
+        options["include_clingen_erepo"] = True
+    local_file = getattr(args, "clingen_erepo_local_file", None)
+    if local_file:
+        options["data_sources"] = {
+            "sources": {
+                "clingen_erepo": {
+                    "mode": "local_file",
+                    "local_file": local_file,
+                    "source_version": "cli-local-clingen-erepo",
+                }
+            }
+        }
+    return options
 
 
 def _package_status(import_name: str, distribution_name: str | None = None) -> str:
