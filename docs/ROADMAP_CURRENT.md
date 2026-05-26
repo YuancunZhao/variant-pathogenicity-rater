@@ -89,6 +89,20 @@ This phase closes the current review loop without changing the combiner:
 literature suggestions remain candidate-only by default, and only explicit
 reviewed evidence can be supplied to classification.
 
+### Phase 7: ClinGen ERepo Integration Validation
+
+The ClinGen Evidence Repository phase validated ERepo as an external curated
+source integration that stays inside the review-note and reviewed-draft safety
+model. The integration surfaces gene-level VCEP activity signals, exact variant
+match review notes, supporting summaries, citations, provenance, and
+reviewed-evidence draft templates.
+
+This phase did not add automatic applied evidence. ERepo exact variant matches
+are review notes, ERepo supporting summaries become reviewed-evidence drafts,
+and drafts require explicit curator action through the existing
+`reviewed_applied` workflow before any criterion can enter classification. The
+classification combiner remains unchanged.
+
 ## Current Complete Interpretation Workflow
 
 ```text
@@ -135,11 +149,11 @@ Release gate expectations: design review before implementation, pytest pass,
 benchmark coverage, no default clinical profile activation, and explicit
 combiner impact review.
 
-### 2. Real Provider Validation: ClinVar / gnomAD / MANE
+### 2. Real Provider Validation: ClinVar / gnomAD / MANE / ERepo Online
 
-Goal: validate provider behavior against real ClinVar, gnomAD, and MANE data
-using opt-in or local-fixture workflows with source versions, provenance, and
-failure-to-limitation behavior.
+Goal: validate provider behavior against real ClinVar, gnomAD, MANE, and
+ClinGen ERepo online data using opt-in or local-fixture workflows with source
+versions, provenance, and failure-to-limitation behavior.
 
 Why it matters: the current loop is useful, but real provider validation is
 needed before broader internal use. Concordance with external assertions is not
@@ -155,12 +169,12 @@ absence, hiding MANE/transcript mismatch, and weakening candidate/applied
 separation under real-data pressure.
 
 Expected deliverables: documented validation protocol, local snapshots or
-fixtures where possible, ClinVar/gnomAD/MANE provenance checks, mismatch
+fixtures where possible, ClinVar/gnomAD/MANE/ERepo provenance checks, mismatch
 examples, and review of failure wording.
 
 Release gate expectations: no network dependency in default tests, no candidate
-leakage, source-version documentation, failure-to-limitation checks, and
-combiner unchanged.
+leakage, source-version documentation, opt-in ERepo online checks,
+failure-to-limitation checks, and combiner unchanged.
 
 ### 3. Benchmark Expansion
 
@@ -254,9 +268,10 @@ new data, governance, and review resources:
 - Automatic PS3/BS3 from literature or predictors. Functional evidence requires
   validated assays and manual review; computational prediction is not
   functional evidence.
-- Automatic PS2/PM6/PP1/PS4 from literature. These require trio/family/cohort
-  evidence, parentage, segregation counts, phenotype specificity, deduplication,
-  and qualified human review.
+- Automatic PS2/PM6/PP1/PS4/PP4/PM3 from literature or curated-source notes.
+  These require trio/family/cohort evidence, parentage, segregation counts,
+  phenotype specificity, trans/phasing context, deduplication, and qualified
+  human review.
 - Fully automated disease-specific VCEP interpretation. VCEP profiles require
   explicit profile versioning, validation, and disease-specific review.
 - Clinical sign-out. The current system is a review-support and proposal tool,

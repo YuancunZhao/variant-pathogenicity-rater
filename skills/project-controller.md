@@ -25,6 +25,13 @@ If the task touches literature evidence, also read:
 - `docs/LITERATURE_AGENT_SAFETY.md`
 - `skills/acmg-literature-evidence.md`
 
+If the task touches ClinGen Evidence Repository, ClinVar, external curated
+sources, or reviewed-evidence drafts, also read:
+
+- `docs/CLINGEN_EREPO_INTEGRATION.md`
+- `docs/MANUAL_REVIEWED_EVIDENCE.md`
+- `docs/APPLIED_EVIDENCE_STATUS.md`
+
 ## Default Architecture Rules
 
 1. Default to not changing the classification combiner.
@@ -40,6 +47,10 @@ If the task touches literature evidence, also read:
 10. New evidence must remain batch-compatible.
 11. New evidence must remain CLI-compatible.
 12. New evidence must remain MCP-compatible.
+13. ClinVar, ClinGen ERepo, and literature outputs must not automatically
+    classify variants.
+14. Reviewed-evidence drafts must remain drafts until a curator explicitly
+    submits valid `reviewed_applied` evidence.
 
 ## Evidence Governance
 
@@ -57,6 +68,9 @@ When adding or modifying evidence behavior:
 - Preserve failure-to-limitation behavior.
 - Keep report wording clear that machine output is a proposal.
 - Keep benchmark and smoke expectations conservative.
+- Keep ERepo exact matches, gene-level VCEP signals, literature suggestions,
+  and unsupported criterion suggestions outside the combiner unless explicitly
+  converted through reviewed evidence.
 
 ## Planning Expectations
 

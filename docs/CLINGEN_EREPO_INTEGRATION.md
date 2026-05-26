@@ -5,6 +5,12 @@ It surfaces VCEP curation activity, exact variant curated assertions, supporting
 summaries, citations, and draft reviewed-evidence templates. It does not change
 the ACMG classification combiner and does not automatically apply ACMG evidence.
 
+Integration validation is complete for the current governance stage. The
+validated posture is external curated source review support, not automatic
+classification: gene-level VCEP signals, exact variant matches, and supporting
+summaries are retained for review and provenance, while application of any ACMG
+criterion requires the existing explicit reviewed-evidence workflow.
+
 ## Data Sources
 
 - Default mode is offline/mock or local-file.
@@ -38,6 +44,15 @@ Reviewed-evidence drafts generated from ERepo matches default to
 `reviewed_applied` record through the existing manual reviewed evidence workflow
 before any evidence can affect classification.
 
+Exact variant matches are review notes, not applied evidence. Gene-level VCEP
+matches are activity signals, not variant matches. Supporting summaries may
+seed reviewed-evidence drafts, but drafts are not curator decisions.
+
+ERepo must not automatically apply `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`,
+`PP4`, `PM3`, or any other ACMG criterion. These criteria can affect
+classification only when explicitly supplied as valid `reviewed_applied`
+records with curator decision, rationale, provenance, and audit trail.
+
 ## Interfaces
 
 - `rate_variant` option: `include_clingen_erepo`.
@@ -49,3 +64,15 @@ before any evidence can affect classification.
 Future disease-specific rule-profile work should link to
 `docs/VCEP_PROFILE_FRAMEWORK.md` when that framework exists. ERepo integration
 does not activate VCEP profiles.
+
+## Current Next Step
+
+The recommended next step is a VCEP / ClinGen rule knowledge base framework.
+ERepo now provides the curated-source signal and reviewed-draft foundation, but
+rule knowledge still needs explicit profile selection, version provenance,
+scope checks, mismatch limitations, and benchmark coverage before
+disease-specific guidance can be applied.
+
+Real provider validation should also include ERepo online mode alongside
+ClinVar, gnomAD, and MANE. Online validation must remain opt-in and must not
+become a default test or classification dependency.

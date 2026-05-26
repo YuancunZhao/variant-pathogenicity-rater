@@ -25,13 +25,21 @@ Future tasks must not introduce:
 - Automatic `PM6`.
 - Automatic `PP1`.
 - Automatic `PS4`.
+- Automatic `PP4`.
+- Automatic `PM3`.
 - Automatic applied literature evidence.
+- Automatic applied ClinVar assertion reuse.
+- Automatic applied ClinGen ERepo assertion or VCEP-criteria reuse.
 - Automatic clinical sign-out.
 
 These evidence types require manual review and often require assay validity,
 parentage, trio/family data, segregation counts, cohort design, phenotype
 specificity, disease mechanism, or deduplication that the current system cannot
 autonomously validate.
+
+They may be counted only when supplied through the reviewed-evidence workflow as
+valid `reviewed_applied` records with explicit curator decision, rationale,
+provenance, and audit trail.
 
 ## Literature Safety
 
@@ -42,6 +50,17 @@ review questions. It must not by itself create applied ACMG evidence.
 Ambiguous paper language should become a limitation or review question.
 Duplicate families, overlapping cohorts, unmatched disease context, unmatched
 transcripts, and unclear assay validity must block automatic promotion.
+
+## External Curated Source Safety
+
+ClinVar and ClinGen ERepo are external curated sources for review support.
+ClinVar review notes, ERepo exact variant matches, ERepo gene-level VCEP
+signals, ERepo supporting summaries, and reviewed-evidence drafts must not
+automatically classify variants.
+
+ERepo supporting summaries may seed reviewed-evidence drafts. Drafts default to
+non-applied review status and require explicit curator action before any
+criterion can enter the combiner.
 
 ## Computational Safety
 
@@ -66,6 +85,8 @@ All applied evidence requires human review. This applies to:
 - Machine-generated `PM2_Supporting`.
 - Machine-generated `PP3`.
 - Machine-generated `BP4`.
+- Machine-generated `PS1`.
+- Machine-generated `PM5`.
 - Any future reviewed-evidence workflow.
 
 Report, CLI, MCP, batch, and annotated-batch outputs must preserve this

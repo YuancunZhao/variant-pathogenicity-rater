@@ -32,6 +32,20 @@ workflow. It is not automatic evidence generation: only records with
 objects, while `reviewed_rejected` and `needs_more_info` records remain
 review-note evidence.
 
+The implemented human-reviewed pathway is:
+
+```text
+candidate/suggested evidence
+  -> reviewed-evidence draft
+  -> explicit curator decision
+  -> reviewed_applied, reviewed_rejected, or needs_more_info
+  -> curator-applied evidence only when reviewed_applied is valid
+```
+
+This pathway is shared by direct reviewed evidence intake, literature
+suggestions, and ClinGen ERepo supporting summaries. Literature and ERepo draft
+generation reduces transcription work for curators; it does not apply evidence.
+
 The current applied evidence surface therefore includes automatic generated
 `PVS1`, `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, and `PM5`, plus
 curator-reviewed applied evidence such as `PS3`, `BS3`, `PS2`, `PM6`, `PP1`,
@@ -174,6 +188,12 @@ activity signals do not automatically create applied ACMG evidence. ERepo
 reviewed-evidence drafts default to `needs_more_info` and require the existing
 manual reviewed evidence workflow before any evidence can be applied.
 
+External curated-source integration currently includes ClinVar and ClinGen
+Evidence Repository. ClinVar provides review notes and conservative PS1/PM5
+comparator context. ERepo provides gene-level VCEP signal, exact variant match
+review notes, supporting summaries, citations, provenance, and reviewed-evidence
+drafts. Neither source automatically classifies a variant.
+
 ## Not Implemented For Automatic Applied Evidence
 
 The following are not implemented as automatic applied evidence:
@@ -226,16 +246,16 @@ PM3-like trans observations.
 
 ## Recommended Next Task
 
-The recommended next task is a VCEP / ClinGen rule knowledge base with real
-provider validation.
+The recommended next task is a VCEP / ClinGen rule knowledge base framework
+with real provider validation.
 
 The applied evidence loop is now complete enough for controlled internal
 interpretation workflow review: generated applied evidence, candidate/suggested
 evidence, manual reviewed evidence, combiner, and reporting are connected while
 preserving candidate separation. The next risk is knowledge and data validity:
-rule profiles need versioned VCEP/ClinGen provenance, and ClinVar, gnomAD, and
-MANE provider behavior needs real validation without weakening the combiner or
-the no-silent-conversion boundary.
+rule profiles need versioned VCEP/ClinGen provenance, and ClinVar, gnomAD,
+MANE, and ERepo online provider behavior needs real validation without
+weakening the combiner or the no-silent-conversion boundary.
 
 After that, the next priorities are:
 

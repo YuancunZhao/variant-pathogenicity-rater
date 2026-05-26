@@ -25,6 +25,15 @@ schema review, report review, conservative regression checks, CLI/MCP smoke
 testing, and safety-boundary validation. This is not a clinical validation
 statement and does not authorize autonomous clinical interpretation.
 
+After ClinGen Evidence Repository integration validation, the project state is:
+the generic SNV/small-indel interpretation loop is connected end to end for
+controlled internal review, including generated applied evidence,
+candidate/suggested evidence, reviewed-evidence drafts, curator-applied
+reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, reports,
+CLI/MCP surfaces, and the unchanged ACMG classification combiner. The next
+project constraint is no longer basic workflow connectivity; it is versioned
+rule knowledge and real provider validation.
+
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
 workflows. It provides normalized variant context, auditable evidence,
@@ -110,6 +119,31 @@ but those outputs remain candidate-only unless the manual reviewed evidence
 workflow explicitly supplies a valid `reviewed_applied` record under strict
 gates. Literature retrieval, extraction, and confidence scoring do not by
 themselves authorize applied evidence.
+
+Literature suggestions can be converted into reviewed-evidence drafts. Drafts
+default to non-applied review status and require curator editing before they can
+be submitted as `reviewed_applied`.
+
+### External Curated Source Integration
+
+External curated-source integration is implemented for ClinVar and ClinGen
+Evidence Repository.
+
+ClinVar supports review-note output and conservative comparator-based PS1/PM5
+generation. ClinVar assertions are not copied into classification as PP5/BP6
+and do not override user-supplied context.
+
+ClinGen ERepo supports gene-level VCEP activity signals, exact variant match
+review notes, supporting summaries, citations, provenance, and
+reviewed-evidence draft generation. ERepo exact variant matches are review
+notes, not automatic applied evidence. ERepo supporting summaries can seed
+reviewed-evidence drafts, but those drafts must pass through the same manual
+review workflow before any criterion can be counted.
+
+No external curated source automatically classifies a variant. ClinVar, ERepo,
+and literature outputs remain candidate/review-note material unless a curator
+explicitly supplies valid `reviewed_applied` evidence with provenance and audit
+trail.
 
 ### Manual Reviewed Evidence Workflow
 
@@ -272,6 +306,8 @@ The current project does not support:
 - Disease-specific VCEP rule profiles.
 - Automatic `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`, `PP4`, or `PM3`
   application unless explicitly supplied through manual reviewed evidence.
+- Automatic evidence application from ClinVar, ClinGen ERepo, or literature
+  unless explicitly supplied through manual reviewed evidence.
 
 Additional excluded or limited areas include RNA-seq evidence, long-read
 phasing evidence, exon-level deletion interpretation, complex rearrangements,
@@ -295,3 +331,17 @@ classification.
 
 Future release reviews should refresh these counts from the current branch
 instead of assuming they are still exact.
+
+## Current Roadmap Priority
+
+The recommended next task is the VCEP / ClinGen rule knowledge base framework.
+ClinGen ERepo integration now provides the curated-source review-note and draft
+workflow foundation, but the project still needs explicit versioned rule
+knowledge before disease-specific guidance can be safely applied. The next
+validation track should exercise real providers for ClinVar, gnomAD, MANE, and
+ERepo online mode using opt-in/local-fixture workflows, provenance checks, and
+failure-to-limitation behavior.
+
+After those two P0 tracks, the current priorities are benchmark expansion, a
+Chinese report template, and narrowly scoped disease-specific profiles behind
+explicit profile selection.
