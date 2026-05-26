@@ -19,6 +19,7 @@ from variant_pathogenicity_rater.annotation import (
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
 from variant_pathogenicity_rater.pipeline.real_world import run_annotation_batch_workflow
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
+from variant_pathogenicity_rater.literature_agent import create_reviewed_evidence_drafts
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
 
 
@@ -93,6 +94,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include per-record report text when available in the classification result.",
     )
     annotated.set_defaults(handler=_cmd_annotated_batch)
+
+    literature_draft = subparsers.add_parser(
+        "literature-draft-reviewed",
+        help="Convert literature suggested_evidence into manual reviewed_evidence draft templates.",
+    )
+    literature_draft.add_argument(
+        "--literature-assessment-json",
+        required=True,
+        help="Path to assess_literature_evidence JSON output.",
+    )
+    literature_draft.add_argument(
+        "--output",
+        required=True,
+        help="Output reviewed draft JSON path.",
+    )
+    literature_draft.set_defaults(handler=_cmd_literature_draft_reviewed)
 
     check_env = subparsers.add_parser("check-env", help="Print local environment diagnostics.")
     check_env.set_defaults(handler=_cmd_check_env)
@@ -209,6 +226,18 @@ def _cmd_annotated_batch(args: argparse.Namespace) -> int:
             f"{batch_result.get('failed')} of {batch_result.get('total_records')} records failed",
             file=sys.stderr,
         )
+    return 0
+
+
+def _cmd_literature_draft_reviewed(args: argparse.Namespace) -> int:
+    assessment = _load_json_file(
+        args.literature_assessment_json,
+        label="literature assessment JSON",
+    )
+    result = create_reviewed_evidence_drafts(assessment)
+    _write_result(result, args.output, "json")
+    if result.get("status") != "ok":
+        return 1
     return 0
 
 
@@ -401,14 +430,14 @@ def _read_text(path: Path) -> str:
         raise CliError(f"cannot read input file {path}: {exc}", exit_code=2) from exc
 
 
-def _load_json_file(path_value: str) -> Any:
+def _load_json_file(path_value: str, *, label: str = "reviewed evidence file") -> Any:
     path = Path(path_value)
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        raise CliError(f"cannot read reviewed evidence file {path}: {exc}", exit_code=2) from exc
+        raise CliError(f"cannot read {label} {path}: {exc}", exit_code=2) from exc
     except json.JSONDecodeError as exc:
-        raise CliError(f"reviewed evidence file is not valid JSON: {exc}", exit_code=2) from exc
+        raise CliError(f"{label} is not valid JSON: {exc}", exit_code=2) from exc
 
 
 def _single_reviewed_evidence_payload(path_value: str) -> Any:

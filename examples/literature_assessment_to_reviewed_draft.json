@@ -1,0 +1,55 @@
+{
+  "status": "ok",
+  "tool": "create_reviewed_evidence_draft",
+  "stage": "literature_suggested_to_reviewed_draft",
+  "reviewed_evidence": [
+    {
+      "source_candidate_evidence_id": "lit-ps3-validated-assay",
+      "acmg_code": "PS3",
+      "suggested_strength": "supporting",
+      "strength": "supporting",
+      "direction": "pathogenic",
+      "curator_decision": "pending",
+      "curator_name": "",
+      "review_date": "",
+      "rationale": "Validated functional assay reports reduced protein activity.\n\nSuggested literature evidence is not automatically applied to ACMG classification.",
+      "citation": "PMID:123456",
+      "pmid": "123456",
+      "doi": "10.1234/example",
+      "extracted_claim": "Validated functional assay reports reduced protein activity.",
+      "review_questions": [
+        "Does the cited article describe the exact queried variant, gene, disease, and transcript context?",
+        "Were functional assay validity, controls, and effect direction explicitly established?"
+      ],
+      "provenance": {
+        "draft_source": "acmg_literature_evidence_agent",
+        "source_candidate_evidence_id": "lit-ps3-validated-assay",
+        "pmid": "123456",
+        "doi": "10.1234/example",
+        "extracted_claim": "Validated functional assay reports reduced protein activity.",
+        "review_questions": [
+          "Does the cited article describe the exact queried variant, gene, disease, and transcript context?",
+          "Were functional assay validity, controls, and effect direction explicitly established?"
+        ],
+        "literature_assessment": {
+          "candidate_code": "PS3",
+          "suggested_strength": "supporting",
+          "evidence_type": "functional"
+        },
+        "suggested_evidence": {
+          "source_candidate_evidence_id": "lit-ps3-validated-assay",
+          "code": "PS3",
+          "strength": "supporting",
+          "applied": false,
+          "requires_manual_review": true
+        }
+      },
+      "override_reason": "",
+      "evidence_status": "needs_more_info",
+      "requires_manual_review": true,
+      "audit_trail": []
+    }
+  ],
+  "applied_evidence": [],
+  "final_classification_changed": false
+}

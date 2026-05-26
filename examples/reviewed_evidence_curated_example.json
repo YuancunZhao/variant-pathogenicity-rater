@@ -1,0 +1,36 @@
+{
+  "reviewed_evidence": [
+    {
+      "source_candidate_evidence_id": "lit-ps3-validated-assay",
+      "acmg_code": "PS3",
+      "strength": "supporting",
+      "direction": "pathogenic",
+      "curator_decision": "Apply PS3 after manual review of assay validity and variant context.",
+      "curator_name": "Example Curator",
+      "review_date": "2026-05-26",
+      "rationale": "The cited paper describes the exact variant and a validated functional assay with adequate controls showing reduced function.",
+      "citation": "PMID:123456",
+      "provenance": {
+        "draft_source": "acmg_literature_evidence_agent",
+        "source_candidate_evidence_id": "lit-ps3-validated-assay",
+        "pmid": "123456",
+        "doi": "10.1234/example",
+        "extracted_claim": "Validated functional assay reports reduced protein activity.",
+        "review_questions_answered": true
+      },
+      "override_reason": "Curator confirmed the literature suggestion meets PS3 supporting criteria.",
+      "evidence_status": "reviewed_applied",
+      "audit_trail": [
+        {
+          "event_id": "audit-example-curation-ps3",
+          "event_type": "curator_review_completed",
+          "actor": "Example Curator",
+          "tool_name": "manual_curator_review",
+          "notes": [
+            "Converted from literature suggested evidence after manual review."
+          ]
+        }
+      ]
+    }
+  ]
+}

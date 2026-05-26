@@ -8,6 +8,10 @@ from variant_pathogenicity_rater.literature_agent.assessment import (
     assess_segregation_evidence,
     assess_trans_observation,
 )
+from variant_pathogenicity_rater.literature_agent.reviewed_draft import (
+    create_reviewed_evidence_draft_from_literature_assessment,
+    create_reviewed_evidence_drafts,
+)
 from variant_pathogenicity_rater.literature_agent.schema import (
     LiteratureAgentInput,
     LiteratureAgentResult,
@@ -28,4 +32,6 @@ __all__ = [
     "assess_same_amino_acid_or_residue",
     "assess_segregation_evidence",
     "assess_trans_observation",
+    "create_reviewed_evidence_draft_from_literature_assessment",
+    "create_reviewed_evidence_drafts",
 ]

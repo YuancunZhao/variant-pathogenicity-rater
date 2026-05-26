@@ -17,6 +17,7 @@ Install the project in editable mode first:
 vpr rate
 vpr batch
 vpr annotated-batch
+vpr literature-draft-reviewed
 vpr check-env
 ```
 
@@ -102,6 +103,22 @@ successful per-record result preserves `normalization_identity`,
 `applied_evidence`, `review_note_evidence`, `review_flags`, `provenance`, and
 `limitations`. Annotation-derived fields are descriptive context only and do not
 generate ACMG evidence.
+
+## Literature Draft Reviewed
+
+`literature-draft-reviewed` converts `assess_literature_evidence` JSON output
+into manual reviewed-evidence draft templates. The command does not apply
+evidence and does not call the classification combiner.
+
+```bash
+vpr literature-draft-reviewed \
+  --literature-assessment-json examples/literature_agent_output.json \
+  --output reviewed_draft.json
+```
+
+Draft records default to `needs_more_info` and `curator_decision: pending`.
+A curator must explicitly edit a record to `reviewed_applied` before using it
+with `vpr rate --reviewed-evidence`.
 
 ## Environment Check
 

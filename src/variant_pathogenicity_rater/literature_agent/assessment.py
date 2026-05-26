@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
 
 from variant_pathogenicity_rater.literature_agent.extraction import extract_literature_claims
@@ -283,6 +285,7 @@ def _candidate_assessment(
 
 def _suggested_item(item: LiteratureEvidenceAssessment) -> dict[str, Any]:
     return {
+        "source_candidate_evidence_id": _suggested_evidence_id(item),
         "code": item.candidate_code,
         "strength": item.suggested_strength,
         "candidate_only": item.is_candidate_only,
@@ -292,6 +295,22 @@ def _suggested_item(item: LiteratureEvidenceAssessment) -> dict[str, Any]:
         "citation": item.citation,
         "confidence": item.confidence,
     }
+
+
+def _suggested_evidence_id(item: LiteratureEvidenceAssessment) -> str:
+    record_id = item.provenance.get("record_id")
+    if record_id:
+        return str(record_id)
+    payload = {
+        "code": item.candidate_code,
+        "strength": item.suggested_strength,
+        "citation": item.citation,
+        "pmid": item.pmid,
+        "doi": item.doi,
+        "claims": item.extracted_claims,
+    }
+    digest = sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:12]
+    return f"literature-suggested-{item.candidate_code.removesuffix('_candidate')}-{digest}"
 
 
 def _record_type(record: dict[str, Any]) -> str:

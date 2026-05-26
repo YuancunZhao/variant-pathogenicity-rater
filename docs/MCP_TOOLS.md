@@ -24,6 +24,8 @@ Phase 1 tools:
 - `evaluate_pvs1`
 - `evaluate_computational_evidence`
 - `search_literature_evidence`
+- `assess_literature_evidence`
+- `create_reviewed_evidence_draft`
 - `generate_report`
 
 ## Shared Objects
@@ -112,6 +114,21 @@ per-step results.
 Invalid schema input is rejected before pipeline execution. Normalization or
 downstream module failures are preserved as structured limitations inside the
 pipeline result when the input schema itself is valid.
+
+## create_reviewed_evidence_draft
+
+Input: an object with `literature_assessment_json`, containing the full output
+from `assess_literature_evidence`.
+
+The tool converts literature `suggested_evidence` into draft templates for
+manual curation. It preserves `source_candidate_evidence_id`, PMID, DOI,
+citation, extracted claim, review questions, and provenance. It never emits
+applied evidence and returns `final_classification_changed: false`.
+
+Drafts default to `evidence_status: needs_more_info`,
+`curator_decision: pending`, and `requires_manual_review: true`. A curator must
+edit a draft into a strict `reviewed_applied` record before `rate_variant` can
+promote it.
 
 ## normalize_variant
 

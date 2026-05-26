@@ -15,6 +15,7 @@ if str(SRC_DIR) not in sys.path:
 from variant_pathogenicity_rater.literature_agent import (  # noqa: E402
     LiteratureAgentInput,
     assess_literature_evidence as assess_literature_evidence_service,
+    create_reviewed_evidence_drafts as create_reviewed_evidence_drafts_service,
 )
 
 
@@ -70,6 +71,17 @@ async def assess_literature_evidence(arguments: dict[str, Any]) -> dict[str, Any
     }
 
 
+async def create_reviewed_evidence_draft(arguments: dict[str, Any]) -> dict[str, Any]:
+    payload = arguments.get("literature_assessment_json", arguments)
+    result = create_reviewed_evidence_drafts_service(payload)
+    return {
+        **result,
+        "tool": "create_reviewed_evidence_draft",
+        "applied_evidence": [],
+        "final_classification_changed": False,
+    }
+
+
 def register_tools(registry: ToolRegistry) -> None:
     registry.register(
         ToolDefinition(
@@ -106,5 +118,29 @@ def register_tools(registry: ToolRegistry) -> None:
             },
             handler=assess_literature_evidence,
             metadata={"stage": "acmg_literature_evidence_agent"},
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="create_reviewed_evidence_draft",
+            description=(
+                "Convert assess_literature_evidence suggested output into manual "
+                "reviewed_evidence draft templates. Never applies evidence or changes "
+                "classification."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "literature_assessment_json": {
+                        "type": "object",
+                        "description": "Full assess_literature_evidence JSON result.",
+                        "additionalProperties": True,
+                    }
+                },
+                "required": ["literature_assessment_json"],
+                "additionalProperties": False,
+            },
+            handler=create_reviewed_evidence_draft,
+            metadata={"stage": "literature_suggested_to_reviewed_draft"},
         )
     )
