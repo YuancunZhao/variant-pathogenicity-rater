@@ -545,8 +545,14 @@ def _manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str
         )
         if entry.curator_decision:
             lines.append(f"  - Curator decision: {entry.curator_decision}")
+        if entry.curator_name:
+            lines.append(f"  - Curator: {entry.curator_name}")
+        if entry.review_date:
+            lines.append(f"  - Review date: {entry.review_date}")
         if entry.source_candidate_evidence_id:
             lines.append(f"  - Source candidate evidence ID: {entry.source_candidate_evidence_id}")
+        if entry.override_reason:
+            lines.append(f"  - Override reason: {entry.override_reason}")
     return lines
 
 

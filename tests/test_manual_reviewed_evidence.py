@@ -135,16 +135,48 @@ def test_reviewed_pp1_applies_as_supporting_pathogenic_evidence() -> None:
 
 def test_reviewed_rejection_is_visible_but_not_applied() -> None:
     result = rate_variant(
-        _payload(reviewed_evidence=[_reviewed(status="reviewed_rejected", rationale="Assay was not valid for disease mechanism.")])
+        _payload(
+            reviewed_evidence=[
+                _reviewed(
+                    status="reviewed_rejected",
+                    rationale="Assay was not valid for disease mechanism.",
+                )
+            ],
+            options={
+                **_payload()["options"],
+                "mock_supplemental_evidence_items": [_candidate_ps3()],
+            },
+        )
+    )
+
+    assert result["applied_evidence"] == []
+    candidate = next(item for item in result["review_note_evidence"] if item["evidence_id"] == "ev-candidate-ps3")
+    note = next(item for item in result["review_note_evidence"] if item["source"]["name"] == "manual_reviewed_evidence")
+    assert candidate["applied"] is False
+    assert note["strength"] == "none"
+    assert note["applied"] is False
+    assert note["supporting_data"]["evidence_status"] == "reviewed_rejected"
+    assert note["supporting_data"]["source_candidate_evidence_id"] == "ev-candidate-ps3"
+    assert "Manual Reviewed Evidence" in result["report_text"]
+    assert "Assay was not valid" in result["report_text"]
+
+
+def test_needs_more_info_is_review_note_only() -> None:
+    result = rate_variant(
+        _payload(
+            reviewed_evidence=[_reviewed(status="needs_more_info")],
+            options={
+                **_payload()["options"],
+                "mock_supplemental_evidence_items": [_candidate_ps3()],
+            },
+        )
     )
 
     assert result["applied_evidence"] == []
     note = next(item for item in result["review_note_evidence"] if item["source"]["name"] == "manual_reviewed_evidence")
     assert note["strength"] == "none"
     assert note["applied"] is False
-    assert note["supporting_data"]["evidence_status"] == "reviewed_rejected"
-    assert "Manual Reviewed Evidence" in result["report_text"]
-    assert "Assay was not valid" in result["report_text"]
+    assert note["supporting_data"]["evidence_status"] == "needs_more_info"
 
 
 def test_invalid_reviewed_evidence_is_rejected_with_review_flag() -> None:
@@ -153,6 +185,20 @@ def test_invalid_reviewed_evidence_is_rejected_with_review_flag() -> None:
     assert result["applied_evidence"] == []
     assert any("reviewed_evidence[0] validation failed" in item for item in result["limitations"])
     assert any(flag["code"] == "INVALID_REVIEWED_EVIDENCE" for flag in result["review_flags"])
+    assert result["reviewed_evidence"] == []
+
+
+def test_reviewed_evidence_source_id_mismatch_does_not_apply() -> None:
+    result = rate_variant(
+        _payload(reviewed_evidence=[_reviewed(source_candidate_evidence_id="ev-candidate-other-record")])
+    )
+
+    assert result["applied_evidence"] == []
+    assert any("ev-candidate-other-record" in item for item in result["limitations"])
+    assert any(flag["code"] == "REVIEWED_SOURCE_CANDIDATE_NOT_FOUND" for flag in result["review_flags"])
+    note = next(item for item in result["review_note_evidence"] if item["source"]["name"] == "manual_reviewed_evidence")
+    assert note["applied"] is False
+    assert note["supporting_data"]["source_candidate_evidence_id"] == "ev-candidate-other-record"
 
 
 def test_conflicting_reviewed_evidence_triggers_review_flag_and_combiner_conflict() -> None:
@@ -200,6 +246,51 @@ def test_classification_change_comes_from_existing_combiner() -> None:
     assert "classify_acmg" in reviewed["step_results"]
 
 
+def test_literature_suggested_ps3_changes_classification_only_after_reviewed_applied() -> None:
+    literature_payload = _payload(
+        gene="GENE1",
+        transcript="NM_000001.1",
+        hgvs_c="NM_000001.1:c.76A>G",
+        hgvs_p="NP_000001.1:p.Lys26Arg",
+        chromosome="1",
+        position=123,
+        ref="A",
+        alt="G",
+        disease="GENE1-related example disorder",
+        options={
+            "include_population": False,
+            "include_computational": False,
+            "include_clinvar": False,
+            "include_literature": True,
+        },
+    )
+    no_review = rate_variant(literature_payload)
+    ps3_candidate = next(
+        item
+        for item in no_review["review_note_evidence"]
+        if item["code"] == "PS3" and item["source"]["name"] == "mock_literature"
+    )
+
+    reviewed = rate_variant(
+        {
+            **literature_payload,
+            "reviewed_evidence": [
+                _reviewed("PS3", "strong", source_candidate_evidence_id=ps3_candidate["evidence_id"]),
+                _reviewed("PM1", "moderate", source_candidate_evidence_id=None),
+            ],
+        }
+    )
+
+    assert no_review["final_classification"] == "vus"
+    assert no_review["applied_evidence"] == []
+    assert reviewed["final_classification"] == "likely_pathogenic"
+    assert reviewed["classification_result"]["applied_combination_rule"] == "likely_pathogenic: 1 strong + 1-2 moderate"
+    assert any(item["evidence_id"] == ps3_candidate["evidence_id"] for item in reviewed["review_note_evidence"])
+    applied_ps3 = next(item for item in reviewed["applied_evidence"] if item["code"] == "PS3")
+    assert applied_ps3["source"]["name"] == "manual_reviewed_evidence"
+    assert applied_ps3["supporting_data"]["source_candidate_evidence_id"] == ps3_candidate["evidence_id"]
+
+
 def test_batch_reviewed_evidence_is_per_record_only() -> None:
     records = [_payload(position=43092919), _payload(position=43092920)]
     result = rate_variant_batch(
@@ -215,6 +306,20 @@ def test_batch_reviewed_evidence_is_per_record_only() -> None:
 
     assert first["applied_evidence"] == []
     assert [item["code"] for item in second["applied_evidence"]] == ["PS3"]
+
+
+def test_report_manual_reviewed_evidence_section_preserves_review_metadata() -> None:
+    result = rate_variant(
+        _payload(reviewed_evidence=[_reviewed(source_candidate_evidence_id=None)])
+    )
+
+    report = result["report_text"]
+
+    assert "## Manual Reviewed Evidence" in report
+    assert "Curator decision: Apply PS3 after manual review." in report
+    assert "Curator: Test Curator" in report
+    assert "Review date: 2026-05-26" in report
+    assert "Override reason: Manual review confirmed applicability." in report
 
 
 def test_mcp_rate_variant_and_batch_accept_reviewed_evidence() -> None:
@@ -250,6 +355,30 @@ def test_mcp_rate_variant_and_batch_accept_reviewed_evidence() -> None:
 
     assert single_payload["applied_evidence"][0]["code"] == "PS3"
     assert batch_payload["results"][0]["applied_evidence"][0]["code"] == "PS3"
+
+
+def test_mcp_reviewed_evidence_schema_rejects_extra_fields() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 54,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant",
+            "arguments": _payload(
+                reviewed_evidence=[
+                    _reviewed(source_candidate_evidence_id=None, unexpected_review_field=True)
+                ]
+            ),
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+
+    assert response["error"]["data"]["code"] == "SCHEMA_VALIDATION_ERROR"
+    assert any(
+        "unexpected_review_field" in item
+        for item in response["error"]["data"]["details"]["errors"]
+    )
 
 
 def test_cli_reviewed_evidence_single_and_batch(capsys, tmp_path) -> None:
@@ -307,3 +436,34 @@ def test_cli_reviewed_evidence_single_and_batch(capsys, tmp_path) -> None:
     assert batch_exit == 0
     assert single_payload["applied_evidence"][0]["source"]["name"] == "manual_reviewed_evidence"
     assert batch_payload["results"][0]["applied_evidence"][0]["source"]["name"] == "manual_reviewed_evidence"
+
+
+def test_cli_reviewed_evidence_file_json_error_is_preserved(capsys, tmp_path) -> None:
+    reviewed_path = tmp_path / "reviewed.json"
+    reviewed_path.write_text("{not-json", encoding="utf-8")
+
+    exit_code = main(
+        [
+            "rate",
+            "--gene",
+            "BRCA1",
+            "--transcript",
+            "NM_007294.4",
+            "--hgvs-c",
+            "NM_007294.4:c.68A>G",
+            "--chromosome",
+            "17",
+            "--position",
+            "43092919",
+            "--ref",
+            "A",
+            "--alt",
+            "G",
+            "--reviewed-evidence",
+            str(reviewed_path),
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "reviewed evidence file is not valid JSON" in captured.err

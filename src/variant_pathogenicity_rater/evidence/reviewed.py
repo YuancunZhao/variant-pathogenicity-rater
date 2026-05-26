@@ -33,7 +33,11 @@ def process_reviewed_evidence(
     known_ids = {item.evidence_id for item in existing_evidence_items}
 
     for record in records:
-        if record.source_candidate_evidence_id and record.source_candidate_evidence_id not in known_ids:
+        source_candidate_missing = (
+            record.source_candidate_evidence_id is not None
+            and record.source_candidate_evidence_id not in known_ids
+        )
+        if source_candidate_missing:
             limitations.append(
                 "Reviewed evidence references source_candidate_evidence_id "
                 f"{record.source_candidate_evidence_id}, but no matching candidate item was found."
@@ -45,10 +49,17 @@ def process_reviewed_evidence(
                         "Reviewed evidence linked to a candidate evidence ID that was not present "
                         "in this run; traceability requires manual review."
                     ),
-                    severity="warning",
-                    blocking=False,
+                    severity="error",
+                    blocking=True,
                 )
             )
+
+        if (
+            source_candidate_missing
+            and record.evidence_status == ReviewedEvidenceStatus.REVIEWED_APPLIED
+        ):
+            review_note_items.append(_review_note_item(record, variant))
+            continue
 
         if record.evidence_status == ReviewedEvidenceStatus.REVIEWED_APPLIED:
             item = _applied_item(record, variant)
