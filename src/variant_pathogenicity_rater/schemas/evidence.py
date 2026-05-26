@@ -109,6 +109,9 @@ class ComputationalPrediction(SchemaModel):
     prediction: str = Field(..., min_length=1)
     threshold: float | None = None
     transcript: str | None = None
+    hgvs_p: str | None = None
+    protein_change: str | None = None
+    genome_build: str | None = None
     candidate_only: bool = False
     limitations: list[str] = Field(default_factory=list)
     splice_prediction: SplicePrediction | None = None

@@ -10,8 +10,8 @@ from pydantic import ValidationError
 from variant_pathogenicity_rater.annotation import GenericTableAdapter, select_transcript
 from variant_pathogenicity_rater.acmg.combiner import classify_acmg
 from variant_pathogenicity_rater.acmg.computational_rules import evaluate_computational_predictions
-from variant_pathogenicity_rater.acmg.population_rules import evaluate_population_rules
 from variant_pathogenicity_rater.pvs1 import generate_pvs1_evidence
+from variant_pathogenicity_rater.population import generate_population_evidence
 from variant_pathogenicity_rater.context_consistency import evaluate_context_consistency
 from variant_pathogenicity_rater.config.thresholds import (
     computational_thresholds_from_options,
@@ -89,6 +89,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
 
     population_frequency = None
     population_records = []
+    population_thresholds = population_thresholds_from_options(options.get("population_thresholds"))
     if options.get("include_population", True):
         population_frequency = _run_step(
             "query_population_frequency",
@@ -104,43 +105,6 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             step_results["query_population_frequency"] = json.loads(
                 population_frequency.model_dump_json()
             )
-
-            population_items = _run_step(
-                "evaluate_population_rules",
-                audit_trail,
-                limitations,
-                lambda: evaluate_population_rules(
-                    normalized_variant,
-                    context,
-                    population_frequency,
-                    population_thresholds_from_options(options.get("population_thresholds")),
-                ),
-            )
-            if population_items is not None:
-                evidence_items.extend(population_items)
-                step_results["evaluate_population_rules"] = [
-                    json.loads(item.model_dump_json()) for item in population_items
-                ]
-
-    if options.get("include_computational", True):
-        computational_result = _run_step(
-            "evaluate_computational_evidence",
-            audit_trail,
-            limitations,
-            lambda: _evaluate_computational_step(
-                options,
-                normalized_variant,
-                data_sources_config,
-            ),
-        )
-        if computational_result is not None:
-            computational_items, review_flags, summary = computational_result
-            evidence_items.extend(computational_items)
-            step_results["evaluate_computational_evidence"] = {
-                "evidence_items": [json.loads(item.model_dump_json()) for item in computational_items],
-                "review_flags": [json.loads(flag.model_dump_json()) for flag in review_flags],
-                "summary": summary,
-            }
 
     context_consistency = _run_step(
         "evaluate_context_consistency",
@@ -159,6 +123,42 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         step_results["evaluate_context_consistency"] = json.loads(
             context_consistency.model_dump_json()
         )
+
+    if population_frequency is not None:
+        population_result = _run_step(
+            "evaluate_population_rules",
+            audit_trail,
+            limitations,
+            lambda: generate_population_evidence(
+                variant=normalized_variant,
+                context=context,
+                frequency=population_frequency,
+                thresholds=population_thresholds,
+                context_consistency=context_consistency,
+                inheritance=context.inheritance_mode,
+                disease_prevalence=context.disease_prevalence,
+                penetrance=options.get("penetrance"),
+                provider_provenance={
+                    "source": (
+                        population_frequency.source.model_dump(mode="json")
+                        if population_frequency.source
+                        else None
+                    )
+                },
+            ),
+        )
+        if population_result is not None:
+            population_items, population_decision = population_result
+            evidence_items.extend(population_items)
+            limitations.extend(population_decision.limitations)
+            limitations.extend(population_decision.blocking_reasons)
+            step_results["evaluate_population_rules"] = [
+                json.loads(item.model_dump_json()) for item in population_items
+            ]
+            step_results["evaluate_population_evidence"] = {
+                "decision": population_decision.model_dump(mode="json"),
+                "evidence_items": [json.loads(item.model_dump_json()) for item in population_items],
+            }
 
     pvs1_result = _run_step(
         "evaluate_pvs1",
@@ -185,6 +185,33 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         limitations.extend(pvs1_decision.blocking_reasons)
         if pvs1_item is not None:
             evidence_items.append(pvs1_item)
+
+    if options.get("include_computational", True):
+        computational_result = _run_step(
+            "evaluate_computational_evidence",
+            audit_trail,
+            limitations,
+            lambda: _evaluate_computational_step(
+                options,
+                normalized_variant,
+                data_sources_config,
+                annotation=_selected_annotation_for_pvs1(annotation_records, transcript_selection),
+                context_consistency=context_consistency,
+                existing_evidence_items=evidence_items,
+            ),
+        )
+        if computational_result is not None:
+            computational_items, review_flags, summary = computational_result
+            evidence_items.extend(computational_items)
+            decision = summary.get("decision") or {}
+            limitations.extend(decision.get("limitations") or [])
+            limitations.extend(decision.get("conflict_reasons") or [])
+            limitations.extend(decision.get("double_counting_warnings") or [])
+            step_results["evaluate_computational_evidence"] = {
+                "evidence_items": [json.loads(item.model_dump_json()) for item in computational_items],
+                "review_flags": [json.loads(flag.model_dump_json()) for flag in review_flags],
+                "summary": summary,
+            }
 
     clinvar_records = []
     if options.get("include_clinvar", True):
@@ -479,7 +506,22 @@ def _population_fixtures(options: dict[str, Any]) -> dict[str, Any] | None:
 
     payload = dict(fixture)
     payload.pop("variant_id", None)
+    payload.setdefault("data_version", "inline-population-fixture-v1")
+    payload.setdefault("dataset_version", payload["data_version"])
+    payload.setdefault("genome_build", _genome_build_from_variant_id(str(variant_id)))
+    payload.setdefault("coverage_quality", "high")
+    payload.setdefault("population_match", True)
+    source = dict(payload.get("source") or {})
+    source.setdefault("name", payload.get("data_source") or "inline_population_fixture")
+    source.setdefault("version", payload.get("data_version"))
+    source.setdefault("query", {"variant_id": str(variant_id)})
+    payload["source"] = source
     return {str(variant_id): PopulationFrequency.model_validate(payload)}
+
+
+def _genome_build_from_variant_id(variant_id: str) -> str | None:
+    build = variant_id.split("-", 1)[0]
+    return build if build in {"GRCh37", "GRCh38"} else None
 
 
 def _computational_predictions(
@@ -501,12 +543,20 @@ def _evaluate_computational_step(
     options: dict[str, Any],
     variant: Variant,
     data_sources_config: DataSourcesConfig,
+    *,
+    annotation: VariantAnnotation | None = None,
+    context_consistency: ContextConsistency | None = None,
+    existing_evidence_items: list[EvidenceItem] | None = None,
 ) -> tuple[list[EvidenceItem], list[Any], dict[str, Any]]:
     predictions = _computational_predictions(options, variant, data_sources_config)
     return evaluate_computational_predictions(
         variant,
         predictions,
         computational_thresholds_from_options(options.get("computational_thresholds")),
+        annotation=annotation,
+        context_consistency=context_consistency,
+        existing_evidence_items=existing_evidence_items or [],
+        provider_provenance={"source_count": len({prediction.source.name for prediction in predictions})},
     )
 
 

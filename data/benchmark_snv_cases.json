@@ -77,7 +77,23 @@
           "claims": []
         }
       ],
-      "mock_applied_evidence": [],
+      "mock_applied_evidence": [
+        {
+          "evidence_id": "ev-bench-01-curated-ps4",
+          "code": "PS4",
+          "strength": "strong",
+          "direction": "pathogenic",
+          "reason": "Curated benchmark-only case enrichment evidence for maintaining pathogenic combination coverage; not generated from computational predictors.",
+          "source": {
+            "name": "curated_mock_benchmark",
+            "version": "offline-v1"
+          },
+          "confidence": 0.8,
+          "requires_review": true,
+          "applied": true,
+          "candidate_only": false
+        }
+      ],
       "gene_disease_context": {
         "gene": "BRCA1",
         "disease": "Hereditary breast and ovarian cancer",
@@ -101,13 +117,15 @@
       "expected_applied_evidence": [
         "PVS1",
         "PM2",
+        "PS4"
+      ],
+      "expected_candidate_evidence": [
         "PP3"
       ],
-      "expected_candidate_evidence": [],
       "expected_review_flags": [
         "HUMAN_REVIEW_REQUIRED"
       ],
-      "rationale": "PVS1 very strong plus PM2_Supporting and PP3 reaches pathogenic; PM2 remains supporting."
+      "rationale": "PVS1 very strong plus PM2_Supporting and curated PS4 reaches pathogenic; LoF missense-style computational PP3 remains candidate-only."
     },
     {
       "case_id": "bench-02",

@@ -1,23 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
+from variant_pathogenicity_rater.computational import generate_computational_evidence
+from variant_pathogenicity_rater.computational.schema import ComputationalEvidenceDecision
 from variant_pathogenicity_rater.config.thresholds import ComputationalEvidenceThresholds
-from variant_pathogenicity_rater.evidence.computational import (
-    PredictionDirection,
-    PredictorCall,
-    interpret_prediction,
-)
-from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
-from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
-from variant_pathogenicity_rater.schemas.evidence import (
-    ComputationalPrediction,
-    EvidenceDirection,
-    EvidenceItem,
-    EvidenceSource,
-    EvidenceStrength,
-)
+from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
+from variant_pathogenicity_rater.schemas.common import ReviewFlag
+from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
+from variant_pathogenicity_rater.schemas.evidence import ComputationalPrediction, EvidenceItem
 from variant_pathogenicity_rater.schemas.variant import Variant
 
 
@@ -25,220 +16,99 @@ def evaluate_computational_predictions(
     variant: Variant,
     predictions: list[ComputationalPrediction],
     thresholds: ComputationalEvidenceThresholds | None = None,
+    *,
+    annotation: VariantAnnotation | None = None,
+    context_consistency: ContextConsistency | None = None,
+    existing_evidence_items: list[EvidenceItem] | None = None,
+    provider_provenance: dict[str, Any] | None = None,
 ) -> tuple[list[EvidenceItem], list[ReviewFlag], dict[str, Any]]:
-    thresholds = thresholds or ComputationalEvidenceThresholds()
-    calls = [interpret_prediction(prediction, thresholds) for prediction in predictions]
-    pathogenic_calls = _unique_directional_calls(calls, PredictionDirection.PATHOGENIC)
-    benign_calls = _unique_directional_calls(calls, PredictionDirection.BENIGN)
-    neutral_calls = [call for call in calls if call.direction == PredictionDirection.NEUTRAL]
-    review_flags: list[ReviewFlag] = []
+    items, decision = generate_computational_evidence(
+        variant=variant,
+        predictions=predictions,
+        thresholds=thresholds,
+        annotation=annotation,
+        context_consistency=context_consistency,
+        existing_evidence_items=existing_evidence_items or [],
+        provider_provenance=provider_provenance,
+    )
+    return items, _review_flags(decision), _summary(decision)
 
-    splice_conflict = _splice_prediction_conflict(calls)
-    if splice_conflict:
-        review_flags.append(
+
+def _review_flags(decision: ComputationalEvidenceDecision) -> list[ReviewFlag]:
+    flags: list[ReviewFlag] = []
+    if _spliceai_prediction_conflict(decision):
+        flags.append(
             ReviewFlag(
                 code="SPLICEAI_PREDICTION_CONFLICT",
-                message=(
-                    "SpliceAI splice prediction is internally conflicting or conflicts with "
-                    "other computational calls; PP3/BP4 were not applied."
-                ),
+                message="SpliceAI score and predicted consequence conflict; PP3/BP4 were not applied.",
                 severity="warning",
                 blocking=False,
             )
         )
-        return [], review_flags, _summary(calls, thresholds)
-
-    pathogenic_met = len(pathogenic_calls) >= thresholds.min_pathogenic_supporting_tools
-    benign_met = len(benign_calls) >= thresholds.min_benign_supporting_tools
-
-    if pathogenic_met and benign_met:
-        review_flags.append(
+        return flags
+    if decision.conflict_reasons:
+        flags.append(
             ReviewFlag(
                 code="COMPUTATIONAL_PREDICTION_CONFLICT",
-                message="Computational predictors support both PP3 and BP4; neither criterion was applied.",
+                message="Computational predictors conflict; PP3/BP4 were not applied.",
                 severity="warning",
                 blocking=False,
             )
         )
-        return [], review_flags, _summary(calls, thresholds)
-
-    if pathogenic_met:
-        return [
-            _evidence_item(
-                variant=variant,
-                code=EvidenceCode.PP3,
-                direction=EvidenceDirection.PATHOGENIC,
-                reason=_pp3_reason(pathogenic_calls),
-                calls=pathogenic_calls,
-                all_calls=calls,
-                predictions=predictions,
-            )
-        ], review_flags, _summary(calls, thresholds)
-
-    if benign_met:
-        return [
-            _evidence_item(
-                variant=variant,
-                code=EvidenceCode.BP4,
-                direction=EvidenceDirection.BENIGN,
-                reason="Multiple computational methods support no impact on gene or gene product.",
-                calls=benign_calls,
-                all_calls=calls,
-                predictions=predictions,
-            )
-        ], review_flags, _summary(calls, thresholds)
-
-    if pathogenic_calls and benign_calls:
-        review_flags.append(
-            ReviewFlag(
-                code="COMPUTATIONAL_PREDICTION_MIXED",
-                message="Computational predictors are mixed below application thresholds; PP3/BP4 not applied.",
-                severity="info",
-                blocking=False,
-            )
-        )
-    elif pathogenic_calls or benign_calls or neutral_calls:
-        review_flags.append(
+    elif any(
+        "candidate-only due to quality or provenance checks" in limitation
+        for limitation in decision.limitations
+    ):
+        flags.append(
             ReviewFlag(
                 code="COMPUTATIONAL_PREDICTION_INSUFFICIENT",
-                message="Computational predictors did not meet configured agreement thresholds.",
+                message="Computational predictors did not meet consensus or quality gates for applied evidence.",
                 severity="info",
                 blocking=False,
             )
         )
-
-    return [], review_flags, _summary(calls, thresholds)
-
-
-def _unique_directional_calls(
-    calls: list[PredictorCall],
-    direction: PredictionDirection,
-) -> list[PredictorCall]:
-    seen: set[str] = set()
-    selected: list[PredictorCall] = []
-    for call in calls:
-        if call.direction != direction or call.method in seen:
-            continue
-        seen.add(call.method)
-        selected.append(call)
-    return selected
-
-
-def _splice_prediction_conflict(calls: list[PredictorCall]) -> bool:
-    splice_calls = [call for call in calls if call.splice_related]
-    if not splice_calls:
-        return False
-    if any("conflict" in call.reason.lower() for call in splice_calls):
-        return True
-    splice_directions = {
-        call.direction
-        for call in splice_calls
-        if call.direction in {PredictionDirection.PATHOGENIC, PredictionDirection.BENIGN}
-    }
-    non_splice_directions = {
-        call.direction
-        for call in calls
-        if not call.splice_related
-        and call.direction in {PredictionDirection.PATHOGENIC, PredictionDirection.BENIGN}
-    }
-    return (
-        len(splice_directions) > 1
-        or (
-            PredictionDirection.PATHOGENIC in splice_directions
-            and PredictionDirection.BENIGN in non_splice_directions
-        )
-        or (
-            PredictionDirection.BENIGN in splice_directions
-            and PredictionDirection.PATHOGENIC in non_splice_directions
-        )
-    )
-
-
-def _pp3_reason(calls: list[PredictorCall]) -> str:
-    if any(call.splice_related for call in calls):
-        return (
-            "Multiple computational methods support a deleterious effect; SpliceAI contributes "
-            "splice-related supporting evidence only and does not replace PVS1 or PS3."
-        )
-    return "Multiple computational methods support a deleterious effect."
-
-
-def _evidence_item(
-    *,
-    variant: Variant,
-    code: EvidenceCode,
-    direction: EvidenceDirection,
-    reason: str,
-    calls: list[PredictorCall],
-    all_calls: list[PredictorCall],
-    predictions: list[ComputationalPrediction],
-) -> EvidenceItem:
-    timestamp = datetime.now(timezone.utc).isoformat()
-    evidence_id = f"ev_comp_{variant.variant_id}_{code.value.lower()}"
-    return EvidenceItem(
-        evidence_id=evidence_id,
-        code=code,
-        strength=EvidenceStrength.SUPPORTING,
-        direction=direction,
-        reason=reason,
-        source=EvidenceSource(
-            name="ComputationalPredictionEvaluator",
-            version="0.1.0",
-            retrieval_timestamp=timestamp,
-            query={"variant_id": variant.variant_id, "methods": [p.method for p in predictions]},
-        ),
-        confidence=_confidence(calls, all_calls),
-        requires_review=True,
-        triggered_by=[call.method for call in calls],
-        supporting_data={
-            "applied_strength": EvidenceStrength.SUPPORTING.value,
-            "predictor_calls": [_call_data(call) for call in all_calls],
-            "limitations": [
-                "PP3/BP4 are applied only at supporting strength.",
-                "Computational evidence does not replace functional evidence such as PS3.",
-                "SpliceAI splice-related support does not replace PVS1.",
-            ],
-        },
-        audit_trail=[
-            AuditTrail(
-                event_id=f"audit_{evidence_id}",
-                event_type="computational_evidence_evaluated",
-                tool_name="evaluate_computational_evidence",
-                query={"variant_id": variant.variant_id},
-                notes=[reason],
+    elif decision.recommended_code and decision.candidate_only:
+        flags.append(
+            ReviewFlag(
+                code="COMPUTATIONAL_PREDICTION_INSUFFICIENT",
+                message="Computational predictors did not meet consensus or quality gates for applied evidence.",
+                severity="info",
+                blocking=False,
             )
-        ],
+        )
+    elif not decision.recommended_code and decision.predictor_summary:
+        flags.append(
+            ReviewFlag(
+                code="COMPUTATIONAL_PREDICTION_AMBIGUOUS",
+                message="Computational predictors were ambiguous or not applicable.",
+                severity="info",
+                blocking=False,
+            )
+        )
+    return flags
+
+
+def _spliceai_prediction_conflict(decision: ComputationalEvidenceDecision) -> bool:
+    return any(
+        str(call.get("method")).lower() == "spliceai"
+        and "conflict" in str(call.get("reason", "")).lower()
+        for call in decision.predictor_summary
     )
 
 
-def _confidence(calls: list[PredictorCall], all_calls: list[PredictorCall]) -> float:
-    if not all_calls:
-        return 0.0
-    return min(0.95, round(0.5 + 0.1 * len(calls), 2))
-
-
-def _call_data(call: PredictorCall) -> dict[str, Any]:
+def _summary(decision: ComputationalEvidenceDecision) -> dict[str, Any]:
+    pathogenic = [
+        call for call in decision.predictor_summary if call.get("direction") == "pathogenic"
+    ]
+    benign = [call for call in decision.predictor_summary if call.get("direction") == "benign"]
+    neutral = [call for call in decision.predictor_summary if call.get("direction") == "neutral"]
     return {
-        "method": call.method,
-        "direction": call.direction.value,
-        "score": call.score,
-        "reason": call.reason,
-        "transcript": call.transcript,
-        "splice_related": call.splice_related,
-    }
-
-
-def _summary(
-    calls: list[PredictorCall],
-    thresholds: ComputationalEvidenceThresholds,
-) -> dict[str, Any]:
-    pathogenic = [call for call in calls if call.direction == PredictionDirection.PATHOGENIC]
-    benign = [call for call in calls if call.direction == PredictionDirection.BENIGN]
-    neutral = [call for call in calls if call.direction == PredictionDirection.NEUTRAL]
-    return {
-        "pathogenic_support_count": len({call.method for call in pathogenic}),
-        "benign_support_count": len({call.method for call in benign}),
+        "pathogenic_support_count": len({call.get("method") for call in pathogenic}),
+        "benign_support_count": len({call.get("method") for call in benign}),
         "neutral_count": len(neutral),
-        "thresholds": thresholds.model_dump(),
-        "predictor_calls": [_call_data(call) for call in calls],
+        "thresholds": decision.thresholds_used,
+        "predictor_calls": decision.predictor_summary,
+        "decision": decision.model_dump(mode="json"),
+        "consensus_direction": decision.consensus_direction,
+        "conflict_reasons": decision.conflict_reasons,
     }

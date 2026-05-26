@@ -246,8 +246,8 @@ Optional input:
 - `thresholds`: explicit PP3/BP4 threshold object.
 
 Each prediction requires `source`, `method`, and `prediction`; optional fields
-include `score`, `threshold`, `transcript`, `candidate_only`, `limitations`, and
-`splice_prediction`.
+include `score`, `threshold`, `transcript`, `hgvs_p`, `protein_change`,
+`genome_build`, `candidate_only`, `limitations`, and `splice_prediction`.
 
 Output includes `evidence_items`, `criterion_assessments`, `review_flags`,
 `summary`, human review status, and audit limitations.

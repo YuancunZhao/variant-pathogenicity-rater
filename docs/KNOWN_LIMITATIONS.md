@@ -26,13 +26,23 @@ replace qualified clinical, laboratory, or genetics professional review.
   but independent variant/protein-level assessment is required.
 - Literature-derived PS3, BS3, PS2, PM6, PP1, PS4, and PP4 hints are
   candidate-only and are not applied as strong evidence in this release.
+- Computational PP3/BP4 automation is consensus-based and supporting-only. A
+  single predictor, conflicting predictors, ambiguous calls, transcript mismatch,
+  genome-build mismatch, or inappropriate consequence keeps evidence
+  candidate-only or limitation-only.
 - SpliceAI local-file results contribute only to computational evidence. They
-  cannot trigger PS3, BS3, or PVS1 and cannot upgrade PVS1.
+  cannot trigger PS3, BS3, PVS1, RNA validation, or functional evidence and
+  cannot upgrade PVS1.
 - PM2 is currently capped at supporting strength. This intentional downgrade is
   part of the conservative prototype safety model.
 - A local or mock provider miss means no matching record was found in that
   configured source. It does not mean the variant is absent from ClinVar,
   gnomAD, or any population database.
+- Population BA1/BS1/PM2_Supporting automation requires high-quality provider
+  data and complete disease-specific threshold context. Missing source version,
+  low AN, low coverage, ancestry/population mismatch, genome-build mismatch,
+  founder-population warnings, or context conflicts keep population evidence
+  candidate-only or limitation-only.
 - Provider records cannot automatically override user-provided context. A
   provider gene, transcript, condition, ancestry, or genome build mismatch is a
   review flag that must be resolved manually.

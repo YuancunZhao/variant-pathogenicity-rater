@@ -55,6 +55,15 @@ class EvidenceReportEntry(SchemaModel):
     pvs1_decision_path: list[str] = Field(default_factory=list)
     pvs1_downgrade_reasons: list[str] = Field(default_factory=list)
     pvs1_blocking_reasons: list[str] = Field(default_factory=list)
+    population_decision_path: list[str] = Field(default_factory=list)
+    population_thresholds: dict[str, Any] = Field(default_factory=dict)
+    population_quality_checks: list[dict[str, Any]] = Field(default_factory=list)
+    population_blocking_reasons: list[str] = Field(default_factory=list)
+    computational_predictor_summary: list[dict[str, Any]] = Field(default_factory=list)
+    computational_thresholds: dict[str, Any] = Field(default_factory=dict)
+    computational_quality_checks: list[dict[str, Any]] = Field(default_factory=list)
+    computational_conflict_reasons: list[str] = Field(default_factory=list)
+    computational_consensus_direction: str | None = None
 
 
 class VariantReportSummary(SchemaModel):

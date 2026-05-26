@@ -160,6 +160,8 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
 
 def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
     pvs1_decision = item.supporting_data.get("pvs1_decision") or {}
+    population_decision = item.supporting_data.get("population_evidence_decision") or {}
+    computational_decision = item.supporting_data.get("computational_evidence_decision") or {}
     return EvidenceReportEntry(
         evidence_id=item.evidence_id,
         code=str(item.code),
@@ -177,6 +179,15 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         pvs1_decision_path=list(item.supporting_data.get("decision_path") or pvs1_decision.get("decision_path") or []),
         pvs1_downgrade_reasons=list(item.supporting_data.get("downgrade_reasons") or pvs1_decision.get("downgrade_reasons") or []),
         pvs1_blocking_reasons=list(item.supporting_data.get("blocking_reasons") or pvs1_decision.get("blocking_reasons") or []),
+        population_decision_path=list(population_decision.get("decision_path") or []),
+        population_thresholds=dict(population_decision.get("thresholds_used") or {}),
+        population_quality_checks=list(population_decision.get("quality_checks") or []),
+        population_blocking_reasons=list(population_decision.get("blocking_reasons") or []),
+        computational_predictor_summary=list(item.supporting_data.get("predictor_summary") or computational_decision.get("predictor_summary") or []),
+        computational_thresholds=dict(item.supporting_data.get("thresholds_used") or computational_decision.get("thresholds_used") or {}),
+        computational_quality_checks=list(item.supporting_data.get("quality_checks") or computational_decision.get("quality_checks") or []),
+        computational_conflict_reasons=list(item.supporting_data.get("conflict_reasons") or computational_decision.get("conflict_reasons") or []),
+        computational_consensus_direction=str(item.supporting_data.get("consensus_direction") or computational_decision.get("consensus_direction") or "") or None,
     )
 
 
@@ -391,6 +402,21 @@ def _evidence_chain_lines(
                     lines.append("  - PVS1 decision path: " + " | ".join(entry.pvs1_decision_path))
                 if entry.pvs1_downgrade_reasons:
                     lines.append("  - PVS1 downgrade reasons: " + "; ".join(entry.pvs1_downgrade_reasons))
+                if entry.population_decision_path:
+                    lines.append("  - Population decision path: " + " | ".join(entry.population_decision_path))
+                if entry.population_thresholds:
+                    lines.append("  - Population thresholds: " + _json_fragment(entry.population_thresholds))
+                if entry.population_quality_checks:
+                    lines.append("  - Population quality checks: " + _population_quality_fragment(entry.population_quality_checks))
+                if entry.computational_predictor_summary:
+                    lines.append("  - Computational consensus: " + str(entry.computational_consensus_direction or "not available"))
+                    lines.append("  - Computational predictors: " + _computational_predictor_fragment(entry.computational_predictor_summary))
+                if entry.computational_thresholds:
+                    lines.append("  - Computational thresholds: " + _json_fragment(entry.computational_thresholds))
+                if entry.computational_quality_checks:
+                    lines.append("  - Computational quality checks: " + _population_quality_fragment(entry.computational_quality_checks))
+                if entry.computational_conflict_reasons:
+                    lines.append("  - Computational conflicts: " + "; ".join(entry.computational_conflict_reasons))
     lines.extend(["", "## Candidate / Review-Note Evidence", f"- {CANDIDATE_EVIDENCE_CAUTION}"])
     if not summary.candidate_acmg_evidence:
         lines.append("- No candidate-only ACMG evidence items were supplied.")
@@ -415,6 +441,23 @@ def _evidence_chain_lines(
                 lines.append("  - PVS1 downgrade reasons: " + "; ".join(entry.pvs1_downgrade_reasons))
             if entry.pvs1_blocking_reasons:
                 lines.append("  - PVS1 blocking reasons: " + "; ".join(entry.pvs1_blocking_reasons))
+            if entry.population_decision_path:
+                lines.append("  - Population decision path: " + " | ".join(entry.population_decision_path))
+            if entry.population_thresholds:
+                lines.append("  - Population thresholds: " + _json_fragment(entry.population_thresholds))
+            if entry.population_quality_checks:
+                lines.append("  - Population quality checks: " + _population_quality_fragment(entry.population_quality_checks))
+            if entry.population_blocking_reasons:
+                lines.append("  - Population blocking reasons: " + "; ".join(entry.population_blocking_reasons))
+            if entry.computational_predictor_summary:
+                lines.append("  - Computational consensus: " + str(entry.computational_consensus_direction or "not available"))
+                lines.append("  - Computational predictors: " + _computational_predictor_fragment(entry.computational_predictor_summary))
+            if entry.computational_thresholds:
+                lines.append("  - Computational thresholds: " + _json_fragment(entry.computational_thresholds))
+            if entry.computational_quality_checks:
+                lines.append("  - Computational quality checks: " + _population_quality_fragment(entry.computational_quality_checks))
+            if entry.computational_conflict_reasons:
+                lines.append("  - Computational conflicts: " + "; ".join(entry.computational_conflict_reasons))
     return lines
 
 
@@ -514,6 +557,22 @@ def _data_source_lines(
 
 def _json_fragment(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True, sort_keys=True)
+
+
+def _population_quality_fragment(checks: list[dict[str, Any]]) -> str:
+    return "; ".join(
+        f"{check.get('name')}={'pass' if check.get('passed') else 'fail'}"
+        for check in checks
+    )
+
+
+def _computational_predictor_fragment(calls: list[dict[str, Any]]) -> str:
+    fragments = []
+    for call in calls:
+        score = call.get("score")
+        score_text = "" if score is None else f" ({score})"
+        fragments.append(f"{call.get('method')}={call.get('direction')}{score_text}")
+    return "; ".join(fragments)
 
 
 def _caution_lines(

@@ -30,6 +30,7 @@ from variant_pathogenicity_rater.evidence.computational import (
     ComputationalPredictionProvider,
     MockComputationalPredictionProvider,
 )
+from variant_pathogenicity_rater.computational.providers import parse_local_computational_record
 from variant_pathogenicity_rater.evidence.literature import (
     LiteratureProvider,
     LiteratureQuery,
@@ -389,17 +390,34 @@ class LocalFileComputationalPredictionProvider(ComputationalPredictionProvider):
                 predictions.append(_parse_local_spliceai_prediction(raw, variant, query, self.config))
                 continue
             payloads = raw.get("predictions") or []
-            for prediction_payload in payloads:
-                prediction = ComputationalPrediction.model_validate(prediction_payload)
+            if payloads:
+                for prediction_payload in payloads:
+                    prediction = ComputationalPrediction.model_validate(prediction_payload)
+                    provenance = provenance_from_raw_record(
+                        data_source=self.config.name,
+                        source_version=self.config.source_version,
+                        query=query,
+                        raw_record=prediction_payload,
+                        parser_version=self.config.parser_version,
+                        confidence=0.5,
+                        limitations=[
+                            "Local-file computational source; PP3/BP4 require context-aware review.",
+                            *self.config.limitations,
+                        ],
+                    )
+                    attach_provenance_to_source(prediction.source, provenance)
+                    predictions.append(prediction)
+                continue
+            for prediction in parse_local_computational_record(raw, source_name=self.config.name):
                 provenance = provenance_from_raw_record(
                     data_source=self.config.name,
-                    source_version=self.config.source_version,
+                    source_version=self.config.source_version or prediction.source.version,
                     query=query,
-                    raw_record=prediction_payload,
+                    raw_record=raw,
                     parser_version=self.config.parser_version,
                     confidence=0.5,
                     limitations=[
-                        "Local-file computational source; PP3/BP4 require context-aware review.",
+                        "Local-file computational source; PP3/BP4 require consensus and human review.",
                         *self.config.limitations,
                     ],
                 )
@@ -491,7 +509,7 @@ def _read_json_records(config: DataSourceConfig) -> list[dict[str, Any]]:
         return records
     payload = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(payload, dict):
-        payload = payload.get("records", [])
+        payload = payload.get("records", [payload])
     if not isinstance(payload, list):
         raise ValueError(f"{config.name} local_file payload must be a list or records object.")
     return [record for record in payload if isinstance(record, dict)]
