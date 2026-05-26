@@ -2,7 +2,8 @@
 
 This roadmap is the governance-facing roadmap for Variant Pathogenicity Rater.
 It should be read with `docs/PROJECT_STATE.md`, `docs/KNOWN_LIMITATIONS.md`,
-and `docs/APPLIED_EVIDENCE_GENERATION.md` before planning future work.
+`docs/APPLIED_EVIDENCE_GENERATION.md`, and
+`docs/APPLIED_EVIDENCE_STATUS.md` before planning future work.
 
 The current roadmap priority is not to broaden the clinical surface quickly. It
 is to extend reviewable evidence support while preserving the existing safety
@@ -48,40 +49,22 @@ This phase also formalized that SpliceAI and similar predictors provide
 computational splice support only. They are not RNA validation, functional
 assay evidence, `PS3`, `BS3`, or `PVS1`.
 
+### Phase 4: ClinVar-Derived PS1/PM5
+
+The ClinVar-derived PS1/PM5 phase added conservative comparator-based evidence
+generation for `PS1` and `PM5`. It uses ClinVar P/LP records only as comparator
+records and independently checks protein change, nucleotide distinction,
+transcript/protein match, condition match, germline applicability, assertion
+quality, conflict status, provenance, and context consistency before emitting
+applied evidence.
+
+This phase formalized that ClinVar assertions do not become PP5/BP6 evidence.
+Low-quality, conflicting, somatic-only, same-variant, condition-mismatched, or
+context-mismatched comparators remain candidate-only or blocked.
+
 ## Highest Priority Current Tasks
 
-### 1. ClinVar-Derived PS1/PM5 Generation
-
-Goal: build a conservative review-required workflow that detects potential
-`PS1` and `PM5` candidates from ClinVar-like records while preserving the
-candidate/applied boundary.
-
-Why it matters: PS1/PM5 review questions are common in manual variant
-interpretation. The current system already captures ClinVar review notes and
-PS1/PM5-style suggestions, but the next useful step is to make those suggestions
-more structured, reproducible, and benchmarked without allowing ClinVar
-assertions to become automatic evidence.
-
-Architecture impact: expected changes should be limited to ClinVar/provider
-normalization, candidate evidence generation, schemas/report sections if
-needed, CLI/MCP output compatibility, and documentation. The classification
-combiner should remain untouched.
-
-Safety risks: ClinVar assertions must not become PP5/BP6 or automatic PS1/PM5.
-Same codon must not be treated as same amino acid. Nearby residue must not be
-treated as PM5 without explicit review. Transcript/protein mismatch and disease
-context mismatch must block or downgrade to limitation/review question.
-
-Expected deliverables: structured candidate `PS1`/`PM5` review notes,
-provenance-rich source matching, context mismatch limitations, report separation
-from applied evidence, batch/CLI/MCP coverage, and focused tests showing no
-candidate leakage into classification.
-
-Release gate expectations: full pytest pass, benchmark/smoke preservation,
-explicit combiner diff review showing no combiner change, candidate leakage
-check, report wording review, and limitations update.
-
-### 2. Manual Reviewed Evidence Workflow
+### 1. Manual Reviewed Evidence Workflow
 
 Goal: add a controlled way for a human reviewer to supply explicitly reviewed
 ACMG evidence items without confusing them with machine-suggested candidate
@@ -111,11 +94,11 @@ Release gate expectations: pytest pass, combiner unchanged unless explicitly
 reviewed, applied/candidate separation tests, report wording safety check, and
 documentation of allowed reviewer responsibilities.
 
-### 3. Literature Review Workflow
+### 2. Literature Suggested Evidence Review Workflow
 
 Goal: improve the literature agent as a review workflow for PS3/BS3, PS2/PM6,
-PP1/PS4/PP4, PM3, and PS1/PM5 suggestions while keeping all literature-derived
-evidence review-required and candidate-only by default.
+PP1/PS4/PP4, PM3, and PS1/PM5-related suggestions while keeping all
+literature-derived evidence review-required and candidate-only by default.
 
 Why it matters: literature evidence is high-value but high-risk. It requires
 variant matching, disease matching, assay validity, family/trio context,
@@ -138,6 +121,31 @@ showing literature output remains candidate-only.
 Release gate expectations: no automatic literature-applied evidence, no
 combiner changes, pytest pass, candidate leakage check, report wording review,
 and updated literature limitations.
+
+### 3. VCEP Profile Framework
+
+Goal: design and then implement an explicit profile framework for
+disease/gene-specific rule settings without hard-coding VCEP behavior into
+generic ACMG logic.
+
+Why it matters: disease-specific thresholds and VCEP rules are essential for
+real interpretation, but they are high-risk because generic automation can
+become overconfident when context is incomplete.
+
+Architecture impact: likely touches configuration, schemas, evidence generator
+inputs, provenance, and documentation. It should be introduced behind explicit
+profile selection and should not silently change default behavior.
+
+Safety risks: accidental default VCEP profile activation, mixing profiles
+between diseases, threshold misuse, and unreviewed rule overrides.
+
+Expected deliverables: design document first, profile schema, explicit profile
+selection, provenance for profile version, tests for missing/mismatched profile
+context, and no default clinical profile activation.
+
+Release gate expectations: design review before implementation, pytest pass,
+benchmark cases for profile off/on behavior, limitations update, and explicit
+combiner impact review.
 
 ### 4. Benchmark Expansion
 
@@ -211,30 +219,6 @@ report tests, and documentation showing parity with English safety sections.
 Release gate expectations: report wording safety review by a qualified reader,
 pytest pass, smoke report generation, and no changes to evidence logic or the
 combiner.
-
-### 7. VCEP Profile System
-
-Goal: design a future profile system for disease/gene-specific rule settings
-without hard-coding VCEP behavior into generic ACMG logic.
-
-Why it matters: disease-specific thresholds and VCEP rules are essential for
-real interpretation, but they are high-risk because generic automation can
-become overconfident when context is incomplete.
-
-Architecture impact: likely touches configuration, schemas, evidence generator
-inputs, provenance, and documentation. It should be introduced behind explicit
-profile selection and should not silently change default behavior.
-
-Safety risks: accidental default VCEP profile activation, mixing profiles
-between diseases, threshold misuse, and unreviewed rule overrides.
-
-Expected deliverables: design document first, profile schema, explicit profile
-selection, provenance for profile version, tests for missing/mismatched profile
-context, and no default clinical profile activation.
-
-Release gate expectations: design review before implementation, pytest pass,
-benchmark cases for profile off/on behavior, limitations update, and explicit
-combiner impact review.
 
 ## Tasks Not Appropriate For The Current Stage
 

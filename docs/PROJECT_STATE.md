@@ -5,6 +5,9 @@ Rater. It records the current software posture, implemented capabilities,
 architectural safety boundaries, known limitations, and release-test baseline so
 future Codex work starts from the same map instead of redesigning the system.
 
+For the current applied evidence generation status review, see
+`docs/APPLIED_EVIDENCE_STATUS.md`.
+
 ## Current Version State
 
 The current working expectation is that day-to-day project work occurs from the
@@ -105,6 +108,8 @@ The current applied evidence generation surface includes:
 - `PM2_Supporting`
 - `PP3`
 - `BP4`
+- `PS1`
+- `PM5`
 
 These are generated before the classification combiner runs. The combiner
 remains isolated: it combines only the evidence it receives and should not be
@@ -117,6 +122,10 @@ Population evidence is constrained by disease-specific thresholds, source
 quality, ancestry/population context, genome build, allele number and coverage,
 and context consistency. Computational PP3/BP4 is consensus-based,
 supporting-only, and blocked by conflicts or inappropriate variant contexts.
+ClinVar-derived PS1/PM5 is implemented as a conservative comparator workflow
+that requires high-quality non-conflicting germline P/LP comparators, protein
+and nucleotide distinction, transcript/protein match, disease/condition match,
+and context consistency. ClinVar assertions do not become PP5/BP6 evidence.
 
 ## Candidate / Review-Note Evidence Currently Implemented
 
@@ -128,7 +137,9 @@ The current candidate/review-note surface includes:
 - `PS2` / `PM6` suggestions.
 - `PP1` / `PS4` / `PP4` suggestions.
 - `PM3` suggestions.
-- `PS1` / `PM5` suggestions.
+- `PS1` / `PM5` candidate-only fallbacks when comparator, context, condition,
+  transcript/protein, nucleotide-distinction, or ClinVar quality gates are
+  insufficient for applied evidence.
 
 These items are intentionally outside the classification combiner. They may
 guide human review, report questions, benchmark expectations, or future
