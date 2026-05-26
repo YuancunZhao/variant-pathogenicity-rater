@@ -64,6 +64,11 @@ class EvidenceReportEntry(SchemaModel):
     computational_quality_checks: list[dict[str, Any]] = Field(default_factory=list)
     computational_conflict_reasons: list[str] = Field(default_factory=list)
     computational_consensus_direction: str | None = None
+    ps1_pm5_decision_path: list[str] = Field(default_factory=list)
+    ps1_pm5_quality_checks: list[dict[str, Any]] = Field(default_factory=list)
+    ps1_pm5_blocking_reasons: list[str] = Field(default_factory=list)
+    ps1_pm5_downgrade_reasons: list[str] = Field(default_factory=list)
+    ps1_pm5_review_note: str | None = None
 
 
 class VariantReportSummary(SchemaModel):

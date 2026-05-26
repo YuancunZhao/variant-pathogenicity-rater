@@ -52,6 +52,27 @@ computational evidence from missense predictors. Such calls are retained only as
 candidate/review-note evidence or limitations so LoF mechanisms are not double
 counted through PP3.
 
+## ClinVar-Derived PS1/PM5 Layer
+
+ClinVar-derived PS1/PM5 generation lives in
+`variant_pathogenicity_rater.ps1_pm5`. It uses ClinVar only as a comparator
+source for previously asserted pathogenic/likely pathogenic variants; ClinVar
+assertions do not become PP5/BP6 evidence.
+
+Applied PS1 requires a same amino acid change caused by a confirmed different
+nucleotide/genomic change, matched transcript/protein context, matched disease
+condition, high-quality non-conflicting germline ClinVar P/LP comparator, and
+preserved provenance. Applied PM5 requires a different missense change at the
+same residue under the same context and quality gates.
+
+Missing or unparseable protein consequence, low-quality ClinVar assertion,
+unresolved nucleotide difference, transcript/protein uncertainty, or provider
+gaps keep output candidate-only. ClinVar conflicts, condition mismatch, context
+conflicts, somatic-only assertions, and same-variant comparisons block applied
+PS1/PM5.
+
+See [PS1_PM5_AUTOMATION.md](PS1_PM5_AUTOMATION.md).
+
 ## Source Priority
 
 LoF mechanism priority is manual/context override, local curated table, optional online resolver with cache and provenance, then unknown. ClinVar P/LP assertions are not used as LoF mechanism evidence.
@@ -63,6 +84,9 @@ LoF mechanism priority is manual/context override, local curated table, optional
 - All PVS1 evidence requires manual review.
 - All generated population evidence requires manual review.
 - All generated computational evidence requires manual review.
+- All generated PS1/PM5 evidence requires manual review.
+- ClinVar assertions alone do not trigger PP5/BP6.
+- ClinVar conflicts and condition mismatch block applied PS1/PM5.
 - PP3/BP4 remain supporting-only and cannot be applied from one predictor.
 - PP3 and BP4 cannot both be applied from computational predictions.
 - SpliceAI cannot trigger PS3, BS3, or PVS1.

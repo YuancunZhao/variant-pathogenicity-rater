@@ -42,6 +42,7 @@ class ClinVarQuery(SchemaModel):
     alt: str | None = None
     genome_build: str | None = None
     condition: str | None = None
+    include_gene_comparators: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -78,6 +79,8 @@ class ClinVarQuery(SchemaModel):
 
     def normalized_keys(self) -> set[str]:
         keys: set[str] = set()
+        if self.gene and self.include_gene_comparators:
+            keys.add(f"gene:{self.gene.upper()}")
         if self.gene and self.hgvs_c:
             keys.add(f"gene_hgvs_c:{self.gene.upper()}:{self.hgvs_c}")
         if self.gene and self.hgvs_p:
@@ -178,9 +181,22 @@ def parse_clinvar_record(
     attach_provenance_to_source(source, provenance)
     conditions = list(raw_record.get("conditions") or [])
     condition = raw_record.get("condition") or ("; ".join(conditions) if conditions else None)
+    genomic = raw_record.get("genomic") or {}
+    hgvs_c = raw_record.get("hgvs_c") or (query.hgvs_c if query else None)
+    hgvs_p = raw_record.get("hgvs_p") or (query.hgvs_p if query else None)
     return ClinVarRecord(
         source=source,
         variation_id=str(raw_record["variation_id"]) if raw_record.get("variation_id") else None,
+        gene_symbol=raw_record.get("gene") or (query.gene if query else None),
+        transcript=raw_record.get("transcript") or _transcript_from_hgvs_c(hgvs_c),
+        hgvs_c=hgvs_c,
+        hgvs_p=hgvs_p,
+        protein_change=raw_record.get("protein_change") or hgvs_p,
+        chromosome=raw_record.get("chromosome") or genomic.get("chromosome"),
+        position=raw_record.get("position") or genomic.get("position"),
+        ref=raw_record.get("ref") or genomic.get("ref"),
+        alt=raw_record.get("alt") or genomic.get("alt"),
+        genome_build=raw_record.get("genome_build") or genomic.get("genome_build"),
         clinical_significance=str(raw_record.get("clinical_significance", "not provided")),
         review_status=raw_record.get("review_status"),
         review_stars=_review_stars(raw_record.get("review_status")),
@@ -399,6 +415,8 @@ def clinvar_limitations(
 def _record_keys(raw_record: dict[str, Any]) -> set[str]:
     keys: set[str] = set()
     gene = raw_record.get("gene")
+    if gene:
+        keys.add(f"gene:{str(gene).upper()}")
     if gene and raw_record.get("hgvs_c"):
         keys.add(f"gene_hgvs_c:{str(gene).upper()}:{raw_record['hgvs_c']}")
     if gene and raw_record.get("hgvs_p"):
@@ -418,6 +436,12 @@ def _record_keys(raw_record: dict[str, Any]) -> set[str]:
             f"{str(genomic['alt']).upper()}"
         )
     return keys
+
+
+def _transcript_from_hgvs_c(value: str | None) -> str | None:
+    if not value or ":" not in value:
+        return None
+    return value.split(":", 1)[0]
 
 
 def _parse_date(value: Any) -> date | None:

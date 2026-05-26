@@ -11,6 +11,7 @@ from variant_pathogenicity_rater.annotation import GenericTableAdapter, select_t
 from variant_pathogenicity_rater.acmg.combiner import classify_acmg
 from variant_pathogenicity_rater.acmg.computational_rules import evaluate_computational_predictions
 from variant_pathogenicity_rater.pvs1 import generate_pvs1_evidence
+from variant_pathogenicity_rater.ps1_pm5 import generate_ps1_pm5_evidence
 from variant_pathogenicity_rater.population import generate_population_evidence
 from variant_pathogenicity_rater.context_consistency import evaluate_context_consistency
 from variant_pathogenicity_rater.config.thresholds import (
@@ -285,6 +286,34 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             context_consistency.model_dump_json()
         )
 
+    if clinvar_records and options.get("include_ps1_pm5", True):
+        ps1_pm5_result = _run_step(
+            "evaluate_ps1_pm5_evidence",
+            audit_trail,
+            limitations,
+            lambda: generate_ps1_pm5_evidence(
+                variant=normalized_variant,
+                context=context,
+                clinvar_records=clinvar_records,
+                context_consistency=context_consistency,
+                provider_provenance={"source_record_count": len(clinvar_records)},
+            ),
+        )
+        if ps1_pm5_result is not None:
+            ps1_pm5_items, ps1_pm5_decisions = ps1_pm5_result
+            evidence_items.extend(ps1_pm5_items)
+            for decision in ps1_pm5_decisions:
+                limitations.extend(decision.limitations)
+                limitations.extend(decision.blocking_reasons)
+            step_results["evaluate_ps1_pm5_evidence"] = {
+                "decisions": [
+                    decision.model_dump(mode="json") for decision in ps1_pm5_decisions
+                ],
+                "evidence_items": [
+                    json.loads(item.model_dump_json()) for item in ps1_pm5_items
+                ],
+            }
+
     step_results["combine_all_evidence"] = {
         "evidence_item_count": len(evidence_items),
         "evidence_ids": [item.evidence_id for item in evidence_items],
@@ -447,6 +476,7 @@ def _normalization_payload(arguments: dict[str, Any]) -> dict[str, Any]:
 def _clinvar_query(variant: Variant, context: GeneDiseaseContext) -> ClinVarQuery:
     query = ClinVarQuery.from_variant(variant)
     query.condition = context.disease_name
+    query.include_gene_comparators = True
     return query
 
 

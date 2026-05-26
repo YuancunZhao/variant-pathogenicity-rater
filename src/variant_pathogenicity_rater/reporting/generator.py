@@ -162,6 +162,8 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
     pvs1_decision = item.supporting_data.get("pvs1_decision") or {}
     population_decision = item.supporting_data.get("population_evidence_decision") or {}
     computational_decision = item.supporting_data.get("computational_evidence_decision") or {}
+    ps1_pm5_decision = item.supporting_data.get("ps1_pm5_decision") or {}
+    ps1_pm5_generation = item.supporting_data.get("evidence_generation") or {}
     return EvidenceReportEntry(
         evidence_id=item.evidence_id,
         code=str(item.code),
@@ -188,6 +190,11 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         computational_quality_checks=list(item.supporting_data.get("quality_checks") or computational_decision.get("quality_checks") or []),
         computational_conflict_reasons=list(item.supporting_data.get("conflict_reasons") or computational_decision.get("conflict_reasons") or []),
         computational_consensus_direction=str(item.supporting_data.get("consensus_direction") or computational_decision.get("consensus_direction") or "") or None,
+        ps1_pm5_decision_path=list(ps1_pm5_generation.get("decision_path") or []),
+        ps1_pm5_quality_checks=list(ps1_pm5_decision.get("quality_checks") or []),
+        ps1_pm5_blocking_reasons=list(ps1_pm5_decision.get("blocking_reasons") or []),
+        ps1_pm5_downgrade_reasons=list(ps1_pm5_decision.get("downgrade_reasons") or []),
+        ps1_pm5_review_note=item.supporting_data.get("review_note"),
     )
 
 
@@ -417,6 +424,16 @@ def _evidence_chain_lines(
                     lines.append("  - Computational quality checks: " + _population_quality_fragment(entry.computational_quality_checks))
                 if entry.computational_conflict_reasons:
                     lines.append("  - Computational conflicts: " + "; ".join(entry.computational_conflict_reasons))
+                if entry.ps1_pm5_review_note:
+                    lines.append("  - PS1/PM5 review note: " + entry.ps1_pm5_review_note)
+                if entry.ps1_pm5_decision_path:
+                    lines.append("  - PS1/PM5 decision path: " + " | ".join(entry.ps1_pm5_decision_path))
+                if entry.ps1_pm5_quality_checks:
+                    lines.append("  - PS1/PM5 quality checks: " + _population_quality_fragment(entry.ps1_pm5_quality_checks))
+                if entry.ps1_pm5_downgrade_reasons:
+                    lines.append("  - PS1/PM5 downgrade reasons: " + "; ".join(entry.ps1_pm5_downgrade_reasons))
+                if entry.ps1_pm5_blocking_reasons:
+                    lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
     lines.extend(["", "## Candidate / Review-Note Evidence", f"- {CANDIDATE_EVIDENCE_CAUTION}"])
     if not summary.candidate_acmg_evidence:
         lines.append("- No candidate-only ACMG evidence items were supplied.")
@@ -458,6 +475,16 @@ def _evidence_chain_lines(
                 lines.append("  - Computational quality checks: " + _population_quality_fragment(entry.computational_quality_checks))
             if entry.computational_conflict_reasons:
                 lines.append("  - Computational conflicts: " + "; ".join(entry.computational_conflict_reasons))
+            if entry.ps1_pm5_review_note:
+                lines.append("  - PS1/PM5 review note: " + entry.ps1_pm5_review_note)
+            if entry.ps1_pm5_decision_path:
+                lines.append("  - PS1/PM5 decision path: " + " | ".join(entry.ps1_pm5_decision_path))
+            if entry.ps1_pm5_quality_checks:
+                lines.append("  - PS1/PM5 quality checks: " + _population_quality_fragment(entry.ps1_pm5_quality_checks))
+            if entry.ps1_pm5_downgrade_reasons:
+                lines.append("  - PS1/PM5 downgrade reasons: " + "; ".join(entry.ps1_pm5_downgrade_reasons))
+            if entry.ps1_pm5_blocking_reasons:
+                lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
     return lines
 
 

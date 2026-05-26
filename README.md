@@ -3,7 +3,7 @@
 Current version: v0.2.0-beta internal test release.
 
 Codex Plugin plus MCP server framework for SNV/small indel ACMG variant interpretation tools.
-This phase implements an offline, mock-backed end-to-end `rate_variant` workflow: normalization, population frequency retrieval and BA1/BS1/PM2 evaluation, computational PP3/BP4 evaluation, PVS1 evaluation, ClinVar review-note retrieval, literature review-note retrieval, ACMG classification combining, and report generation. v0.2.0-beta adds noisy input hardening, context consistency checks, report usability refinements, CLI and MCP batch workflows, real-world annotated batch ingestion, per-record provenance, failed-record preservation, stricter schema validation, and release-readiness documentation around the existing safety boundaries.
+This phase implements an offline, mock-backed end-to-end `rate_variant` workflow: normalization, population frequency retrieval and BA1/BS1/PM2 evaluation, computational PP3/BP4 evaluation, PVS1 evaluation, conservative ClinVar-derived PS1/PM5 comparator evaluation, ClinVar review-note retrieval, literature review-note retrieval, ACMG classification combining, and report generation. v0.2.0-beta adds noisy input hardening, context consistency checks, report usability refinements, CLI and MCP batch workflows, real-world annotated batch ingestion, per-record provenance, failed-record preservation, stricter schema validation, and release-readiness documentation around the existing safety boundaries.
 
 All conclusions are machine proposals and always require qualified human review. The default workflow does not use the network.
 
@@ -97,6 +97,15 @@ conflicts or insufficient predictors remain candidate-only. SpliceAI is not
 functional evidence or RNA validation and cannot trigger PS3, BS3, or PVS1. See
 [docs/COMPUTATIONAL_EVIDENCE_AUTOMATION.md](docs/COMPUTATIONAL_EVIDENCE_AUTOMATION.md).
 
+ClinVar-derived PS1/PM5 evidence is generated only through strict comparator
+checks. PS1 requires the same amino acid change from a confirmed different
+nucleotide change; PM5 requires a different pathogenic missense change at the
+same residue. Both require matched disease condition, matched transcript/protein
+context, high-quality non-conflicting germline ClinVar P/LP comparator records,
+provenance, and human review. ClinVar assertions alone do not trigger PP5/BP6 or
+determine classification. See
+[docs/PS1_PM5_AUTOMATION.md](docs/PS1_PM5_AUTOMATION.md).
+
 ## Reports
 
 `generate_report` renders an existing `ClassificationResult` as markdown,
@@ -114,12 +123,14 @@ Reports separate:
 - data sources/provenance
 - limitations and safety notes
 
-ClinVar and literature notes remain candidate/review-note evidence unless they
-already appear as applied evidence in the supplied result. SpliceAI is described
-as computational splice prediction only, not functional evidence. Transcript
-selection and context consistency are review context and are not counted by the
-classification combiner. VUS reports use conservative wording and do not imply
-that the variant is likely pathogenic.
+ClinVar and literature notes remain candidate/review-note evidence unless a
+separate conservative generator has already emitted applied evidence in the
+supplied result. ClinVar-derived PS1/PM5 is labeled as comparator-based,
+review-required, and not PP5. SpliceAI is described as computational splice
+prediction only, not functional evidence. Transcript selection and context
+consistency are review context and are not counted by the classification
+combiner. VUS reports use conservative wording and do not imply that the variant
+is likely pathogenic.
 
 See [docs/REPORTING.md](docs/REPORTING.md) for section definitions, JSON keys,
 batch summary fields, and safety wording.
@@ -239,7 +250,7 @@ Example:
 printf '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"query_clinvar","arguments":{"query":{"gene":"BRCA1","hgvs_c":"NM_007294.4:c.68_69delAG"}}}}\n' | .venv/bin/python mcp-server/server.py
 ```
 
-The response includes `clinvar_records`, `candidate_evidence_items`, `review_flags`, and `limitations`. ClinVar P/LP assertions with higher review status are emitted only as candidate review notes for possible PS1/PM5/PP5 consideration. Benign/likely benign assertions are emitted as benign candidate notes. PP5 and BP6 are not automatically applied, and conflicting interpretations are blocking manual-review flags.
+The response includes `clinvar_records`, `candidate_evidence_items`, `review_flags`, and `limitations`. ClinVar P/LP assertions with higher review status are emitted as candidate review notes for possible PS1/PM5/PP5 consideration. In the integrated `rate_variant` workflow, a separate PS1/PM5 comparator generator may emit review-required PS1/PM5 only after strict protein, nucleotide, transcript/protein, condition, quality, conflict, and provenance gates pass. Benign/likely benign assertions are emitted as benign candidate notes. PP5 and BP6 are not automatically applied, and conflicting interpretations are blocking manual-review flags.
 
 Optional ClinVar online mode is documented in `docs/CLINVAR_PROVIDER.md`. It is disabled by default, requires both `mode=online` and `online_enabled=true`, and still emits ClinVar assertions only as candidate/review-note evidence rather than applied ACMG criteria.
 

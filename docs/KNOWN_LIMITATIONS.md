@@ -20,10 +20,16 @@ replace qualified clinical, laboratory, or genetics professional review.
 
 ## Evidence Boundaries
 
-- ClinVar assertions are candidate/review-note only. They do not directly apply
-  ACMG criteria and do not trigger PP5/BP6.
-- ClinVar candidate records can flag possible PS1/PM5-style review questions,
-  but independent variant/protein-level assessment is required.
+- ClinVar assertions do not directly apply PP5/BP6 and cannot determine
+  classification by themselves.
+- ClinVar-derived PS1/PM5 can be emitted only after independent comparator
+  checks for protein consequence, nucleotide difference, transcript/protein
+  context, disease/condition match, assertion quality, conflicts, germline
+  applicability, and provenance. All generated PS1/PM5 requires review.
+- ClinVar-derived PS1/PM5 remains limited by local protein parsing, conservative
+  term-overlap condition matching, incomplete online ClinVar HGVS fields, lack
+  of ontology/transcript mapping services, and no automatic VCEP-specific rule
+  profiles.
 - Literature-derived PS3, BS3, PS2, PM6, PP1, PS4, and PP4 hints are
   candidate-only and are not applied as strong evidence in this release.
 - Computational PP3/BP4 automation is consensus-based and supporting-only. A

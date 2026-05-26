@@ -120,6 +120,16 @@ class ComputationalPrediction(SchemaModel):
 class ClinVarRecord(SchemaModel):
     source: EvidenceSource
     variation_id: str | None = None
+    gene_symbol: str | None = None
+    transcript: str | None = None
+    hgvs_c: str | None = None
+    hgvs_p: str | None = None
+    protein_change: str | None = None
+    chromosome: str | None = None
+    position: int | None = Field(default=None, ge=1)
+    ref: str | None = None
+    alt: str | None = None
+    genome_build: str | None = None
     clinical_significance: str = Field(..., min_length=1)
     review_status: str | None = None
     review_stars: int | None = Field(default=None, ge=0, le=4)
