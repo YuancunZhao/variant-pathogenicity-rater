@@ -32,6 +32,9 @@ replace qualified clinical, laboratory, or genetics professional review.
   profiles.
 - Literature-derived PS3, BS3, PS2, PM6, PP1, PS4, and PP4 hints are
   candidate-only and are not applied as strong evidence in this release.
+- Manual reviewed evidence can apply curator-confirmed ACMG evidence, but only
+  from explicit `reviewed_applied` records with curator rationale and
+  provenance. Candidate evidence is never promoted silently.
 - Computational PP3/BP4 automation is consensus-based and supporting-only. A
   single predictor, conflicting predictors, ambiguous calls, transcript mismatch,
   genome-build mismatch, or inappropriate consequence keeps evidence

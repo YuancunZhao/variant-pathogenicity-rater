@@ -1071,6 +1071,72 @@ def _evidence_item_schema() -> dict[str, Any]:
     }
 
 
+def _reviewed_evidence_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "source_candidate_evidence_id": {"type": ["string", "null"]},
+            "acmg_code": {"type": "string", "enum": _evidence_code_values()},
+            "strength": {
+                "type": "string",
+                "enum": ["stand_alone", "very_strong", "strong", "moderate", "supporting", "none"],
+            },
+            "direction": {
+                "type": "string",
+                "enum": ["pathogenic", "benign", "neutral", "conflicting"],
+            },
+            "curator_decision": {"type": "string"},
+            "curator_name": {"type": ["string", "null"]},
+            "review_date": {"type": "string"},
+            "rationale": {"type": "string"},
+            "citation": {"type": ["string", "null"]},
+            "provenance": _open_object_schema("Curator-supplied provenance."),
+            "override_reason": {"type": ["string", "null"]},
+            "evidence_status": {
+                "type": "string",
+                "enum": ["reviewed_applied", "reviewed_rejected", "needs_more_info"],
+            },
+            "audit_trail": {"type": "array", "items": _audit_trail_schema()},
+        },
+        "required": [
+            "acmg_code",
+            "strength",
+            "direction",
+            "curator_decision",
+            "review_date",
+            "rationale",
+            "evidence_status",
+        ],
+        "additionalProperties": False,
+    }
+
+
+def _reviewed_evidence_array_schema() -> dict[str, Any]:
+    return {"type": "array", "items": _reviewed_evidence_schema()}
+
+
+def _reviewed_evidence_batch_map_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "records": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "input_index": {"type": "integer", "minimum": 0},
+                        "reviewed_evidence": _reviewed_evidence_array_schema(),
+                    },
+                    "required": ["input_index", "reviewed_evidence"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["records"],
+        "additionalProperties": False,
+    }
+
+
 def _classification_result_schema(description: str | None = None) -> dict[str, Any]:
     schema: dict[str, Any] = {
         "type": "object",
@@ -1186,6 +1252,7 @@ def _pipeline_options_schema() -> dict[str, Any]:
             },
             "mock_supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
             "supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
+            "reviewed_evidence": _reviewed_evidence_array_schema(),
             "gene_disease_context": _gene_disease_context_schema(),
         },
         "additionalProperties": False,
@@ -1214,6 +1281,7 @@ def _variant_input_schema() -> dict[str, Any]:
             "inheritance": {"type": ["string", "null"]},
             "phenotype": _string_array_schema(),
             "phenotype_terms": _string_array_schema(),
+            "reviewed_evidence": _reviewed_evidence_array_schema(),
             "options": _pipeline_options_schema(),
         },
         "additionalProperties": False,
@@ -1236,6 +1304,7 @@ def _batch_variant_record_schema() -> dict[str, Any]:
             "inheritance": {"type": ["string", "null"]},
             "phenotype": _string_array_schema(),
             "phenotype_terms": _string_array_schema(),
+            "reviewed_evidence": _reviewed_evidence_array_schema(),
             "options": _pipeline_options_schema(),
         },
         "additionalProperties": True,
@@ -1260,6 +1329,7 @@ def _batch_options_schema() -> dict[str, Any]:
                 "enum": ["json", "jsonl", "csv", "tsv", "vcf", "vcf_like"],
             },
             "options": _pipeline_options_schema(),
+            "reviewed_evidence": _reviewed_evidence_batch_map_schema(),
         },
         "anyOf": [
             {"required": ["records"]},
@@ -1300,6 +1370,7 @@ def _annotated_variants_input_schema() -> dict[str, Any]:
             "gene_disease_context": _gene_disease_context_schema(),
             "context": _gene_disease_context_schema(),
             "options": _pipeline_options_schema(),
+            "reviewed_evidence": _reviewed_evidence_batch_map_schema(),
         },
         "anyOf": [
             {"required": ["records"]},

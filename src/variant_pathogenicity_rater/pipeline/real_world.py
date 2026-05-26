@@ -120,6 +120,7 @@ def run_annotation_batch_workflow(arguments: dict[str, Any]) -> dict[str, Any]:
         options=dict(arguments.get("options") or {}),
         context=_context(arguments),
     )
+    _attach_reviewed_evidence_by_index(converted["records"], arguments.get("reviewed_evidence"))
     batch = rate_variant_batch(
         {
             "batch_id": arguments.get("batch_id"),
@@ -142,6 +143,23 @@ def run_annotation_batch_workflow(arguments: dict[str, Any]) -> dict[str, Any]:
         "notice": "Human review is required. This framework does not provide a final clinical assertion.",
     }
     return merged
+
+
+def _attach_reviewed_evidence_by_index(records: list[dict[str, Any]], reviewed_payload: Any) -> None:
+    if not isinstance(reviewed_payload, dict):
+        return
+    reviewed_records = reviewed_payload.get("records")
+    if not isinstance(reviewed_records, list):
+        return
+    by_index = {
+        item.get("input_index"): item.get("reviewed_evidence")
+        for item in reviewed_records
+        if isinstance(item, dict) and "input_index" in item
+    }
+    for record in records:
+        index = record.get("_annotation_input_index")
+        if index in by_index:
+            record["reviewed_evidence"] = by_index[index]
 
 
 def _parse_annotation_input(

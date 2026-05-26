@@ -164,6 +164,7 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
     computational_decision = item.supporting_data.get("computational_evidence_decision") or {}
     ps1_pm5_decision = item.supporting_data.get("ps1_pm5_decision") or {}
     ps1_pm5_generation = item.supporting_data.get("evidence_generation") or {}
+    reviewed = item.supporting_data.get("reviewed_evidence") or {}
     return EvidenceReportEntry(
         evidence_id=item.evidence_id,
         code=str(item.code),
@@ -195,6 +196,16 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         ps1_pm5_blocking_reasons=list(ps1_pm5_decision.get("blocking_reasons") or []),
         ps1_pm5_downgrade_reasons=list(ps1_pm5_decision.get("downgrade_reasons") or []),
         ps1_pm5_review_note=item.supporting_data.get("review_note"),
+        curator_decision=item.supporting_data.get("curator_decision") or reviewed.get("curator_decision"),
+        curator_name=item.supporting_data.get("curator_name") or reviewed.get("curator_name"),
+        review_date=item.supporting_data.get("review_date") or reviewed.get("review_date"),
+        override_reason=item.supporting_data.get("override_reason") or reviewed.get("override_reason"),
+        source_candidate_evidence_id=(
+            item.supporting_data.get("source_candidate_evidence_id")
+            or reviewed.get("source_candidate_evidence_id")
+        ),
+        reviewed_evidence_status=item.supporting_data.get("evidence_status") or reviewed.get("evidence_status"),
+        reviewed_provenance=item.supporting_data.get("provenance") or reviewed.get("provenance"),
     )
 
 
@@ -345,6 +356,7 @@ def _text_content(
     lines.extend(_context_consistency_lines(summary))
 
     lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
+    lines.extend(_manual_reviewed_evidence_section(summary))
     lines.extend(_conflicting_evidence_lines(summary))
 
     lines.extend(["", "## Limitations"])
@@ -403,6 +415,7 @@ def _evidence_chain_lines(
             if include_details:
                 lines.append(f"  - Confidence: {entry.confidence:.2f}")
                 lines.append(f"  - Requires review: {str(entry.requires_review).lower()}")
+                lines.extend(_manual_review_lines(entry))
                 if entry.triggered_by:
                     lines.append(f"  - Triggered by: {', '.join(entry.triggered_by)}")
                 if entry.pvs1_decision_path:
@@ -448,6 +461,7 @@ def _evidence_chain_lines(
         if include_details:
             lines.append(f"  - Confidence: {entry.confidence:.2f}")
             lines.append("  - Status: candidate/review-note only; not used in classification")
+            lines.extend(_manual_review_lines(entry))
             if entry.citation:
                 lines.append(f"  - Citation: {entry.citation}")
             if entry.provenance:
@@ -485,6 +499,54 @@ def _evidence_chain_lines(
                 lines.append("  - PS1/PM5 downgrade reasons: " + "; ".join(entry.ps1_pm5_downgrade_reasons))
             if entry.ps1_pm5_blocking_reasons:
                 lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
+    return lines
+
+
+def _manual_review_lines(entry: EvidenceReportEntry) -> list[str]:
+    if entry.source != "manual_reviewed_evidence" and not entry.curator_decision:
+        return []
+    lines = ["  - Manual reviewed evidence: true"]
+    if entry.reviewed_evidence_status:
+        lines.append(f"  - Reviewed evidence status: {entry.reviewed_evidence_status}")
+    if entry.curator_decision:
+        lines.append(f"  - Curator decision: {entry.curator_decision}")
+    if entry.curator_name:
+        lines.append(f"  - Curator: {entry.curator_name}")
+    if entry.review_date:
+        lines.append(f"  - Review date: {entry.review_date}")
+    if entry.source_candidate_evidence_id:
+        lines.append(f"  - Source candidate evidence ID: {entry.source_candidate_evidence_id}")
+    if entry.override_reason:
+        lines.append(f"  - Override reason: {entry.override_reason}")
+    return lines
+
+
+def _manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str]:
+    entries = [
+        *summary.triggered_acmg_evidence,
+        *summary.candidate_acmg_evidence,
+    ]
+    reviewed_entries = [
+        entry
+        for entry in entries
+        if entry.source == "manual_reviewed_evidence" or entry.curator_decision
+    ]
+    if not reviewed_entries:
+        return []
+    lines = [
+        "",
+        "## Manual Reviewed Evidence",
+        "- These records reflect explicit curator decisions; rejected and needs-more-info records are not counted by the classification combiner.",
+    ]
+    for entry in reviewed_entries:
+        lines.append(
+            f"- {entry.evidence_id}: {entry.code} / {entry.reviewed_evidence_status or 'reviewed'}; "
+            f"rationale: {entry.rationale}"
+        )
+        if entry.curator_decision:
+            lines.append(f"  - Curator decision: {entry.curator_decision}")
+        if entry.source_candidate_evidence_id:
+            lines.append(f"  - Source candidate evidence ID: {entry.source_candidate_evidence_id}")
     return lines
 
 

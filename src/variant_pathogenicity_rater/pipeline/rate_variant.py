@@ -32,6 +32,7 @@ from variant_pathogenicity_rater.evidence.clinvar import ClinVarQuery
 from variant_pathogenicity_rater.evidence.literature import (
     extract_literature_evidence,
 )
+from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
@@ -58,6 +59,8 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     evidence_items: list[EvidenceItem] = []
     step_results: dict[str, Any] = {}
     context_consistency: ContextConsistency | None = None
+    reviewed_evidence_records: list[dict[str, Any]] = []
+    reviewed_review_flags: list[ReviewFlag] = []
 
     normalized_variant: Variant | None = None
     normalization_result = _run_step(
@@ -314,6 +317,33 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 ],
             }
 
+    reviewed_payload = _reviewed_evidence_payload(arguments, options, limitations)
+    reviewed_result = _run_step(
+        "process_reviewed_evidence",
+        audit_trail,
+        limitations,
+        lambda: process_reviewed_evidence(reviewed_payload, evidence_items, normalized_variant),
+    )
+    if reviewed_result is not None:
+        evidence_items.extend(reviewed_result.applied_items)
+        evidence_items.extend(reviewed_result.review_note_items)
+        limitations.extend(reviewed_result.limitations)
+        reviewed_review_flags = list(reviewed_result.review_flags)
+        reviewed_evidence_records = list(reviewed_result.reviewed_evidence_records)
+        step_results["process_reviewed_evidence"] = {
+            "reviewed_evidence_records": reviewed_evidence_records,
+            "applied_items": [
+                json.loads(item.model_dump_json()) for item in reviewed_result.applied_items
+            ],
+            "review_note_items": [
+                json.loads(item.model_dump_json()) for item in reviewed_result.review_note_items
+            ],
+            "review_flags": [
+                json.loads(flag.model_dump_json()) for flag in reviewed_result.review_flags
+            ],
+            "limitations": reviewed_result.limitations,
+        }
+
     step_results["combine_all_evidence"] = {
         "evidence_item_count": len(evidence_items),
         "evidence_ids": [item.evidence_id for item in evidence_items],
@@ -340,6 +370,10 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 *classification_result.review_flags,
                 *_review_flags_from_context_consistency(context_consistency),
             ]
+        )
+    if reviewed_review_flags:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *reviewed_review_flags]
         )
     step_results["classify_acmg"] = json.loads(classification_result.model_dump_json())
     applied_evidence = _applied_evidence_items(evidence_items)
@@ -392,6 +426,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "review_note_evidence": [
             json.loads(item.model_dump_json()) for item in review_note_evidence
         ],
+        "reviewed_evidence": reviewed_evidence_records,
         "final_classification": classification_result.final_classification,
         "transcript_selection": (
             json.loads(transcript_selection.model_dump_json())
@@ -451,6 +486,7 @@ def _normalization_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     else:
         payload = dict(arguments)
         payload.pop("options", None)
+        payload.pop("reviewed_evidence", None)
 
     aliases = {
         "gene": "gene_symbol",
@@ -523,6 +559,23 @@ def _options(arguments: dict[str, Any]) -> dict[str, Any]:
     options = dict(arguments.get("options") or {})
     options.setdefault("mock_mode", True)
     return options
+
+
+def _reviewed_evidence_payload(
+    arguments: dict[str, Any],
+    options: dict[str, Any],
+    limitations: list[str],
+) -> Any:
+    top_level_present = "reviewed_evidence" in arguments
+    option_present = "reviewed_evidence" in options
+    if top_level_present and option_present:
+        limitations.append(
+            "Both top-level reviewed_evidence and options.reviewed_evidence were supplied; "
+            "top-level reviewed_evidence was used."
+        )
+    if top_level_present:
+        return arguments.get("reviewed_evidence")
+    return options.get("reviewed_evidence")
 
 
 def _population_fixtures(options: dict[str, Any]) -> dict[str, Any] | None:

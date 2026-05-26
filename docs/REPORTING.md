@@ -24,6 +24,8 @@ same safety-oriented section model:
   applied in the supplied classification result.
 - `Candidate / Review-Note Evidence`: ClinVar, literature, and other candidate
   items that require manual evaluation and were not counted by the combiner.
+- `Manual Reviewed Evidence`: explicit curator-reviewed records, including
+  rejected and needs-more-info decisions that were not counted.
 - `Conflicting Evidence`: supplied conflict summaries and prominent ClinVar
   conflict warnings.
 - `Limitations`: limitations carried from pipeline and providers.
@@ -54,6 +56,9 @@ compatibility.
 - VUS wording is conservative: a VUS is not described as leaning pathogenic or
   benign.
 - Candidate evidence is always labeled as candidate/review-note only.
+- Manual reviewed evidence is labeled with curator decision, review date,
+  rationale, provenance, override reason, and source candidate evidence ID when
+  supplied.
 - `EvidenceItem.candidate_only` and `EvidenceItem.applied` mirror the existing
   `supporting_data.candidate_only`, `supporting_data.evidence_status`, and
   `supporting_data.applied` flags so candidate/review-note evidence is labeled

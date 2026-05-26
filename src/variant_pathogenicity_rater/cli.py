@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     rate = subparsers.add_parser("rate", help="Rate a single SNV/small indel variant.")
     _add_variant_arguments(rate)
     rate.add_argument("--output", choices=["json", "markdown"], default="json")
+    rate.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
     rate.set_defaults(handler=_cmd_rate)
 
     batch = subparsers.add_parser("batch", help="Rate a batch of variants.")
@@ -62,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     batch.add_argument("--output", help="Optional output file path.")
     batch.add_argument("--output-format", choices=["json", "jsonl"], default="json")
+    batch.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
     batch.add_argument(
         "--continue-on-error",
         dest="continue_on_error",
@@ -84,6 +86,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     annotated.add_argument("--output", help="Optional output file path.")
     annotated.add_argument("--output-format", choices=["json", "jsonl"], default="json")
+    annotated.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
     annotated.add_argument(
         "--include-report",
         action="store_true",
@@ -112,6 +115,8 @@ def _add_variant_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _cmd_rate(args: argparse.Namespace) -> int:
     payload = _variant_payload_from_args(args)
+    if args.reviewed_evidence:
+        payload["reviewed_evidence"] = _single_reviewed_evidence_payload(args.reviewed_evidence)
     payload["options"] = {"mock_mode": True}
     result = rate_variant(payload)
     if args.output == "markdown":
@@ -126,13 +131,14 @@ def _cmd_rate(args: argparse.Namespace) -> int:
 
 def _cmd_batch(args: argparse.Namespace) -> int:
     input_text = _read_text(Path(args.input))
-    result = rate_variant_batch(
-        {
-            "input_format": _batch_format(args.format),
-            "input_text": input_text,
-            "options": {"mock_mode": True},
-        }
-    )
+    payload = {
+        "input_format": _batch_format(args.format),
+        "input_text": input_text,
+        "options": {"mock_mode": True},
+    }
+    if args.reviewed_evidence:
+        payload["reviewed_evidence"] = _load_json_file(args.reviewed_evidence)
+    result = rate_variant_batch(payload)
     _write_result(result, args.output, args.output_format)
     if result.get("failed", 0):
         print(
@@ -152,6 +158,11 @@ def _cmd_annotated_batch(args: argparse.Namespace) -> int:
             "input_text": input_text,
             "source_version": "cli-input",
             "options": {"mock_mode": True},
+            **(
+                {"reviewed_evidence": _load_json_file(args.reviewed_evidence)}
+                if args.reviewed_evidence
+                else {}
+            ),
         }
     )
     if args.include_report:
@@ -388,6 +399,26 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
         raise CliError(f"cannot read input file {path}: {exc}", exit_code=2) from exc
+
+
+def _load_json_file(path_value: str) -> Any:
+    path = Path(path_value)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise CliError(f"cannot read reviewed evidence file {path}: {exc}", exit_code=2) from exc
+    except json.JSONDecodeError as exc:
+        raise CliError(f"reviewed evidence file is not valid JSON: {exc}", exit_code=2) from exc
+
+
+def _single_reviewed_evidence_payload(path_value: str) -> Any:
+    payload = _load_json_file(path_value)
+    if isinstance(payload, dict) and "records" in payload:
+        raise CliError(
+            "single-variant --reviewed-evidence expects an array or an object with reviewed_evidence.",
+            exit_code=2,
+        )
+    return payload.get("reviewed_evidence") if isinstance(payload, dict) else payload
 
 
 def _batch_format(value: str) -> str:

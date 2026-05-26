@@ -26,6 +26,12 @@ Current automatic applied evidence generation supports:
 All generated applied evidence requires qualified human review and must retain
 provenance, decision paths, limitations, and safety-gate results.
 
+Manual reviewed evidence is also supported as an explicit curator-supplied
+workflow. It is not automatic evidence generation: only records with
+`evidence_status=reviewed_applied` are converted into applied `EvidenceItem`
+objects, while `reviewed_rejected` and `needs_more_info` records remain
+review-note evidence.
+
 ## Evidence-Specific Status
 
 ### PVS1
@@ -180,8 +186,8 @@ The following are not implemented as automatic applied evidence:
   default.
 
 Literature and ClinVar review-note workflows may surface suggestions related to
-these criteria, but suggestions remain candidate-only unless a future
-human-reviewed workflow explicitly supplies applied evidence under strict
+these criteria, but suggestions remain candidate-only unless the manual
+reviewed evidence workflow explicitly supplies applied evidence under strict
 validation.
 
 ## Remaining Risks

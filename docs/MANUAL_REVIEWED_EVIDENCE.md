@@ -1,0 +1,111 @@
+# Manual Reviewed Evidence
+
+Manual reviewed evidence is the explicit human-review workflow for applying
+ACMG evidence that the system cannot safely apply automatically. It is not
+automatic literature evidence and it does not promote candidate evidence unless
+a curator supplies a `reviewed_applied` record.
+
+The classification combiner is unchanged. Reviewed-applied records are
+validated, converted into normal `EvidenceItem` records, and then passed to the
+existing combiner with all other applied evidence.
+
+## Schema
+
+Each reviewed evidence record contains:
+
+- `source_candidate_evidence_id`: optional candidate/review-note evidence ID
+  retained for traceability.
+- `acmg_code`: ACMG criterion such as `PS3`, `PP1`, or `BS3`.
+- `strength`: `stand_alone`, `very_strong`, `strong`, `moderate`,
+  `supporting`, or `none`.
+- `direction`: `pathogenic` or `benign` for applied records.
+- `curator_decision`: explicit curator decision text.
+- `curator_name`: optional reviewer name.
+- `review_date`: review date.
+- `rationale`: curator rationale shown in reports.
+- `citation`: optional citation.
+- `provenance`: curator/source provenance object.
+- `override_reason`: optional reason for applying evidence beyond a candidate
+  suggestion.
+- `evidence_status`: `reviewed_applied`, `reviewed_rejected`, or
+  `needs_more_info`.
+- `audit_trail`: optional audit events.
+
+`reviewed_applied` requires a non-empty rationale, review date, curator
+decision, and either citation or provenance. Applied records cannot use
+`strength=none`, `direction=neutral`, or `direction=conflicting`.
+
+## Inputs
+
+Python API:
+
+```python
+from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
+
+result = rate_variant({
+    "gene": "BRCA1",
+    "hgvs_c": "NM_007294.4:c.68A>G",
+    "reviewed_evidence": [
+        {
+            "acmg_code": "PS3",
+            "strength": "strong",
+            "direction": "pathogenic",
+            "curator_decision": "Apply PS3 after assay review.",
+            "review_date": "2026-05-26",
+            "rationale": "Validated functional assay supports damaging effect.",
+            "citation": "PMID:123456",
+            "provenance": {"review_system": "local-curation"},
+            "evidence_status": "reviewed_applied"
+        }
+    ]
+})
+```
+
+CLI:
+
+```bash
+vpr rate --gene BRCA1 --hgvs-c NM_007294.4:c.68A\>G \
+  --reviewed-evidence examples/reviewed_evidence.json
+```
+
+Batch reviewed evidence is mapped by `input_index`:
+
+```json
+{
+  "records": [
+    {
+      "input_index": 0,
+      "reviewed_evidence": [
+        {
+          "acmg_code": "PP1",
+          "strength": "supporting",
+          "direction": "pathogenic",
+          "curator_decision": "Apply PP1 after segregation review.",
+          "review_date": "2026-05-26",
+          "rationale": "Segregation evidence reviewed by curator.",
+          "provenance": {"family_review": "local"},
+          "evidence_status": "reviewed_applied"
+        }
+      ]
+    }
+  ]
+}
+```
+
+MCP `rate_variant` accepts a top-level `reviewed_evidence` array. MCP
+`rate_variant_batch` and `rate_annotated_variants` accept the batch mapping
+shape above.
+
+## Safety Behavior
+
+- Candidate evidence is never changed in place.
+- `source_candidate_evidence_id` is only a trace link.
+- Rejected and needs-more-info records are retained as review-note evidence and
+  are not counted.
+- Invalid reviewed evidence is rejected with limitations and review flags.
+- Conflicting reviewed evidence adds blocking review flags and is still handled
+  by the existing combiner conflict behavior.
+- Reports show curator rationale, decision, review date, provenance, and source
+  candidate evidence ID where supplied.
+
+All outputs remain machine proposals and require qualified human review.

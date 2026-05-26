@@ -89,6 +89,14 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
         "additionalProperties"
     ] is False
     assert schemas["rate_variant_batch"]["additionalProperties"] is False
+    assert "reviewed_evidence" in schemas["rate_variant"]["properties"]
+    assert "reviewed_evidence" in schemas["rate_variant_batch"]["properties"]
+    assert (
+        schemas["rate_variant"]["properties"]["reviewed_evidence"]["items"]["properties"][
+            "evidence_status"
+        ]["enum"]
+        == ["reviewed_applied", "reviewed_rejected", "needs_more_info"]
+    )
 
 
 def test_mcp_unknown_extra_field_is_rejected_with_structured_error() -> None:

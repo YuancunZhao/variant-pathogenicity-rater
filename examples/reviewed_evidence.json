@@ -1,0 +1,76 @@
+{
+  "reviewed_evidence": [
+    {
+      "source_candidate_evidence_id": "ev-candidate-ps3-literature-001",
+      "acmg_code": "PS3",
+      "strength": "strong",
+      "direction": "pathogenic",
+      "curator_decision": "Apply PS3 after manual functional-assay review.",
+      "curator_name": "Example Curator",
+      "review_date": "2026-05-26",
+      "rationale": "The curator confirmed that the cited functional assay is validated for the disease mechanism and variant context.",
+      "citation": "PMID:12345678",
+      "provenance": {
+        "review_system": "manual-curation-example",
+        "source_document": "functional-assay-review"
+      },
+      "override_reason": "Candidate PS3 was manually confirmed by curator review.",
+      "evidence_status": "reviewed_applied",
+      "audit_trail": []
+    },
+    {
+      "source_candidate_evidence_id": null,
+      "acmg_code": "PP1",
+      "strength": "supporting",
+      "direction": "pathogenic",
+      "curator_decision": "Apply PP1 after segregation review.",
+      "curator_name": "Example Curator",
+      "review_date": "2026-05-26",
+      "rationale": "The curator reviewed family structure, affected status, and segregation consistency.",
+      "citation": null,
+      "provenance": {
+        "review_system": "manual-curation-example",
+        "source_document": "segregation-review"
+      },
+      "override_reason": null,
+      "evidence_status": "reviewed_applied",
+      "audit_trail": []
+    },
+    {
+      "source_candidate_evidence_id": "ev-candidate-bs3-literature-002",
+      "acmg_code": "BS3",
+      "strength": "strong",
+      "direction": "benign",
+      "curator_decision": "Reject BS3 application.",
+      "curator_name": "Example Curator",
+      "review_date": "2026-05-26",
+      "rationale": "The assay did not match the disease mechanism closely enough for BS3 application.",
+      "citation": "PMID:23456789",
+      "provenance": {
+        "review_system": "manual-curation-example",
+        "source_document": "functional-assay-review"
+      },
+      "override_reason": null,
+      "evidence_status": "reviewed_rejected",
+      "audit_trail": []
+    },
+    {
+      "source_candidate_evidence_id": "ev-candidate-ps4-literature-003",
+      "acmg_code": "PS4",
+      "strength": "strong",
+      "direction": "pathogenic",
+      "curator_decision": "More information is needed before applying PS4.",
+      "curator_name": "Example Curator",
+      "review_date": "2026-05-26",
+      "rationale": "Case-control design, ancestry matching, and duplicate-case handling were not sufficiently documented.",
+      "citation": "PMID:34567890",
+      "provenance": {
+        "review_system": "manual-curation-example",
+        "source_document": "case-control-review"
+      },
+      "override_reason": null,
+      "evidence_status": "needs_more_info",
+      "audit_trail": []
+    }
+  ]
+}

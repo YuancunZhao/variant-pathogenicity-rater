@@ -44,6 +44,13 @@ Markdown report output:
 vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown
 ```
 
+Manual reviewed evidence can be supplied explicitly:
+
+```bash
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G \
+  --reviewed-evidence examples/reviewed_evidence.json
+```
+
 ## Batch Variants
 
 Supported input formats are `json`, `jsonl`, `csv`, `tsv`, and `vcf-like`.
@@ -53,6 +60,13 @@ Supported output formats are `json` and `jsonl`.
 vpr batch --input variants.jsonl --format jsonl
 vpr batch --input variants.tsv --format tsv --output result.json
 vpr batch --input variants.vcf.tsv --format vcf-like --output-format jsonl
+```
+
+Batch reviewed evidence uses a JSON file with `records` entries keyed by
+`input_index`; it is not silently applied to every record:
+
+```bash
+vpr batch --input variants.jsonl --format jsonl --reviewed-evidence reviewed-batch.json
 ```
 
 Per-record errors are preserved in `failed_records` and summarized with
@@ -75,6 +89,9 @@ vpr annotated-batch --input vep.tsv --source vep --include-report
 vpr annotated-batch --input annovar.tsv --source annovar --output annovar-results.json
 vpr annotated-batch --input csq.tsv --source bcftools --output-format jsonl
 ```
+
+`annotated-batch` also accepts `--reviewed-evidence` using the same
+`input_index` mapping shape as batch mode.
 
 `--include-report` copies report text from each classification result into the
 per-record batch result when available.

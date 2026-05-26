@@ -106,6 +106,9 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
             continue
 
         record = _with_default_options(parsed_record.record, arguments.get("options"))
+        reviewed = _reviewed_evidence_for_record(arguments, output_index)
+        if reviewed is not None and "reviewed_evidence" not in record:
+            record["reviewed_evidence"] = reviewed
         try:
             pipeline_result = rate_variant(record)
         except Exception as exc:  # noqa: BLE001 - one failed record must not fail the batch.
@@ -417,6 +420,21 @@ def _with_default_options(record: dict[str, Any], batch_options: Any) -> dict[st
     options.setdefault("mock_mode", True)
     payload["options"] = options
     return payload
+
+
+def _reviewed_evidence_for_record(arguments: dict[str, Any], output_index: int) -> Any:
+    reviewed = arguments.get("reviewed_evidence")
+    if not isinstance(reviewed, dict):
+        return None
+    records = reviewed.get("records")
+    if not isinstance(records, list):
+        return None
+    for item in records:
+        if not isinstance(item, dict):
+            continue
+        if item.get("input_index") == output_index:
+            return item.get("reviewed_evidence")
+    return None
 
 
 def _preflight_error(record: dict[str, Any]) -> BatchRecordError | None:

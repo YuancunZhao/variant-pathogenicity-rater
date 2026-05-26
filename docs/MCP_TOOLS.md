@@ -49,6 +49,11 @@ last-exon/NMD fields, transcript, source, and audit trail.
 format, report mode, language, genome build, variant type, zygosity, and review
 flag severity are enumerated in the MCP schema.
 
+`ReviewedEvidence` requires `acmg_code`, `strength`, `direction`,
+`curator_decision`, `review_date`, `rationale`, and `evidence_status`.
+Allowed statuses are `reviewed_applied`, `reviewed_rejected`, and
+`needs_more_info`.
+
 ## Flexible Fields
 
 The following fields deliberately remain flexible because they wrap mock or
@@ -88,13 +93,17 @@ Required input: one supported normalization shape:
 
 Optional top-level fields: normalization fields, `gene_disease_context`,
 `context`, `disease`, `inheritance`, `phenotype`, `phenotype_terms`, and
-`options`.
+`reviewed_evidence`.
 
 `options` supports `mock_mode`, include toggles, `data_sources`,
 `population_frequency`, `population_thresholds`, `computational_predictions`,
 `computational_thresholds`, `clinvar_records`, `literature_records`,
 `mock_supplemental_evidence_items`, `supplemental_evidence_items`, and
-`gene_disease_context`.
+`reviewed_evidence`, and `gene_disease_context`.
+
+Top-level `reviewed_evidence` is an explicit curator-reviewed evidence array.
+Only `reviewed_applied` records can be converted into applied ACMG evidence
+before the existing combiner runs.
 
 Output includes normalized variant, classification result, evidence items,
 final classification, report, limitations, human review status, audit trail, and
@@ -138,8 +147,13 @@ Optional input:
 - `batch_id`: caller-supplied batch identifier.
 - `options`: default options merged into each record before it is sent to the
   existing `rate_variant` pipeline.
+- `reviewed_evidence`: batch mapping object with `records[]` entries containing
+  `input_index` and per-record `reviewed_evidence`.
 
 Each record may use the same flat variant fields accepted by `rate_variant`.
+Each record may also include its own `reviewed_evidence` array. Batch-level
+reviewed evidence is mapped by `input_index` and is not silently applied to
+every record.
 Batch mode does not change ACMG logic, does not merge evidence across variants,
 and does not relax safety rules. Malformed records, unsupported CNV/SV/repeat
 records, symbolic VCF alleles, multi-allelic ALT values, normalization failures,
@@ -167,6 +181,7 @@ Optional input:
 - `gene_disease_context` or `context`: optional context copied into generated
   batch records.
 - `options`: default options merged into each generated `rate_variant` record.
+- `reviewed_evidence`: batch mapping object keyed by annotation `input_index`.
 
 The tool parses real annotation rows into batch `rate_variant` records, then
 runs the existing batch pipeline. Annotation is descriptive only: it may provide

@@ -69,6 +69,13 @@ class EvidenceReportEntry(SchemaModel):
     ps1_pm5_blocking_reasons: list[str] = Field(default_factory=list)
     ps1_pm5_downgrade_reasons: list[str] = Field(default_factory=list)
     ps1_pm5_review_note: str | None = None
+    curator_decision: str | None = None
+    curator_name: str | None = None
+    review_date: str | None = None
+    override_reason: str | None = None
+    source_candidate_evidence_id: str | None = None
+    reviewed_evidence_status: str | None = None
+    reviewed_provenance: Any | None = None
 
 
 class VariantReportSummary(SchemaModel):
