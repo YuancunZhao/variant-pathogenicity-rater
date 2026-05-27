@@ -61,9 +61,10 @@ records with curator decision, rationale, provenance, and audit trail.
 - MCP tool: `query_clingen_erepo`.
 - Report section: `ClinGen Evidence Repository Match`.
 
-Future disease-specific rule-profile work should link to
-`docs/VCEP_PROFILE_FRAMEWORK.md` when that framework exists. ERepo integration
-does not activate VCEP profiles.
+Disease-specific rule-profile work is documented in
+`docs/VCEP_SIGNAL_OVERRIDE_FRAMEWORK.md` and `docs/RULE_KNOWLEDGE_BASE.md`.
+ERepo integration still does not activate VCEP profiles, and ERepo exact
+variant matches remain review notes rather than applied evidence.
 
 ## Current Next Step
 

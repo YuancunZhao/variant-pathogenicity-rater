@@ -61,6 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--clingen-erepo-local-file",
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
+    _add_vcep_arguments(rate)
     rate.set_defaults(handler=_cmd_rate)
 
     batch = subparsers.add_parser("batch", help="Rate a batch of variants.")
@@ -83,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--clingen-erepo-local-file",
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
+    _add_vcep_arguments(batch)
     batch.add_argument(
         "--continue-on-error",
         dest="continue_on_error",
@@ -146,6 +148,27 @@ def _add_variant_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--alt")
     parser.add_argument("--disease")
     parser.add_argument("--inheritance")
+
+
+def _add_vcep_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--include-vcep-signals",
+        action="store_true",
+        help="Include local VCEP profile signal lookup as review context.",
+    )
+    parser.add_argument(
+        "--apply-vcep-overrides",
+        action="store_true",
+        help="Apply approved, explicit, limited VCEP profile generator overrides.",
+    )
+    parser.add_argument(
+        "--vcep-profile-file",
+        help="Local VCEP profile JSON or JSONL file.",
+    )
+    parser.add_argument(
+        "--vcep-kb-dir",
+        help="Local VCEP knowledge base directory containing disease_profiles/rule_overrides/vcep_signals.",
+    )
 
 
 def _cmd_rate(args: argparse.Namespace) -> int:
@@ -304,6 +327,17 @@ def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
                 }
             }
         }
+    if getattr(args, "include_vcep_signals", False):
+        options["include_vcep_signals"] = True
+    if getattr(args, "apply_vcep_overrides", False):
+        options["include_vcep_signals"] = True
+        options["apply_vcep_overrides"] = True
+    if getattr(args, "vcep_profile_file", None):
+        options["include_vcep_signals"] = True
+        options["vcep_profile_file"] = args.vcep_profile_file
+    if getattr(args, "vcep_kb_dir", None):
+        options["include_vcep_signals"] = True
+        options["vcep_kb_dir"] = args.vcep_kb_dir
     return options
 
 

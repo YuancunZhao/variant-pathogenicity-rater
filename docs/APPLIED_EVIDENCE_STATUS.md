@@ -212,10 +212,12 @@ The following are not implemented as automatic applied evidence:
   zygosity, allelic series context, and manual review.
 - `PP4`: requires highly specific phenotype context and expert disease review.
 - BA1/BS1 disease-specific refinements beyond the current configurable
-  threshold gates: future work should add explicit profile/version provenance
-  before disease-specific refinements are expanded.
-- VCEP-specific profiles: not implemented. No VCEP profile is activated by
-  default.
+  threshold gates require explicit VCEP/profile provenance before use.
+- VCEP-specific full reasoning is not implemented. No VCEP profile is activated
+  by default. A lightweight VCEP signal/override framework is available for
+  local, explicitly enabled profile signals and limited safe generator-parameter
+  overrides; it is not a full VCEP reasoning engine and does not change the
+  combiner.
 
 Literature and ClinVar review-note workflows may surface suggestions related to
 these criteria, but suggestions remain candidate-only unless the manual

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from typing import Any
+
 from pydantic import Field
 
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag, SchemaModel
@@ -35,4 +37,5 @@ class ClassificationResult(SchemaModel):
     review_flags: list[ReviewFlag] = Field(default_factory=list)
     transcript_selection: TranscriptSelection | None = None
     context_consistency: ContextConsistency | None = None
+    vcep_profile_context: dict[str, Any] | None = None
     audit_trail: list[AuditTrail] = Field(default_factory=list)

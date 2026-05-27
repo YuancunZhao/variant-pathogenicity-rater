@@ -155,6 +155,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
         review_flags=result.review_flags,
         transcript_selection=result.transcript_selection,
         context_consistency=result.context_consistency,
+        vcep_profile_context=result.vcep_profile_context,
     )
 
 
@@ -212,6 +213,11 @@ def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
         clingen_erepo_record=clingen_record if isinstance(clingen_record, dict) else None,
         clingen_erepo_criteria=list(item.supporting_data.get("criteria_applied") or []),
         clingen_erepo_summaries=list(item.supporting_data.get("evidence_summaries") or []),
+        vcep_override=(
+            item.supporting_data.get("vcep_override")
+            if isinstance(item.supporting_data.get("vcep_override"), dict)
+            else None
+        ),
     )
 
 
@@ -287,6 +293,7 @@ def _json_content(
                 if item.get("source") == "ClinGen Evidence Repository"
             ],
         },
+        "vcep_profile": summary.vcep_profile_context,
         "evidence": {
             "pathogenic": summary.pathogenic_evidence_summary,
             "benign": summary.benign_evidence_summary,
@@ -369,6 +376,7 @@ def _text_content(
     lines.extend(_transcript_selection_lines(summary))
     lines.extend(_context_consistency_lines(summary))
     lines.extend(_clingen_erepo_section(summary))
+    lines.extend(_vcep_profile_section(summary))
 
     lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
     lines.extend(_manual_reviewed_evidence_section(summary))
@@ -462,6 +470,8 @@ def _evidence_chain_lines(
                     lines.append("  - PS1/PM5 downgrade reasons: " + "; ".join(entry.ps1_pm5_downgrade_reasons))
                 if entry.ps1_pm5_blocking_reasons:
                     lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
+                if entry.vcep_override:
+                    lines.append("  - VCEP override: " + _vcep_override_fragment(entry.vcep_override))
     lines.extend(["", "## Candidate / Review-Note Evidence", f"- {CANDIDATE_EVIDENCE_CAUTION}"])
     if not summary.candidate_acmg_evidence:
         lines.append("- No candidate-only ACMG evidence items were supplied.")
@@ -514,6 +524,50 @@ def _evidence_chain_lines(
                 lines.append("  - PS1/PM5 downgrade reasons: " + "; ".join(entry.ps1_pm5_downgrade_reasons))
             if entry.ps1_pm5_blocking_reasons:
                 lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
+            if entry.vcep_override:
+                lines.append("  - VCEP override: " + _vcep_override_fragment(entry.vcep_override))
+    return lines
+
+
+def _vcep_profile_section(summary: VariantReportSummary) -> list[str]:
+    payload = summary.vcep_profile_context
+    if not payload:
+        return []
+    lines = [
+        "",
+        "## VCEP Signal / Rule Profile",
+        "- VCEP profile signals are review context only. Signal presence alone was not counted as ACMG evidence and did not change the classification.",
+    ]
+    matches = payload.get("matches") or []
+    if not matches:
+        lines.append("- No matching VCEP profile was identified.")
+    for match in matches:
+        profile = match.get("profile") or {}
+        lines.append(
+            f"- {profile.get('profile_id') or 'profile'}: {profile.get('vcep_name') or 'VCEP not provided'}; "
+            f"status: {profile.get('status') or 'not provided'}; "
+            f"version: {profile.get('version') or 'not provided'}; "
+            f"match level: {match.get('match_level') or 'not provided'}"
+        )
+        if profile.get("source"):
+            lines.append(f"  - Source: {profile['source']}")
+        if profile.get("citations"):
+            lines.append("  - Citations: " + ", ".join(str(item) for item in profile["citations"]))
+        if match.get("override_blocking_reasons"):
+            lines.append("  - Override blocking reasons: " + "; ".join(str(item) for item in match["override_blocking_reasons"]))
+    override = payload.get("override_context") or {}
+    if override:
+        lines.append(f"- Overrides explicitly enabled: {str(override.get('override_enabled', False)).lower()}")
+        lines.append(f"- Overrides applied: {str(override.get('override_applied', False)).lower()}")
+        if override.get("blocked_reasons"):
+            lines.append("- Blocked override reasons: " + "; ".join(str(item) for item in override["blocked_reasons"]))
+        active = override.get("active_profile") or {}
+        if active:
+            lines.append(f"- Active profile: {active.get('profile_id')} / {active.get('version')}")
+        if override.get("disabled_criteria"):
+            lines.append("- Disabled criteria: " + ", ".join(str(item) for item in override["disabled_criteria"]))
+    if payload.get("limitations"):
+        lines.append("- Limitations: " + "; ".join(str(item) for item in payload["limitations"]))
     return lines
 
 
@@ -716,6 +770,19 @@ def _data_source_lines(
 
 def _json_fragment(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True, sort_keys=True)
+
+
+def _vcep_override_fragment(value: dict[str, Any]) -> str:
+    profile = value.get("profile") or {}
+    notes = value.get("notes") or []
+    parts = [
+        f"profile={profile.get('profile_id') or 'not provided'}",
+        f"version={profile.get('version') or 'not provided'}",
+        f"applied_to_item={str(value.get('override_applied_to_item', False)).lower()}",
+    ]
+    if notes:
+        parts.append("notes=" + "; ".join(str(item) for item in notes))
+    return "; ".join(parts)
 
 
 def _population_quality_fragment(checks: list[dict[str, Any]]) -> str:

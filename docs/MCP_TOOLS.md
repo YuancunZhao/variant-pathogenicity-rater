@@ -63,6 +63,8 @@ source-specific payloads:
 
 - `rate_variant.options.clinvar_records[]`: raw mock ClinVar records.
 - `rate_variant.options.literature_records[]`: raw mock literature records.
+- `rate_variant.options.vcep_profile_records[]`: local VCEP signal/profile
+  records for the lightweight signal/override framework.
 - `EvidenceSource.query`: provider query metadata.
 - `EvidenceSource.provenance`: source-specific provenance payload.
 - `EvidenceItem.supporting_data`: evidence-specific supporting data.
@@ -100,8 +102,14 @@ Optional top-level fields: normalization fields, `gene_disease_context`,
 `options` supports `mock_mode`, include toggles, `data_sources`,
 `population_frequency`, `population_thresholds`, `computational_predictions`,
 `computational_thresholds`, `clinvar_records`, `literature_records`,
-`mock_supplemental_evidence_items`, `supplemental_evidence_items`, and
-`reviewed_evidence`, and `gene_disease_context`.
+`mock_supplemental_evidence_items`, `supplemental_evidence_items`,
+`reviewed_evidence`, `gene_disease_context`, and VCEP profile options
+`include_vcep_signals`, `apply_vcep_overrides`, `vcep_profile_records`,
+`vcep_profile_file`, and `vcep_kb_dir`.
+
+VCEP profile signals are review context only. Approved overrides require
+`apply_vcep_overrides=true`, remain limited to existing generator parameters or
+candidate-only downgrades, and do not modify the combiner.
 
 Top-level `reviewed_evidence` is an explicit curator-reviewed evidence array.
 Only `reviewed_applied` records can be converted into applied ACMG evidence

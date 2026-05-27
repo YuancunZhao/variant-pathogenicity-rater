@@ -52,6 +52,20 @@ vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G \
   --reviewed-evidence examples/reviewed_evidence.json
 ```
 
+Local VCEP profile signals and approved limited overrides are explicit options:
+
+```bash
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68_69delAG \
+  --include-vcep-signals --vcep-profile-file knowledge_base/disease_profiles/brca1.json
+
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68_69delAG \
+  --include-vcep-signals --apply-vcep-overrides --vcep-kb-dir knowledge_base
+```
+
+VCEP signals are review context only. Overrides require an approved,
+non-conflicting profile and `--apply-vcep-overrides`; they do not modify the
+combiner.
+
 ## Batch Variants
 
 Supported input formats are `json`, `jsonl`, `csv`, `tsv`, and `vcf-like`.

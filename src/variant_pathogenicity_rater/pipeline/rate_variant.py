@@ -56,6 +56,23 @@ from variant_pathogenicity_rater.schemas.evidence import (
 )
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.vcep_profiles import (
+    apply_computational_threshold_overrides,
+    apply_disabled_criteria,
+    apply_population_threshold_overrides,
+    apply_ps1_pm5_overrides,
+    apply_pvs1_overrides,
+    attach_computational_override_note,
+    load_vcep_profiles,
+    override_provenance,
+    resolve_vcep_signal_and_overrides,
+    vcep_override_metadata,
+    vcep_report_payload,
+)
+from variant_pathogenicity_rater.vcep_profiles.schema import (
+    VCEPOverrideContext,
+    VCEPSignalResult,
+)
 
 
 HUMAN_REVIEW_NOTICE = (
@@ -77,6 +94,8 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     context_consistency: ContextConsistency | None = None
     reviewed_evidence_records: list[dict[str, Any]] = []
     reviewed_review_flags: list[ReviewFlag] = []
+    vcep_signal_result: VCEPSignalResult | None = None
+    vcep_override_context: VCEPOverrideContext | None = None
 
     normalized_variant: Variant | None = None
     normalization_result = _run_step(
@@ -94,6 +113,29 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
 
     context = _gene_disease_context(arguments, normalized_variant, limitations, audit_trail)
 
+    if _should_resolve_vcep(options):
+        vcep_profiles, vcep_load_limitations = load_vcep_profiles(options)
+        limitations.extend(vcep_load_limitations)
+        vcep_signal_result, vcep_override_context = _run_step(
+            "resolve_vcep_signal_and_overrides",
+            audit_trail,
+            limitations,
+            lambda: resolve_vcep_signal_and_overrides(
+                profiles=vcep_profiles,
+                variant=normalized_variant,
+                context=context,
+                include_signals=bool(options.get("include_vcep_signals") or options.get("apply_vcep_overrides")),
+                apply_overrides=bool(options.get("apply_vcep_overrides")),
+            ),
+        ) or (None, None)
+        if vcep_signal_result is not None:
+            limitations.extend(vcep_signal_result.limitations)
+            limitations.extend(vcep_signal_result.warnings)
+            step_results["resolve_vcep_signal"] = vcep_signal_result.model_dump(mode="json")
+        if vcep_override_context is not None:
+            limitations.extend(vcep_override_context.blocked_reasons)
+            step_results["resolve_vcep_overrides"] = vcep_override_context.model_dump(mode="json")
+
     transcript_selection: TranscriptSelection | None = None
     annotation_records = _annotation_records(options) if _should_select_transcript(options) else []
     if _should_select_transcript(options):
@@ -110,6 +152,10 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     population_frequency = None
     population_records = []
     population_thresholds = population_thresholds_from_options(options.get("population_thresholds"))
+    population_thresholds = apply_population_threshold_overrides(
+        population_thresholds,
+        vcep_override_context,
+    )
     if options.get("include_population", True):
         population_frequency = _run_step(
             "query_population_frequency",
@@ -163,7 +209,8 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                         population_frequency.source.model_dump(mode="json")
                         if population_frequency.source
                         else None
-                    )
+                    ),
+                    "vcep_override": vcep_override_metadata(vcep_override_context),
                 },
             ),
         )
@@ -197,6 +244,11 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     )
     if pvs1_result is not None:
         pvs1_item, pvs1_decision = pvs1_result
+        pvs1_item, pvs1_decision = apply_pvs1_overrides(
+            pvs1_item,
+            pvs1_decision,
+            vcep_override_context,
+        )
         step_results["evaluate_pvs1"] = {
             "decision": pvs1_decision.model_dump(mode="json"),
             "evidence_item": json.loads(pvs1_item.model_dump_json()) if pvs1_item else None,
@@ -218,10 +270,15 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 annotation=_selected_annotation_for_pvs1(annotation_records, transcript_selection),
                 context_consistency=context_consistency,
                 existing_evidence_items=evidence_items,
+                vcep_override_context=vcep_override_context,
             ),
         )
         if computational_result is not None:
             computational_items, review_flags, summary = computational_result
+            computational_items = attach_computational_override_note(
+                computational_items,
+                vcep_override_context,
+            )
             evidence_items.extend(computational_items)
             decision = summary.get("decision") or {}
             limitations.extend(decision.get("limitations") or [])
@@ -347,6 +404,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         )
         if ps1_pm5_result is not None:
             ps1_pm5_items, ps1_pm5_decisions = ps1_pm5_result
+            ps1_pm5_items = apply_ps1_pm5_overrides(ps1_pm5_items, vcep_override_context)
             evidence_items.extend(ps1_pm5_items)
             for decision in ps1_pm5_decisions:
                 limitations.extend(decision.limitations)
@@ -359,6 +417,13 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                     json.loads(item.model_dump_json()) for item in ps1_pm5_items
                 ],
             }
+
+    if vcep_override_context is not None and vcep_override_context.applied:
+        evidence_items = apply_disabled_criteria(evidence_items, vcep_override_context)
+        step_results["apply_vcep_disabled_criteria"] = {
+            "disabled_criteria": list(vcep_override_context.disabled_criteria),
+            "evidence_items": [json.loads(item.model_dump_json()) for item in evidence_items],
+        }
 
     reviewed_payload = _reviewed_evidence_payload(arguments, options, limitations)
     reviewed_result = _run_step(
@@ -422,6 +487,21 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         classification_result.review_flags = _unique_review_flags(
             [*classification_result.review_flags, *clingen_erepo_result.review_flags]
         )
+    if vcep_signal_result is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *vcep_signal_result.review_flags]
+        )
+    if vcep_override_context is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [
+                *classification_result.review_flags,
+                *vcep_override_context.review_required_flags,
+            ]
+        )
+    classification_result.vcep_profile_context = vcep_report_payload(
+        vcep_signal_result,
+        vcep_override_context,
+    )
     step_results["classify_acmg"] = json.loads(classification_result.model_dump_json())
     applied_evidence = _applied_evidence_items(evidence_items)
     review_note_evidence = _review_note_evidence_items(evidence_items)
@@ -487,6 +567,16 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             if clingen_erepo_result is not None
             else []
         ),
+        "vcep_signal": (
+            vcep_signal_result.model_dump(mode="json")
+            if vcep_signal_result is not None
+            else None
+        ),
+        "vcep_override_context": (
+            vcep_override_context.model_dump(mode="json")
+            if vcep_override_context is not None
+            else None
+        ),
         "final_classification": classification_result.final_classification,
         "transcript_selection": (
             json.loads(transcript_selection.model_dump_json())
@@ -514,6 +604,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             normalization_identity=normalization_identity,
             transcript_selection=transcript_selection,
             context_consistency=context_consistency,
+            vcep_override_context=vcep_override_context,
         ),
         "human_review_required": True,
         "human_review": {"required": True, "notice": HUMAN_REVIEW_NOTICE},
@@ -780,16 +871,22 @@ def _evaluate_computational_step(
     annotation: VariantAnnotation | None = None,
     context_consistency: ContextConsistency | None = None,
     existing_evidence_items: list[EvidenceItem] | None = None,
+    vcep_override_context: VCEPOverrideContext | None = None,
 ) -> tuple[list[EvidenceItem], list[Any], dict[str, Any]]:
     predictions = _computational_predictions(options, variant, data_sources_config)
+    thresholds = computational_thresholds_from_options(options.get("computational_thresholds"))
+    thresholds = apply_computational_threshold_overrides(thresholds, vcep_override_context)
     return evaluate_computational_predictions(
         variant,
         predictions,
-        computational_thresholds_from_options(options.get("computational_thresholds")),
+        thresholds,
         annotation=annotation,
         context_consistency=context_consistency,
         existing_evidence_items=existing_evidence_items or [],
-        provider_provenance={"source_count": len({prediction.source.name for prediction in predictions})},
+        provider_provenance={
+            "source_count": len({prediction.source.name for prediction in predictions}),
+            "vcep_override": vcep_override_metadata(vcep_override_context),
+        },
     )
 
 
@@ -979,6 +1076,7 @@ def _provenance_summary(
     normalization_identity: Any,
     transcript_selection: TranscriptSelection | None,
     context_consistency: ContextConsistency | None,
+    vcep_override_context: VCEPOverrideContext | None = None,
 ) -> dict[str, Any]:
     return {
         "normalization_identity": normalization_identity if isinstance(normalization_identity, dict) else None,
@@ -1001,7 +1099,18 @@ def _provenance_summary(
         "context_consistency": (
             context_consistency.provenance if context_consistency is not None else None
         ),
+        "vcep_override": override_provenance(vcep_override_context),
     }
+
+
+def _should_resolve_vcep(options: dict[str, Any]) -> bool:
+    return bool(
+        options.get("include_vcep_signals")
+        or options.get("apply_vcep_overrides")
+        or options.get("vcep_profile_records")
+        or options.get("vcep_profile_file")
+        or options.get("vcep_kb_dir")
+    )
 
 
 def _review_flags_from_context_consistency(consistency: ContextConsistency) -> list[ReviewFlag]:

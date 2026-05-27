@@ -53,6 +53,8 @@ def generate_population_evidence(
     supporting_data["applied"] = decision.applied
     supporting_data["candidate_only"] = decision.candidate_only
     supporting_data["evidence_status"] = "applied" if decision.applied else "candidate"
+    if isinstance(decision.provenance.get("vcep_override"), dict):
+        supporting_data["vcep_override"] = decision.provenance["vcep_override"]
     item.supporting_data = supporting_data
     item.requires_review = True
     item.applied = decision.applied
@@ -86,4 +88,3 @@ def _quality_summary(decision: PopulationEvidenceDecision) -> str:
     if failed:
         return "passed " + ", ".join(passed) + "; failed " + ", ".join(failed)
     return "passed " + ", ".join(passed)
-

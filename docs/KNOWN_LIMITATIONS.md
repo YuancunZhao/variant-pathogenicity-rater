@@ -55,6 +55,10 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Provider records cannot automatically override user-provided context. A
   provider gene, transcript, condition, ancestry, or genome build mismatch is a
   review flag that must be resolved manually.
+- VCEP profile support is a lightweight signal and limited override framework,
+  not a full VCEP reasoning engine. Signals do not change classification, and
+  approved overrides must be explicitly enabled, traceable, and limited to safe
+  generator parameters or candidate-only downgrades.
 - When disease context is missing, population and PVS1 confidence must not be
   elevated from the missing context. Population evidence remains candidate-only
   under missing disease-specific context, and PVS1 is not applied without

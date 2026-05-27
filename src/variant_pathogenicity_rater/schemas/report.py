@@ -80,6 +80,7 @@ class EvidenceReportEntry(SchemaModel):
     clingen_erepo_record: dict[str, Any] | None = None
     clingen_erepo_criteria: list[dict[str, Any]] = Field(default_factory=list)
     clingen_erepo_summaries: list[dict[str, Any]] = Field(default_factory=list)
+    vcep_override: dict[str, Any] | None = None
 
 
 class VariantReportSummary(SchemaModel):
@@ -105,6 +106,7 @@ class VariantReportSummary(SchemaModel):
     review_flags: list[ReviewFlag] = Field(default_factory=list)
     transcript_selection: TranscriptSelection | None = None
     context_consistency: ContextConsistency | None = None
+    vcep_profile_context: dict[str, Any] | None = None
 
 
 class VariantReport(SchemaModel):

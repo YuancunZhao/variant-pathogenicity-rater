@@ -1237,6 +1237,12 @@ def _classification_result_schema(description: str | None = None) -> dict[str, A
             "review_flags": {"type": "array", "items": _review_flag_schema()},
             "transcript_selection": {"oneOf": [_transcript_selection_schema(), {"type": "null"}]},
             "context_consistency": {"oneOf": [_context_consistency_schema(), {"type": "null"}]},
+            "vcep_profile_context": {
+                "oneOf": [
+                    _open_object_schema("VCEP signal/override report context."),
+                    {"type": "null"},
+                ]
+            },
             "audit_trail": {"type": "array", "items": _audit_trail_schema()},
         },
         "required": ["result_id", "variant", "final_classification", "confidence", "report_text"],
@@ -1298,6 +1304,8 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "include_clinvar": {"type": "boolean"},
             "include_literature": {"type": "boolean"},
             "include_clingen_erepo": {"type": "boolean"},
+            "include_vcep_signals": {"type": "boolean"},
+            "apply_vcep_overrides": {"type": "boolean"},
             "include_transcript_selection": {"type": "boolean"},
             "data_sources": _data_sources_override_schema(),
             "annotations": {
@@ -1344,6 +1352,12 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "clingen_erepo_query": _open_object_schema(
                 "Optional ClinGen ERepo identifier hints such as ca_id or clinvar_variation_id."
             ),
+            "vcep_profile_records": {
+                "type": "array",
+                "items": _open_object_schema("Flexible local VCEP signal/profile record."),
+            },
+            "vcep_profile_file": {"type": "string"},
+            "vcep_kb_dir": {"type": "string"},
             "mock_supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
             "supplemental_evidence_items": {"type": "array", "items": _evidence_item_schema()},
             "reviewed_evidence": _reviewed_evidence_array_schema(),
