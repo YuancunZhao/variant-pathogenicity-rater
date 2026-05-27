@@ -1,0 +1,41 @@
+{
+  "profile_id": "toy-demo-brca1-draft-signal-v1",
+  "gene": "BRCA1",
+  "disease": "Hereditary breast and ovarian cancer syndrome",
+  "inheritance": "autosomal dominant",
+  "vcep_name": "TOY DEMO ONLY BRCA1 Draft Signal VCEP",
+  "source": "TOY PROFILE - TESTING/DEMO ONLY - NOT REAL CLINGEN/VCEP GUIDANCE",
+  "version": "toy-2026-05-27",
+  "status": "draft",
+  "effective_date": "2026-05-27",
+  "citations": ["TOY-TESTING-DEMO-ONLY"],
+  "notes": [
+    "TESTING/DEMO ONLY: draft profile must remain signal-only.",
+    "Not real ClinGen/VCEP guidance and not suitable for production interpretation."
+  ],
+  "applicable_transcripts": [],
+  "rule_signals": [
+    {
+      "criterion": "BA1",
+      "message": "Toy demo draft population signal."
+    }
+  ],
+  "population_threshold_overrides": {
+    "ba1_af_threshold": 0.02
+  },
+  "pvs1_overrides": {},
+  "computational_overrides": {},
+  "ps1_pm5_overrides": {},
+  "disabled_criteria": [],
+  "review_required_flags": [
+    {
+      "code": "TOY_PROFILE_TESTING_DEMO_ONLY",
+      "message": "Toy VCEP profile is for testing/demo only and is not real guidance."
+    }
+  ],
+  "provenance": {
+    "toy_profile": true,
+    "testing_demo_only": true,
+    "purpose": "62_toy_vcep_profile_validation"
+  }
+}

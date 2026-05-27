@@ -1,0 +1,44 @@
+{
+  "profile_id": "toy-demo-braf-computational-strict-v1",
+  "gene": "BRAF",
+  "disease": "Example disease",
+  "inheritance": "autosomal dominant",
+  "vcep_name": "TOY DEMO ONLY BRAF Computational Strict VCEP",
+  "source": "TOY PROFILE - TESTING/DEMO ONLY - NOT REAL CLINGEN/VCEP GUIDANCE",
+  "version": "toy-2026-05-27",
+  "status": "approved",
+  "effective_date": "2026-05-27",
+  "citations": ["TOY-TESTING-DEMO-ONLY"],
+  "notes": [
+    "TESTING/DEMO ONLY: exercises stricter computational threshold notes.",
+    "Not real ClinGen/VCEP guidance and not suitable for production interpretation."
+  ],
+  "applicable_transcripts": [],
+  "rule_signals": [
+    {
+      "criterion": "PP3",
+      "message": "Toy demo stricter computational threshold signal."
+    }
+  ],
+  "population_threshold_overrides": {},
+  "pvs1_overrides": {},
+  "computational_overrides": {
+    "thresholds": {
+      "min_pathogenic_supporting_tools": 4
+    },
+    "note": "Toy demo BRAF profile requires stricter computational review."
+  },
+  "ps1_pm5_overrides": {},
+  "disabled_criteria": [],
+  "review_required_flags": [
+    {
+      "code": "TOY_PROFILE_TESTING_DEMO_ONLY",
+      "message": "Toy VCEP profile is for testing/demo only and is not real guidance."
+    }
+  ],
+  "provenance": {
+    "toy_profile": true,
+    "testing_demo_only": true,
+    "purpose": "62_toy_vcep_profile_validation"
+  }
+}

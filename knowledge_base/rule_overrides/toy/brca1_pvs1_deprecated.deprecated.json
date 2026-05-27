@@ -1,0 +1,41 @@
+{
+  "profile_id": "toy-demo-brca1-deprecated-pvs1-v1",
+  "gene": "BRCA1",
+  "disease": "Hereditary breast and ovarian cancer syndrome",
+  "inheritance": "autosomal dominant",
+  "vcep_name": "TOY DEMO ONLY BRCA1 Deprecated PVS1 VCEP",
+  "source": "TOY PROFILE - TESTING/DEMO ONLY - NOT REAL CLINGEN/VCEP GUIDANCE",
+  "version": "toy-2026-05-27",
+  "status": "deprecated",
+  "effective_date": "2026-05-27",
+  "citations": ["TOY-TESTING-DEMO-ONLY"],
+  "notes": [
+    "TESTING/DEMO ONLY: deprecated profile must create a limitation only.",
+    "Not real ClinGen/VCEP guidance and not suitable for production interpretation."
+  ],
+  "applicable_transcripts": ["NM_007294.4"],
+  "rule_signals": [
+    {
+      "criterion": "PVS1",
+      "message": "Toy demo deprecated PVS1 signal."
+    }
+  ],
+  "population_threshold_overrides": {},
+  "pvs1_overrides": {
+    "disable": true
+  },
+  "computational_overrides": {},
+  "ps1_pm5_overrides": {},
+  "disabled_criteria": [],
+  "review_required_flags": [
+    {
+      "code": "TOY_PROFILE_TESTING_DEMO_ONLY",
+      "message": "Toy VCEP profile is for testing/demo only and is not real guidance."
+    }
+  ],
+  "provenance": {
+    "toy_profile": true,
+    "testing_demo_only": true,
+    "purpose": "62_toy_vcep_profile_validation"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "profile_id": "toy-demo-gene1-ps1-pm5-candidate-v1",
+  "gene": "GENE1",
+  "disease": "Example disease",
+  "inheritance": "autosomal dominant",
+  "vcep_name": "TOY DEMO ONLY GENE1 PS1/PM5 Candidate VCEP",
+  "source": "TOY PROFILE - TESTING/DEMO ONLY - NOT REAL CLINGEN/VCEP GUIDANCE",
+  "version": "toy-2026-05-27",
+  "status": "approved",
+  "effective_date": "2026-05-27",
+  "citations": ["TOY-TESTING-DEMO-ONLY"],
+  "notes": [
+    "TESTING/DEMO ONLY: exercises PS1/PM5 candidate-only override behavior.",
+    "Not real ClinGen/VCEP guidance and not suitable for production interpretation."
+  ],
+  "applicable_transcripts": ["NM_000001.1"],
+  "rule_signals": [
+    {
+      "criterion": "PS1",
+      "message": "Toy demo PS1/PM5 candidate-only signal."
+    }
+  ],
+  "population_threshold_overrides": {},
+  "pvs1_overrides": {},
+  "computational_overrides": {},
+  "ps1_pm5_overrides": {
+    "candidate_only_required": true,
+    "review_note": "Toy demo GENE1 profile requires manual PS1/PM5 review."
+  },
+  "disabled_criteria": [],
+  "review_required_flags": [
+    {
+      "code": "TOY_PROFILE_TESTING_DEMO_ONLY",
+      "message": "Toy VCEP profile is for testing/demo only and is not real guidance."
+    }
+  ],
+  "provenance": {
+    "toy_profile": true,
+    "testing_demo_only": true,
+    "purpose": "62_toy_vcep_profile_validation"
+  }
+}
