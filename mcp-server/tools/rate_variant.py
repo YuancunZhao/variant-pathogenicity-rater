@@ -17,9 +17,8 @@ from variant_pathogenicity_rater.normalization import (  # noqa: E402
     NormalizationError,
     normalize_variant as normalize_variant_service,
 )
-from variant_pathogenicity_rater.evidence.population import (  # noqa: E402
-    MockPopulationFrequencyProvider,
-)
+from variant_pathogenicity_rater.data_sources.config import load_data_sources_config  # noqa: E402
+from variant_pathogenicity_rater.data_sources.providers import build_population_provider  # noqa: E402
 from variant_pathogenicity_rater.evidence.literature import (  # noqa: E402
     extract_literature_evidence as extract_literature_evidence_service,
 )
@@ -364,11 +363,15 @@ async def query_population_frequency(arguments: dict[str, Any]) -> dict[str, Any
             details={"errors": exc.errors()},
         ) from exc
 
-    frequency = MockPopulationFrequencyProvider().query(variant)
+    options = arguments.get("options") if isinstance(arguments.get("options"), dict) else {}
+    data_sources_override = arguments.get("data_sources") or options.get("data_sources")
+    frequency = build_population_provider(
+        load_data_sources_config(overrides=data_sources_override).source("population")
+    ).query(variant)
     return {
         "status": "ok",
         "tool": "query_population_frequency",
-        "stage": "mock_population_frequency_provider",
+        "stage": "population_frequency_provider",
         "population_frequency": json.loads(frequency.model_dump_json()),
         "evidence_items": [],
         "human_review": {
@@ -383,11 +386,15 @@ async def query_population_frequency(arguments: dict[str, Any]) -> dict[str, Any
                     "source": frequency.data_source,
                     "version": frequency.data_version,
                     "offline": True,
+                    "raw_snapshot_ref": frequency.source.raw_snapshot_ref
+                    if frequency.source
+                    else None,
                 }
             ],
             "limitations": [
-                "Offline mock provider only; no external population database was queried.",
+                "Offline provider path; no external population database was queried.",
                 "Population frequency retrieval does not apply ACMG criteria.",
+                *frequency.limitations,
             ],
         },
     }
@@ -1268,6 +1275,9 @@ def _data_sources_override_schema() -> dict[str, Any]:
             "fixture_path": {"type": ["string", "null"]},
             "local_file": {"type": ["string", "null"]},
             "source_version": {"type": ["string", "null"]},
+            "parser_version": {"type": ["string", "null"]},
+            "ttl_seconds": {"type": ["integer", "null"]},
+            "cache_dir": {"type": ["string", "null"]},
             "online_enabled": {"type": "boolean"},
         },
         "additionalProperties": False,
@@ -1548,7 +1558,15 @@ def _query_clingen_erepo_input_schema() -> dict[str, Any]:
 def _population_frequency_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
-        "properties": {"variant": _variant_schema()},
+        "properties": {
+            "variant": _variant_schema(),
+            "data_sources": _data_sources_override_schema(),
+            "options": {
+                "type": "object",
+                "properties": {"data_sources": _data_sources_override_schema()},
+                "additionalProperties": False,
+            },
+        },
         "required": ["variant"],
         "additionalProperties": False,
     }

@@ -371,18 +371,35 @@ class LocalFilePopulationFrequencyProvider(PopulationFrequencyProvider):
 
     def query(self, variant: Variant) -> PopulationFrequency:
         query = _variant_query(variant)
-        entry, _hit = self.cache.get_or_set(
-            provider=self.config.name,
-            mode=self.config.mode,
-            source_version=self.config.source_version,
-            query=query,
-            loader=lambda: _read_json_records(self.config),
-            ttl_seconds=self.config.ttl_seconds,
-        )
+        try:
+            entry, _hit = self.cache.get_or_set(
+                provider=self.config.name,
+                mode=self.config.mode,
+                source_version=self.config.source_version,
+                query=query,
+                loader=lambda: _read_json_records(self.config),
+                ttl_seconds=self.config.ttl_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001 - provider failures become limitations.
+            return _empty_population_frequency(
+                variant=variant,
+                query=query,
+                config=self.config,
+                limitations=[
+                    f"Population local-file query failed: {exc.__class__.__name__}: {exc}",
+                    "Population local-file failure was captured as a limitation; interpretation continued.",
+                    "Provider failure is not evidence of population absence and cannot trigger PM2_Supporting.",
+                    *self.config.limitations,
+                ],
+            )
         query_keys = _population_query_keys(variant)
         mismatched_build = False
+        unsupported_rows = 0
         for raw in entry.payload:
-            if not query_keys.intersection(_population_record_keys(raw)):
+            record_keys, unsupported_reason = _population_record_keys(raw)
+            if unsupported_reason:
+                unsupported_rows += 1
+            if not query_keys.intersection(record_keys):
                 continue
             if _genome_build_mismatch(raw, variant):
                 mismatched_build = True
@@ -396,6 +413,10 @@ class LocalFilePopulationFrequencyProvider(PopulationFrequencyProvider):
             limitations.insert(
                 0,
                 "A local population record matched variant alleles but used a different genome build.",
+            )
+        if unsupported_rows:
+            limitations.append(
+                f"{unsupported_rows} local population record(s) used unsupported symbolic or multiallelic alleles and were ignored."
             )
         return _empty_population_frequency(
             variant=variant,
@@ -818,7 +839,12 @@ def _population_payload(
         raw.get("ancestry"),
         default="global",
     )
-    dataset_version = _first_text(raw.get("dataset_version"), raw.get("data_version"), config.source_version)
+    dataset_version = _first_text(
+        raw.get("source_version"),
+        raw.get("dataset_version"),
+        raw.get("data_version"),
+        config.source_version,
+    )
     source = raw.get("source") if isinstance(raw.get("source"), dict) else {}
     overall_af = _first_float(raw.get("overall_af"), raw.get("af"), raw.get("allele_frequency"))
     max_pop_af = _first_float(raw.get("max_pop_af"), raw.get("max_population_af"))
@@ -909,12 +935,16 @@ def _population_query_keys(variant: Variant) -> set[str]:
     return {key for key in keys if key}
 
 
-def _population_record_keys(raw: dict[str, Any]) -> set[str]:
+def _population_record_keys(raw: dict[str, Any]) -> tuple[set[str], str | None]:
     chrom = _first_text(raw.get("chrom"), raw.get("chromosome"))
     pos = _first_int(raw.get("pos"), raw.get("position"))
     ref = _first_text(raw.get("ref"), raw.get("reference"))
     alt = _first_text(raw.get("alt"), raw.get("alternate"))
     gene = _first_text(raw.get("gene"), raw.get("gene_symbol"))
+    if ref and _unsupported_population_allele(ref):
+        return set(), f"Unsupported population REF allele: {ref}"
+    if alt and _unsupported_population_allele(alt):
+        return set(), f"Unsupported population ALT allele: {alt}"
     keys = {str(raw.get("variant_id", "")).lower(), str(raw.get("variant_key", "")).lower()}
     if chrom and pos and ref and alt:
         keys.add(_normalized_variant_key(chrom, pos, ref, alt))
@@ -922,7 +952,7 @@ def _population_record_keys(raw: dict[str, Any]) -> set[str]:
         hgvs = _first_text(raw.get(hgvs_key))
         if gene and hgvs:
             keys.add(f"{gene.lower()}:{hgvs.lower()}")
-    return {key for key in keys if key}
+    return {key for key in keys if key}, None
 
 
 def _computational_query_keys(variant: Variant) -> set[str]:
@@ -1068,6 +1098,11 @@ def _transcript_mismatch(transcript: str | None, variant: Variant) -> bool:
 def _normalized_variant_key(chrom: str, pos: int, ref: str, alt: str) -> str:
     normalized_chrom = chrom.removeprefix("chr").removeprefix("Chr").removeprefix("CHR")
     return f"{normalized_chrom}-{pos}-{ref}-{alt}".lower()
+
+
+def _unsupported_population_allele(value: str) -> bool:
+    stripped = value.strip()
+    return "," in stripped or stripped.startswith("<") or stripped.endswith(">")
 
 
 def _genome_build_mismatch(raw: dict[str, Any], variant: Variant) -> bool:

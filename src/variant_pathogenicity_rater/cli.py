@@ -61,6 +61,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--clingen-erepo-local-file",
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
+    _add_population_arguments(rate)
     _add_vcep_arguments(rate)
     rate.set_defaults(handler=_cmd_rate)
 
@@ -84,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--clingen-erepo-local-file",
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
+    _add_population_arguments(batch)
     _add_vcep_arguments(batch)
     batch.add_argument(
         "--continue-on-error",
@@ -113,6 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include per-record report text when available in the classification result.",
     )
+    _add_population_arguments(annotated)
     annotated.set_defaults(handler=_cmd_annotated_batch)
 
     literature_draft = subparsers.add_parser(
@@ -171,6 +174,18 @@ def _add_vcep_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_population_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--population-local-file",
+        help="Local gnomAD-like population JSON/JSONL/TSV snapshot path.",
+    )
+    parser.add_argument(
+        "--population-source-version",
+        default="cli-local-population-snapshot",
+        help="Source version label for --population-local-file.",
+    )
+
+
 def _cmd_rate(args: argparse.Namespace) -> int:
     payload = _variant_payload_from_args(args)
     if args.reviewed_evidence:
@@ -215,7 +230,7 @@ def _cmd_annotated_batch(args: argparse.Namespace) -> int:
             "annotation_format": args.source,
             "input_text": input_text,
             "source_version": "cli-input",
-            "options": {"mock_mode": True},
+            "options": _clingen_erepo_options(args),
             **(
                 {"reviewed_evidence": _load_json_file(args.reviewed_evidence)}
                 if args.reviewed_evidence
@@ -314,18 +329,24 @@ def _cmd_check_env(_args: argparse.Namespace) -> int:
 
 def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
     options: dict[str, Any] = {"mock_mode": True}
+    data_source_overrides: dict[str, Any] = {}
     if getattr(args, "include_clingen_erepo", False) or getattr(args, "clingen_erepo_local_file", None):
         options["include_clingen_erepo"] = True
     local_file = getattr(args, "clingen_erepo_local_file", None)
     if local_file:
-        options["data_sources"] = {
-            "sources": {
-                "clingen_erepo": {
-                    "mode": "local_file",
-                    "local_file": local_file,
-                    "source_version": "cli-local-clingen-erepo",
-                }
-            }
+        data_source_overrides["clingen_erepo"] = {
+            "mode": "local_file",
+            "local_file": local_file,
+            "source_version": "cli-local-clingen-erepo",
+        }
+    population_file = getattr(args, "population_local_file", None)
+    if population_file:
+        data_source_overrides["population"] = {
+            "mode": "local_file",
+            "local_file": population_file,
+            "source_version": getattr(args, "population_source_version", None)
+            or "cli-local-population-snapshot",
+            "parser_version": "population-parser-v1",
         }
     if getattr(args, "include_vcep_signals", False):
         options["include_vcep_signals"] = True
@@ -338,6 +359,8 @@ def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
     if getattr(args, "vcep_kb_dir", None):
         options["include_vcep_signals"] = True
         options["vcep_kb_dir"] = args.vcep_kb_dir
+    if data_source_overrides:
+        options["data_sources"] = {"sources": data_source_overrides}
     return options
 
 
