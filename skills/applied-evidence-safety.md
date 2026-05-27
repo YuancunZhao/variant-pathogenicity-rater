@@ -62,6 +62,26 @@ ERepo supporting summaries may seed reviewed-evidence drafts. Drafts default to
 non-applied review status and require explicit curator action before any
 criterion can enter the combiner.
 
+## VCEP Signal And Override Safety
+
+The VCEP signal/override framework is implemented and validated as a
+lightweight local profile layer, not a full VCEP reasoning engine.
+
+VCEP gene-level signals, draft/provisional profiles, deprecated profiles,
+conflicting profiles, and profile limitations are review context. Signal
+presence alone must not change evidence strength or classification.
+
+Approved profile overrides require explicit runtime enablement, an approved
+non-conflicting profile, applicable context, and retained provenance. Overrides
+may adjust only the documented safe generator parameters or downgrade generated
+criteria before classification. They must not create evidence, promote
+candidate evidence, bypass generator safety gates, or change the combiner.
+
+Disabled criteria must become candidate/review-note evidence with review flags
+and `supporting_data.vcep_override`; they must not be silently deleted. Batch
+and annotated-batch workflows must preserve per-record `vcep_profile_summary`
+when VCEP profile context is present.
+
 ## Computational Safety
 
 Computational prediction is not functional evidence.
@@ -111,6 +131,9 @@ For any future task touching evidence behavior, verify:
 - Reports keep applied and candidate evidence separate.
 - CLI, MCP, batch, and annotated-batch outputs are consistent.
 - Provenance is preserved.
+- VCEP override provenance and report visibility are preserved when applicable.
+- VCEP signals, provisional/draft profiles, deprecated profiles, and profile
+  conflicts do not alter classification.
 - Failures become limitations or structured failed records.
 - Online behavior remains opt-in.
 - Tests cover leakage and safety boundaries.

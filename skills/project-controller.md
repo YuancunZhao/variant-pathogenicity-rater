@@ -32,6 +32,12 @@ sources, or reviewed-evidence drafts, also read:
 - `docs/MANUAL_REVIEWED_EVIDENCE.md`
 - `docs/APPLIED_EVIDENCE_STATUS.md`
 
+If the task touches VCEP profiles, rule knowledge, profile overrides, or
+disease/gene-specific guidance, also read:
+
+- `docs/VCEP_SIGNAL_OVERRIDE_FRAMEWORK.md`
+- `docs/RULE_KNOWLEDGE_BASE.md`
+
 ## Default Architecture Rules
 
 1. Default to not changing the classification combiner.
@@ -51,6 +57,11 @@ sources, or reviewed-evidence drafts, also read:
     classify variants.
 14. Reviewed-evidence drafts must remain drafts until a curator explicitly
     submits valid `reviewed_applied` evidence.
+15. VCEP signals alone must not change classification.
+16. Approved VCEP profile overrides must not bypass generator safety gates.
+17. Disabled VCEP-profile criteria must become candidate/review-note evidence,
+    not silent deletions.
+18. VCEP override provenance and report visibility are required.
 
 ## Evidence Governance
 
@@ -71,6 +82,10 @@ When adding or modifying evidence behavior:
 - Keep ERepo exact matches, gene-level VCEP signals, literature suggestions,
   and unsupported criterion suggestions outside the combiner unless explicitly
   converted through reviewed evidence.
+- Keep VCEP profile overrides limited to approved, explicitly enabled,
+  non-conflicting profiles and the documented safe override surface.
+- Preserve `vcep_profile_summary` in batch and annotated-batch records when
+  VCEP profile context is present.
 
 ## Planning Expectations
 
@@ -85,6 +100,10 @@ Before implementation, identify:
 
 Do not implement a new ACMG evidence criterion or broaden variant scope unless
 the task explicitly asks for it and the roadmap supports it.
+
+The current recommended next task is toy VCEP profile validation, followed by
+real provider validation for ClinVar, gnomAD, MANE, and ERepo, benchmark
+expansion, a Chinese report template, and a selected real VCEP profile pilot.
 
 ## Completion Report
 

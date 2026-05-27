@@ -103,6 +103,21 @@ and drafts require explicit curator action through the existing
 `reviewed_applied` workflow before any criterion can enter classification. The
 classification combiner remains unchanged.
 
+### Phase 8: VCEP Signal / Override Framework
+
+The VCEP signal/override phase implemented and validated the lightweight local
+profile framework for versioned ClinGen/VCEP rule knowledge. It supports
+gene-level VCEP profile signals, approved profile overrides,
+draft/provisional signal-only profiles, deprecated limitation-only profiles,
+profile conflict blocking, report provenance, and per-record
+`vcep_profile_summary` output for batch and annotated-batch workflows.
+
+This phase did not add full VCEP reasoning or automatic classification.
+Signals alone do not change classification, approved overrides cannot bypass
+generator safety gates, disabled criteria become candidate/review-note evidence
+instead of silent deletions, and the ACMG classification combiner remains
+unchanged.
+
 ## Current Complete Interpretation Workflow
 
 ```text
@@ -117,37 +132,32 @@ variant input
 
 ## Highest Priority Current Tasks
 
-### 1. VCEP / ClinGen Rule Knowledge Base
+### 1. Toy Profile Validation
 
-Goal: design and implement explicit disease/gene-specific rule knowledge using
-versioned VCEP or ClinGen guidance, without hard-coding profile behavior into
-generic ACMG logic.
+Goal: validate the completed VCEP signal/override framework with intentionally
+small toy profiles that exercise profile-off/profile-on behavior, approved
+override provenance, draft/provisional signal-only handling, deprecated
+limitation-only handling, profile conflict blocking, and per-record batch
+summaries.
 
-ClinGen Evidence Repository integration now provides a review-note/data
-foundation for this roadmap item: VCEP activity signals, exact curated
-assertion matches, provenance, and reviewed-evidence drafts. It does not
-activate VCEP profiles, does not import VCEP criteria as applied evidence, and
-does not change the classification combiner.
+Why it matters: the framework plumbing is now implemented, but toy profiles are
+the safest way to prove each boundary before introducing real VCEP guidance.
 
-Why it matters: disease-specific thresholds and rule modifications are
-essential for real interpretation, but they are high-risk unless profile
-selection, version provenance, and applicability are explicit.
+Architecture impact: should focus on validation fixtures, benchmark cases,
+report examples, and documentation. Business logic, tests outside the intended
+validation surface, and the combiner should remain stable.
 
-Architecture impact: likely touches configuration, schemas, evidence generator
-inputs, provenance, report labeling, documentation, and tests. The combiner
-should remain unchanged unless a separate impact review proves otherwise.
+Safety risks: overinterpreting toy profiles as clinical guidance, missing
+candidate/applied leakage, and losing provenance in batch or annotated-batch
+outputs.
 
-Safety risks: accidental default VCEP profile activation, mixing rules between
-diseases, applying thresholds outside their stated scope, and unreviewed rule
-overrides.
+Expected deliverables: toy profile fixture set, profile-off/profile-on
+comparison cases, report examples, batch/annotated-batch examples, and
+documented safety expectations.
 
-Expected deliverables: design document, profile schema, explicit profile
-selection, profile version provenance, mismatch limitations, and benchmark cases
-for profile-off/profile-on behavior.
-
-Release gate expectations: design review before implementation, pytest pass,
-benchmark coverage, no default clinical profile activation, and explicit
-combiner impact review.
+Release gate expectations: no default profile activation, no combiner change,
+candidate-only leakage checks, report provenance checks, and batch
+`vcep_profile_summary` checks.
 
 ### 2. Real Provider Validation: ClinVar / gnomAD / MANE / ERepo Online
 
@@ -225,10 +235,10 @@ Release gate expectations: report wording safety review by a qualified reader,
 pytest pass, smoke report generation, and no changes to evidence logic or the
 combiner.
 
-### 5. Disease-Specific Profiles
+### 5. Selected Real VCEP Profile Pilot
 
-Goal: after the VCEP/ClinGen rule knowledge base exists, add carefully scoped
-disease-specific profiles behind explicit selection.
+Goal: after toy profile validation and real provider validation, pilot one
+carefully selected real VCEP profile behind explicit selection.
 
 Why it matters: disease-specific profiles are the path from generic ACMG
 support toward realistic internal interpretation workflows, but they require
@@ -242,9 +252,9 @@ Safety risks: silent profile activation, use with the wrong gene/disease,
 incomplete inheritance or phenotype context, and overconfident classification
 from profile-specific assumptions.
 
-Expected deliverables: one narrow profile pilot, explicit activation,
-profile-version provenance, mismatch blocks, and profile-off/profile-on report
-examples.
+Expected deliverables: one narrow real VCEP profile pilot, explicit activation,
+profile-version provenance, mismatch blocks, profile-off/profile-on report
+examples, and a clear statement of what the pilot does not automate.
 
 Release gate expectations: design approval, benchmark pass, no default clinical
 profile activation, no combiner change without explicit review, and clear

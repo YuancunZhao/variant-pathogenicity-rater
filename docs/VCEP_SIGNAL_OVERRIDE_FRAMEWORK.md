@@ -5,6 +5,12 @@ ClinGen/VCEP gene- and disease-specific guidance. It is not a full VCEP
 reasoning engine and does not import ClinGen Evidence Repository assertions as
 applied ACMG evidence.
 
+Current status: implemented and framework-validated. The implemented behavior
+includes gene-level profile signals, approved profile overrides,
+draft/provisional signal-only profiles, deprecated limitation-only profiles,
+profile conflict blocking, report provenance, and per-record
+`vcep_profile_summary` output for batch and annotated-batch workflows.
+
 ## Position In The Pipeline
 
 The framework runs after variant normalization and gene-disease context
@@ -19,6 +25,11 @@ Signals alone do not generate evidence, do not change evidence strength, and do
 not change the final classification. Overrides are limited to existing
 generator inputs and post-generator safety downgrades. The ACMG combiner remains
 unchanged.
+
+Approved overrides also cannot bypass generator safety gates. If the relevant
+generator would block or downgrade evidence because of context, quality,
+conflict, missing provenance, or unsupported scope, the VCEP override cannot
+force that evidence to be applied.
 
 ## Runtime Options
 
@@ -52,6 +63,8 @@ Allowed v1 overrides:
 
 Overrides cannot create evidence by themselves, cannot make candidate evidence
 applied, cannot bypass context or quality gates, and cannot modify the combiner.
+Disabled criteria are not silently deleted; they remain visible as
+candidate/review-note material with review flags and VCEP override provenance.
 
 ## Safety Gates
 
@@ -71,3 +84,18 @@ to that item.
 Reports include a separate `VCEP Signal / Rule Profile` section. This section is
 outside Applied ACMG Evidence and states that VCEP signals alone were not counted
 by the combiner. JSON reports expose the same payload as `vcep_profile`.
+
+Batch and annotated-batch results preserve the same information per successful
+record as `vcep_profile_summary`, so downstream review does not lose profile
+signal, override, blocked, or limitation context.
+
+## Recommended Next Validation
+
+The next validation step is toy profile validation: small local profiles should
+exercise approved override behavior, signal-only draft/provisional behavior,
+deprecated limitation-only behavior, conflict blocking, disabled-criterion
+candidate handling, report provenance, and batch/annotated-batch summaries.
+
+After toy profile validation, the recommended track is real provider validation
+for ClinVar, gnomAD, MANE, and ClinGen ERepo, benchmark expansion, a Chinese
+report template, and one selected real VCEP profile pilot.

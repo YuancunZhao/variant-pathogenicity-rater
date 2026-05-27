@@ -25,14 +25,17 @@ schema review, report review, conservative regression checks, CLI/MCP smoke
 testing, and safety-boundary validation. This is not a clinical validation
 statement and does not authorize autonomous clinical interpretation.
 
-After ClinGen Evidence Repository integration validation, the project state is:
-the generic SNV/small-indel interpretation loop is connected end to end for
+After VCEP signal/override framework validation, the project state is: the
+generic SNV/small-indel interpretation loop is connected end to end for
 controlled internal review, including generated applied evidence,
 candidate/suggested evidence, reviewed-evidence drafts, curator-applied
-reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, reports,
-CLI/MCP surfaces, and the unchanged ACMG classification combiner. The next
-project constraint is no longer basic workflow connectivity; it is versioned
-rule knowledge and real provider validation.
+reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, local
+VCEP gene-level profile signals, approved limited profile overrides, reports,
+CLI/MCP surfaces, batch and annotated-batch VCEP summaries, and the unchanged
+ACMG classification combiner. The next project constraint is no longer basic
+workflow connectivity or rule-profile plumbing; it is validation against toy
+profiles, real providers, expanded benchmarks, localized reporting, and a
+narrow real VCEP profile pilot.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -144,6 +147,26 @@ No external curated source automatically classifies a variant. ClinVar, ERepo,
 and literature outputs remain candidate/review-note material unless a curator
 explicitly supplies valid `reviewed_applied` evidence with provenance and audit
 trail.
+
+### VCEP Signal / Override Framework
+
+The VCEP signal/override framework is implemented and validated as a
+lightweight local rule-profile layer. It supports gene-level VCEP profile
+signals, approved profile overrides, draft/provisional signal-only profiles,
+deprecated limitation-only profiles, profile conflict blocking, and per-record
+`vcep_profile_summary` output for both batch and annotated-batch workflows.
+
+VCEP behavior is explicitly opt-in. Signals alone cannot change classification.
+Approved overrides are limited to safe generator parameters or post-generator
+downgrades and cannot bypass generator safety gates, create evidence, promote
+candidate evidence, or modify the combiner. Disabled criteria are converted to
+candidate/review-note material with review flags and provenance rather than
+being silently deleted.
+
+Override provenance and report visibility are required. Affected evidence items
+carry `supporting_data.vcep_override`, structured results expose
+`vcep_profile_context` / `vcep_profile_summary`, and reports include a separate
+VCEP Signal / Rule Profile section outside Applied ACMG Evidence.
 
 ### Manual Reviewed Evidence Workflow
 
@@ -303,7 +326,8 @@ The current project does not support:
 - Clinical sign-out or autonomous clinical reporting.
 - Automatic literature-applied evidence.
 - Trio/family-aware automation.
-- Disease-specific VCEP rule profiles.
+- Full disease-specific VCEP reasoning engines.
+- Automatic default activation of VCEP profiles.
 - Automatic `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`, `PP4`, or `PM3`
   application unless explicitly supplied through manual reviewed evidence.
 - Automatic evidence application from ClinVar, ClinGen ERepo, or literature
@@ -334,14 +358,12 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is the VCEP / ClinGen rule knowledge base framework.
-ClinGen ERepo integration now provides the curated-source review-note and draft
-workflow foundation, but the project still needs explicit versioned rule
-knowledge before disease-specific guidance can be safely applied. The next
-validation track should exercise real providers for ClinVar, gnomAD, MANE, and
-ERepo online mode using opt-in/local-fixture workflows, provenance checks, and
-failure-to-limitation behavior.
+The recommended next task is validation and hardening of the completed VCEP
+signal/override framework. Start with toy profile validation, then validate
+real provider behavior for ClinVar, gnomAD, MANE, and ERepo using opt-in or
+local-fixture workflows with provenance checks and failure-to-limitation
+behavior.
 
-After those two P0 tracks, the current priorities are benchmark expansion, a
-Chinese report template, and narrowly scoped disease-specific profiles behind
+After that validation track, the current priorities are benchmark expansion, a
+Chinese report template, and one narrowly scoped real VCEP profile pilot behind
 explicit profile selection.

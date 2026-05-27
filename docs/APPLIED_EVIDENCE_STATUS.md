@@ -52,6 +52,13 @@ curator-reviewed applied evidence such as `PS3`, `BS3`, `PS2`, `PM6`, `PP1`,
 `PS4`, `PP4`, and `PM3` when, and only when, explicitly supplied as
 `reviewed_applied`.
 
+The VCEP signal/override framework is implemented and validated, but it does
+not expand the automatic applied-evidence list. VCEP gene-level signals,
+draft/provisional profiles, deprecated profiles, conflicts, and unsupported
+profile contexts remain review context, limitations, or candidate/review-note
+material. Approved profile overrides can only adjust the allowed safe generator
+parameters or downgrade/disable generated criteria before classification.
+
 ## Evidence-Specific Status
 
 ### PVS1
@@ -212,10 +219,11 @@ The following are not implemented as automatic applied evidence:
   zygosity, allelic series context, and manual review.
 - `PP4`: requires highly specific phenotype context and expert disease review.
 - BA1/BS1 disease-specific refinements beyond the current configurable
-  threshold gates require explicit VCEP/profile provenance before use.
+  threshold gates require explicit VCEP/profile provenance and approved profile
+  override activation before use.
 - VCEP-specific full reasoning is not implemented. No VCEP profile is activated
-  by default. A lightweight VCEP signal/override framework is available for
-  local, explicitly enabled profile signals and limited safe generator-parameter
+  by default. The lightweight VCEP signal/override framework supports local,
+  explicitly enabled gene-level signals and limited safe generator-parameter
   overrides; it is not a full VCEP reasoning engine and does not change the
   combiner.
 
@@ -245,22 +253,26 @@ PM3-like trans observations.
   surface.
 - All generated evidence remains machine proposal material and requires
   qualified human review.
+- VCEP signal-only output, approved overrides, and disabled-criterion
+  downgrades must continue to preserve report visibility and profile
+  provenance.
 
 ## Recommended Next Task
 
-The recommended next task is a VCEP / ClinGen rule knowledge base framework
-with real provider validation.
+The recommended next task is toy VCEP profile validation, followed by real
+provider validation.
 
-The applied evidence loop is now complete enough for controlled internal
-interpretation workflow review: generated applied evidence, candidate/suggested
-evidence, manual reviewed evidence, combiner, and reporting are connected while
-preserving candidate separation. The next risk is knowledge and data validity:
-rule profiles need versioned VCEP/ClinGen provenance, and ClinVar, gnomAD,
-MANE, and ERepo online provider behavior needs real validation without
-weakening the combiner or the no-silent-conversion boundary.
+The applied evidence loop and lightweight VCEP signal/override framework are
+now complete enough for controlled internal validation: generated applied
+evidence, candidate/suggested evidence, manual reviewed evidence, VCEP profile
+signals, limited approved overrides, combiner, reporting, batch summaries, and
+annotated-batch summaries are connected while preserving candidate separation.
+The next risk is validation depth: toy profiles should exercise every safety
+boundary, and ClinVar, gnomAD, MANE, and ERepo provider behavior needs real
+validation without weakening the combiner or the no-silent-conversion boundary.
 
 After that, the next priorities are:
 
 - Benchmark expansion.
 - Chinese report template.
-- Disease-specific profiles.
+- Selected real VCEP profile pilot.
