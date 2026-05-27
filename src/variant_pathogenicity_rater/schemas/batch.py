@@ -36,6 +36,7 @@ class BatchVariantResult(SchemaModel):
     limitations: list[str] = Field(default_factory=list)
     annotation_provenance: list[dict[str, Any]] = Field(default_factory=list)
     provenance: dict[str, Any] = Field(default_factory=dict)
+    vcep_profile_summary: dict[str, Any] | None = None
     normalization_identity: dict[str, Any] | None = None
     transcript_selection_summary: dict[str, Any] | None = None
     context_consistency_summary: dict[str, Any] | None = None

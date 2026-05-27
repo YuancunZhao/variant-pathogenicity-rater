@@ -174,6 +174,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                 limitations=list(pipeline_result.get("limitations") or []),
                 annotation_provenance=_annotation_provenance(parsed_record.record),
                 provenance=dict(pipeline_result.get("provenance") or {}),
+                vcep_profile_summary=_vcep_profile_summary(pipeline_result),
                 normalization_identity=_normalization_identity(pipeline_result),
                 transcript_selection_summary=_transcript_selection_summary(
                     pipeline_result,
@@ -589,6 +590,21 @@ def _context_consistency_summary(pipeline_result: dict[str, Any]) -> dict[str, A
         "warnings": consistency.get("warnings") or [],
         "limitations": consistency.get("limitations") or [],
     }
+
+
+def _vcep_profile_summary(pipeline_result: dict[str, Any]) -> dict[str, Any] | None:
+    classification = pipeline_result.get("classification_result")
+    if isinstance(classification, dict) and isinstance(
+        classification.get("vcep_profile_context"),
+        dict,
+    ):
+        return dict(classification["vcep_profile_context"])
+    if isinstance(pipeline_result.get("vcep_signal"), dict):
+        return {
+            "signal": pipeline_result.get("vcep_signal"),
+            "override_context": pipeline_result.get("vcep_override_context"),
+        }
+    return None
 
 
 def _annotation_provenance(record: dict[str, Any]) -> list[dict[str, Any]]:
