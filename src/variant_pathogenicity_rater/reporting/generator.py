@@ -738,7 +738,13 @@ def _conflicting_evidence_lines(summary: VariantReportSummary) -> list[str]:
         lines.append(f"- {CLINVAR_CONFLICT_ALERT}")
     if summary.conflicting_evidence:
         lines.extend(f"- {item}" for item in summary.conflicting_evidence)
-    elif not summary.clinvar_conflict_detected:
+    conflict_flags = [
+        flag for flag in summary.review_flags if "CONFLICT" in flag.code.upper()
+    ]
+    if conflict_flags:
+        lines.append("- Review flags:")
+        lines.extend(f"  - {flag.code}: {flag.message}" for flag in conflict_flags)
+    elif not summary.clinvar_conflict_detected and not summary.conflicting_evidence:
         lines.append("- No conflicting evidence was reported in the supplied classification result.")
     return lines
 

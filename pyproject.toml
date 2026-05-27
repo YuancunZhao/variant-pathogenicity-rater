@@ -43,6 +43,9 @@ addopts = [
     "--strict-config",
     "--strict-markers",
 ]
+markers = [
+    "online_clinvar_smoke: opt-in live ClinVar smoke tests; skipped unless explicit ClinVar online env gates are set",
+]
 
 [tool.coverage.run]
 branch = true

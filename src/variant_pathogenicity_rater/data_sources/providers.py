@@ -119,18 +119,42 @@ class LocalFileClinVarProvider(ClinVarProvider):
 
     def query(self, query: ClinVarQuery) -> ClinVarQueryResult:
         query_payload = query.model_dump(mode="json", exclude_none=True)
-        entry, _hit = self.cache.get_or_set(
-            provider=self.config.name,
-            mode=self.config.mode,
-            source_version=self.config.source_version,
-            query=query_payload,
-            loader=lambda: _read_json_records(self.config),
-            ttl_seconds=self.config.ttl_seconds,
-        )
+        limitations = [
+            "ClinVar local-file mode is candidate-only; PP5/BP6 remain disabled.",
+        ]
+        try:
+            entry, _hit = self.cache.get_or_set(
+                provider=self.config.name,
+                mode=self.config.mode,
+                source_version=self.config.source_version,
+                query=query_payload,
+                loader=lambda: _read_json_records(self.config),
+                ttl_seconds=self.config.ttl_seconds,
+            )
+        except Exception as exc:  # noqa: BLE001 - provider failures become limitations.
+            return ClinVarQueryResult(
+                query=query,
+                records=[],
+                candidate_evidence_items=[],
+                review_flags=[],
+                limitations=[
+                    *limitations,
+                    f"ClinVar local-file query failed: {exc.__class__.__name__}: {exc}",
+                    "ClinVar local-file failure was captured as a limitation; interpretation continued.",
+                ],
+            )
         query_keys = query.normalized_keys()
         records = []
-        for raw in entry.payload:
-            if query_keys.intersection(clinvar_record_keys(raw)):
+        for index, raw in enumerate(entry.payload, start=1):
+            try:
+                record_keys = clinvar_record_keys(raw)
+            except Exception as exc:  # noqa: BLE001 - malformed fixture row should not abort.
+                limitations.append(
+                    "ClinVar local-file record "
+                    f"{index} could not be indexed: {exc.__class__.__name__}: {exc}"
+                )
+                continue
+            if query_keys.intersection(record_keys):
                 provenance = provenance_from_raw_record(
                     data_source=self.config.name,
                     source_version=self.config.source_version,
@@ -143,12 +167,28 @@ class LocalFileClinVarProvider(ClinVarProvider):
                         *self.config.limitations,
                     ],
                 )
-                record = parse_clinvar_record(raw, query=query)
+                try:
+                    record = parse_clinvar_record(raw, query=query)
+                except Exception as exc:  # noqa: BLE001 - malformed matched row becomes limitation.
+                    limitations.append(
+                        "Matched ClinVar local-file record "
+                        f"{index} could not be parsed: {exc.__class__.__name__}: {exc}"
+                    )
+                    continue
                 attach_provenance_to_source(record.source, provenance)
                 records.append(record)
         review_flags = [
             *condition_review_flags(records, query),
+            *clinvar_review_flags(records),
         ]
+        if any(
+            "somatic" in (record.germline_or_somatic or "").lower()
+            and "germline" not in (record.germline_or_somatic or "").lower()
+            for record in records
+        ):
+            limitations.append(
+                "Somatic-only ClinVar records were not used as germline ACMG candidates."
+            )
         return ClinVarQueryResult(
             query=query,
             records=records,
@@ -157,7 +197,7 @@ class LocalFileClinVarProvider(ClinVarProvider):
             ],
             review_flags=review_flags,
             limitations=[
-                "ClinVar local-file mode is candidate-only; PP5/BP6 remain disabled.",
+                *limitations,
                 *([] if records else ["No local ClinVar record matched the supplied query."]),
             ],
         )

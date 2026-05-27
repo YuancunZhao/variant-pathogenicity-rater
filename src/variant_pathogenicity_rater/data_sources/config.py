@@ -135,6 +135,8 @@ def _apply_env_overrides(config: DataSourcesConfig, env: dict[str, str]) -> Data
             source["online_enabled"] = env[f"{prefix}ONLINE_ENABLED"].lower() in {"1", "true", "yes"}
         if env.get(f"{prefix}TTL_SECONDS"):
             source["ttl_seconds"] = int(env[f"{prefix}TTL_SECONDS"])
+        if env.get(f"{prefix}CACHE_DIR"):
+            source["cache_dir"] = env[f"{prefix}CACHE_DIR"]
         if env.get(f"{prefix}TIMEOUT_SECONDS"):
             source["timeout_seconds"] = float(env[f"{prefix}TIMEOUT_SECONDS"])
         if env.get(f"{prefix}USER_AGENT"):
