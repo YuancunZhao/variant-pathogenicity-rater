@@ -39,6 +39,7 @@ class BatchVariantResult(SchemaModel):
     vcep_profile_summary: dict[str, Any] | None = None
     normalization_identity: dict[str, Any] | None = None
     transcript_selection_summary: dict[str, Any] | None = None
+    transcript_validation_summary: dict[str, Any] | None = None
     context_consistency_summary: dict[str, Any] | None = None
 
 

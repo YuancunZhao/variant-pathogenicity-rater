@@ -4,12 +4,14 @@ from variant_pathogenicity_rater.pvs1.schema import TranscriptRelevanceAssessmen
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
 from variant_pathogenicity_rater.schemas.common import ReviewFlag
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Transcript, Variant
+from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
 
 
 def evaluate_transcript_relevance(
     variant: Variant,
     annotation: VariantAnnotation | None = None,
     transcript_selection: TranscriptSelection | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     context: GeneDiseaseContext | None = None,
 ) -> TranscriptRelevanceAssessment:
     transcript = variant.transcript or (context.transcript if context else None)
@@ -38,6 +40,26 @@ def evaluate_transcript_relevance(
             relevant = True
             confidence = max(confidence, transcript_selection.selection_confidence)
             source = "transcript_selection"
+
+    if transcript_validation is not None:
+        limitations.extend(transcript_validation.limitations)
+        flags.extend(transcript_validation.review_flags)
+        summary = transcript_validation.model_dump(mode="json")
+        if transcript_validation.matched_record:
+            matched = transcript_validation.matched_record
+            label = matched.get("transcript") or label
+            if matched.get("mane_status"):
+                source = "transcript_metadata"
+            if matched.get("mane_status") or matched.get("canonical"):
+                confidence = max(confidence, 0.82 if matched.get("mane_status") else 0.72)
+            if matched.get("protein_coding") is False:
+                return _assessment(False, 0.1, label, "transcript_metadata", flags, limitations, transcript_selection, summary)
+            if str(matched.get("transcript_status") or "").strip().lower() in {"deprecated", "retired", "withdrawn", "obsolete", "replaced"}:
+                return _assessment(False, 0.1, label, "transcript_metadata", flags, limitations, transcript_selection, summary)
+        if transcript_validation.status == "conflict":
+            return _assessment(False, 0.1, label, "transcript_metadata", flags, limitations, transcript_selection, summary)
+        if transcript_validation.status in {"warning", "insufficient"} and relevant is not True:
+            return _assessment(None, max(confidence, 0.35), label, "transcript_metadata", flags, limitations, transcript_selection, summary)
 
     if annotation is not None:
         if annotation.transcript_biotype and annotation.transcript_biotype != "protein_coding":
@@ -88,7 +110,11 @@ def _assessment(
     flags: list[ReviewFlag],
     limitations: list[str],
     selection: TranscriptSelection | None,
+    extra_summary: dict | None = None,
 ) -> TranscriptRelevanceAssessment:
+    summary = selection.model_dump(mode="json") if selection else {}
+    if extra_summary:
+        summary["transcript_validation"] = extra_summary
     return TranscriptRelevanceAssessment(
         relevant=relevant,
         confidence=confidence,
@@ -96,7 +122,7 @@ def _assessment(
         source=source,
         review_flags=flags,
         limitations=limitations,
-        summary=selection.model_dump(mode="json") if selection else {},
+        summary=summary,
     )
 
 

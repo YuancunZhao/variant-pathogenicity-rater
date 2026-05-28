@@ -154,6 +154,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
         data_source_summary=_data_source_summary(result.evidence_items),
         review_flags=result.review_flags,
         transcript_selection=result.transcript_selection,
+        transcript_validation=result.transcript_validation,
         context_consistency=result.context_consistency,
         vcep_profile_context=result.vcep_profile_context,
     )
@@ -257,6 +258,11 @@ def _json_content(
         if summary.transcript_selection
         else None
     )
+    transcript_validation = (
+        summary.transcript_validation.model_dump(mode="json")
+        if summary.transcript_validation
+        else None
+    )
     return {
         "mode": mode,
         "language": language,
@@ -308,6 +314,10 @@ def _json_content(
         "transcript_selection": {
             "note": "Transcript selection is recommendation/review-note context only; it is not ACMG evidence.",
             "summary": transcript_selection,
+        },
+        "transcript_validation": {
+            "note": "MANE/transcript validation is review context only; it is not ACMG evidence and does not change the classification.",
+            "summary": transcript_validation,
         },
         "data_sources": {
             "note": "Source provenance describes where evidence or review notes came from; it does not determine whether evidence was applied.",
@@ -374,6 +384,7 @@ def _text_content(
 
     lines.extend(_caution_lines(result, summary, language))
     lines.extend(_transcript_selection_lines(summary))
+    lines.extend(_transcript_validation_lines(summary))
     lines.extend(_context_consistency_lines(summary))
     lines.extend(_clingen_erepo_section(summary))
     lines.extend(_vcep_profile_section(summary))
@@ -698,6 +709,44 @@ def _transcript_selection_lines(summary: VariantReportSummary) -> list[str]:
         )
     if selection.limitations:
         lines.append("- Selection limitations: " + "; ".join(selection.limitations))
+    return lines
+
+
+def _transcript_validation_lines(summary: VariantReportSummary) -> list[str]:
+    lines = ["", "## Transcript Selection / MANE Validation"]
+    validation = summary.transcript_validation
+    if validation is None:
+        lines.append("- No MANE/transcript validation summary was supplied.")
+        return lines
+
+    matched = validation.matched_record or {}
+    lines.extend(
+        [
+            f"- Status: {validation.status}",
+            f"- User/input transcript: {validation.input_transcript or 'not provided'}",
+            f"- Matched transcript: {matched.get('transcript') or 'none'}",
+            f"- MANE Select candidates: {len(validation.mane_select_candidates)}",
+            f"- Canonical candidates: {len(validation.canonical_candidates)}",
+            f"- Protein accession expected/observed: {validation.protein_accession_expected or 'not provided'} / {validation.protein_accession_observed or 'not provided'}",
+            "- Status: review context only; not ACMG evidence and not counted by the classification combiner",
+            "- User transcript preserved: true",
+        ]
+    )
+    if matched:
+        lines.append(
+            "- Matched transcript provenance: "
+            f"source={matched.get('transcript_source') or 'not provided'}; "
+            f"version={matched.get('source_version') or 'not provided'}; "
+            f"build={matched.get('genome_build') or 'not provided'}; "
+            f"status={matched.get('transcript_status') or 'not provided'}"
+        )
+    if validation.review_flags:
+        lines.append(
+            "- Review flags: "
+            + ", ".join(flag.code for flag in validation.review_flags)
+        )
+    if validation.limitations:
+        lines.append("- Transcript validation limitations: " + "; ".join(validation.limitations))
     return lines
 
 

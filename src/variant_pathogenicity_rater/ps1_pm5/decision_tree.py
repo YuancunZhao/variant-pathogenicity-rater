@@ -17,6 +17,7 @@ from variant_pathogenicity_rater.schemas.evidence import (
     EvidenceStrength,
 )
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
 
 
 REVIEW_NOTE = (
@@ -31,6 +32,7 @@ def evaluate_ps1_pm5_decisions(
     context: GeneDiseaseContext,
     clinvar_records: list[ClinVarRecord],
     context_consistency: ContextConsistency | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     provenance: dict[str, Any] | None = None,
 ) -> list[PS1PM5Decision]:
     return [
@@ -48,6 +50,7 @@ def evaluate_ps1_pm5_decisions(
                 for item in clinvar_records
             ],
             context_consistency=context_consistency,
+            transcript_validation=transcript_validation,
             provenance=provenance,
         )
         for record in clinvar_records
@@ -62,12 +65,13 @@ def evaluate_ps1_pm5_decision(
     source_record_count: int = 1,
     all_comparators_summary: list[dict[str, Any]] | None = None,
     context_consistency: ContextConsistency | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     provenance: dict[str, Any] | None = None,
 ) -> PS1PM5Decision:
     amino = compare_amino_acid_change(variant, record)
     clinvar = compare_clinvar_record(variant, record)
     condition = evaluate_condition_match(context, record)
-    checks = _quality_checks(amino, clinvar, condition, context_consistency)
+    checks = _quality_checks(amino, clinvar, condition, context_consistency, transcript_validation)
     blocking = [
         check["reason"]
         for check in checks
@@ -111,8 +115,13 @@ def evaluate_ps1_pm5_decision(
             downgrades.append("Different nucleotide change could not be confirmed for PS1.")
             rationale = "PS1 remains candidate-only because nucleotide difference is unresolved."
         elif blocking:
-            status = "blocked"
-            rationale = "PS1 blocked by required safety gates."
+            if _candidate_only_transcript_block(blocking):
+                candidate_only = True
+                status = "candidate"
+                rationale = "PS1 remains candidate-only because transcript/protein metadata requires review."
+            else:
+                status = "blocked"
+                rationale = "PS1 blocked by required safety gates."
         elif downgrades:
             candidate_only = True
             status = "candidate"
@@ -130,8 +139,13 @@ def evaluate_ps1_pm5_decision(
         direction = EvidenceDirection.PATHOGENIC
         decision_path.append("same_residue_different_missense")
         if blocking:
-            status = "blocked"
-            rationale = "PM5 blocked by required safety gates."
+            if _candidate_only_transcript_block(blocking):
+                candidate_only = True
+                status = "candidate"
+                rationale = "PM5 remains candidate-only because transcript/protein metadata requires review."
+            else:
+                status = "blocked"
+                rationale = "PM5 blocked by required safety gates."
         elif downgrades:
             candidate_only = True
             status = "candidate"
@@ -191,6 +205,11 @@ def evaluate_ps1_pm5_decision(
                 if context_consistency is not None
                 else None
             ),
+            "transcript_validation": (
+                transcript_validation.model_dump(mode="json")
+                if transcript_validation is not None
+                else None
+            ),
         },
     )
 
@@ -200,6 +219,7 @@ def _quality_checks(
     clinvar: ClinVarComparison,
     condition: Any,
     context_consistency: ContextConsistency | None,
+    transcript_validation: TranscriptValidationResult | None,
 ) -> list[dict[str, Any]]:
     checks = [
         _check(
@@ -238,7 +258,34 @@ def _quality_checks(
                 "Context consistency conflicts block applied PS1/PM5.",
             )
         )
+    if transcript_validation is not None and transcript_validation.protein_accession_match is False:
+        checks.append(
+            _check(
+                "transcript_validation_protein_accession",
+                False,
+                "Transcript metadata protein accession mismatch blocks applied PS1/PM5.",
+            )
+        )
+    if transcript_validation is not None and transcript_validation.status == "conflict":
+        checks.append(
+            _check(
+                "transcript_validation",
+                False,
+                "Transcript metadata validation conflict blocks applied PS1/PM5.",
+            )
+        )
     return checks
+
+
+def _candidate_only_transcript_block(blocking: list[str]) -> bool:
+    if not blocking:
+        return False
+    transcript_blocks = (
+        "Transcript metadata protein accession mismatch",
+        "Transcript metadata validation conflict",
+        "Transcript/protein mismatch blocks applied PS1/PM5.",
+    )
+    return all(any(fragment in reason for fragment in transcript_blocks) for reason in blocking)
 
 
 def _check(name: str, passed: bool, reason: str, *, blocking: bool = True) -> dict[str, Any]:

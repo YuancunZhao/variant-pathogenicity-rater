@@ -774,6 +774,44 @@ def _transcript_selection_schema() -> dict[str, Any]:
     }
 
 
+def _transcript_validation_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "status": {
+                "type": "string",
+                "enum": ["ok", "warning", "conflict", "insufficient"],
+            },
+            "input_transcript": {"type": ["string", "null"]},
+            "normalized_input": _open_object_schema("Canonical transcript accession/version."),
+            "matched_record": {
+                "oneOf": [
+                    _open_object_schema("Matched local transcript metadata record."),
+                    {"type": "null"},
+                ]
+            },
+            "mane_select_candidates": {
+                "type": "array",
+                "items": _open_object_schema("MANE Select transcript metadata candidate."),
+            },
+            "canonical_candidates": {
+                "type": "array",
+                "items": _open_object_schema("Canonical transcript metadata candidate."),
+            },
+            "protein_accession_match": {"type": ["boolean", "null"]},
+            "protein_accession_expected": {"type": ["string", "null"]},
+            "protein_accession_observed": {"type": ["string", "null"]},
+            "user_transcript_provided": {"type": "boolean"},
+            "user_transcript_preserved": {"type": "boolean"},
+            "review_flags": {"type": "array", "items": _review_flag_schema()},
+            "limitations": _string_array_schema(),
+            "provenance": _open_object_schema("Transcript validation provenance."),
+        },
+        "required": ["status"],
+        "additionalProperties": False,
+    }
+
+
 def _context_consistency_check_schema() -> dict[str, Any]:
     return {
         "type": "object",
@@ -1243,6 +1281,7 @@ def _classification_result_schema(description: str | None = None) -> dict[str, A
             "report_text": {"type": "string"},
             "review_flags": {"type": "array", "items": _review_flag_schema()},
             "transcript_selection": {"oneOf": [_transcript_selection_schema(), {"type": "null"}]},
+            "transcript_validation": {"oneOf": [_transcript_validation_schema(), {"type": "null"}]},
             "context_consistency": {"oneOf": [_context_consistency_schema(), {"type": "null"}]},
             "vcep_profile_context": {
                 "oneOf": [
@@ -1317,6 +1356,8 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "include_vcep_signals": {"type": "boolean"},
             "apply_vcep_overrides": {"type": "boolean"},
             "include_transcript_selection": {"type": "boolean"},
+            "include_transcript_validation": {"type": "boolean"},
+            "include_mane_transcript_validation": {"type": "boolean"},
             "data_sources": _data_sources_override_schema(),
             "annotations": {
                 "type": "array",
@@ -1328,6 +1369,33 @@ def _pipeline_options_schema() -> dict[str, Any]:
             },
             "annotation_text": {"type": "string"},
             "user_transcript": {"type": "string"},
+            "transcript_metadata_records": {
+                "type": "array",
+                "items": _open_object_schema("Local MANE/RefSeq/Ensembl transcript metadata record."),
+            },
+            "transcript_metadata": {
+                "oneOf": [
+                    {"type": "array", "items": _open_object_schema("Local transcript metadata record.")},
+                    {"type": "string"},
+                    _open_object_schema("Object with records/transcripts."),
+                ]
+            },
+            "transcript_fixture": {
+                "oneOf": [
+                    {"type": "array", "items": _open_object_schema("Local transcript metadata record.")},
+                    {"type": "string"},
+                    _open_object_schema("Object with records/transcripts."),
+                ]
+            },
+            "mane_transcript_fixture": {
+                "oneOf": [
+                    {"type": "array", "items": _open_object_schema("Local transcript metadata record.")},
+                    {"type": "string"},
+                    _open_object_schema("Object with records/transcripts."),
+                ]
+            },
+            "transcript_metadata_json": {"type": "string"},
+            "transcript_metadata_jsonl": {"type": "string"},
             "population_frequency": population_fixture,
             "population_thresholds": {
                 "type": "object",

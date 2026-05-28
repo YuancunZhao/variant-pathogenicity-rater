@@ -14,6 +14,11 @@ from variant_pathogenicity_rater.pvs1 import generate_pvs1_evidence
 from variant_pathogenicity_rater.ps1_pm5 import generate_ps1_pm5_evidence
 from variant_pathogenicity_rater.population import generate_population_evidence
 from variant_pathogenicity_rater.context_consistency import evaluate_context_consistency
+from variant_pathogenicity_rater.transcript_support import (
+    TranscriptValidationResult,
+    load_transcript_metadata_records,
+    validate_transcript_metadata,
+)
 from variant_pathogenicity_rater.config.thresholds import (
     computational_thresholds_from_options,
     population_thresholds_from_options,
@@ -92,6 +97,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     evidence_items: list[EvidenceItem] = []
     step_results: dict[str, Any] = {}
     context_consistency: ContextConsistency | None = None
+    transcript_validation: TranscriptValidationResult | None = None
     reviewed_evidence_records: list[dict[str, Any]] = []
     reviewed_review_flags: list[ReviewFlag] = []
     vcep_signal_result: VCEPSignalResult | None = None
@@ -149,6 +155,34 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             limitations.extend(transcript_selection.limitations)
             step_results["select_transcript"] = json.loads(transcript_selection.model_dump_json())
 
+    transcript_records, transcript_fixture_limitations = load_transcript_metadata_records(
+        _transcript_fixture(options)
+    )
+    limitations.extend(transcript_fixture_limitations)
+    if _should_validate_transcripts(options, transcript_records):
+        transcript_validation = _run_step(
+            "validate_transcript_metadata",
+            audit_trail,
+            limitations,
+            lambda: validate_transcript_metadata(
+                variant=normalized_variant,
+                context=context,
+                annotation_records=annotation_records,
+                transcript_selection=transcript_selection,
+                transcript_records=transcript_records,
+                provider_limitations=transcript_fixture_limitations,
+            ),
+        )
+        if transcript_validation is not None:
+            limitations.extend(transcript_validation.limitations)
+            transcript_selection = _enrich_transcript_selection(
+                transcript_selection,
+                transcript_validation,
+            )
+            step_results["validate_transcript_metadata"] = json.loads(
+                transcript_validation.model_dump_json()
+            )
+
     population_frequency = None
     population_records = []
     population_thresholds = population_thresholds_from_options(options.get("population_thresholds"))
@@ -181,6 +215,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             context,
             annotation_records=annotation_records,
             transcript_selection=transcript_selection,
+            transcript_validation=transcript_validation,
             population_records=population_records,
         ),
     )
@@ -237,6 +272,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             transcript_selection=transcript_selection,
             gene_disease_context=context,
             context_consistency=context_consistency,
+            transcript_validation=transcript_validation,
             provider_data=_pvs1_provider_data(options),
             manual_overrides=_pvs1_manual_overrides(options),
             config=options.get("pvs1_config"),
@@ -378,6 +414,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             context,
             annotation_records=annotation_records,
             transcript_selection=transcript_selection,
+            transcript_validation=transcript_validation,
             clinvar_records=clinvar_records,
             population_records=population_records,
             literature_records=literature_records,
@@ -399,6 +436,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 context=context,
                 clinvar_records=clinvar_records,
                 context_consistency=context_consistency,
+                transcript_validation=transcript_validation,
                 provider_provenance={"source_record_count": len(clinvar_records)},
             ),
         )
@@ -467,6 +505,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     if classification_result is None:
         classification_result = classify_acmg([], normalized_variant, context, _unique(limitations))
     classification_result.transcript_selection = transcript_selection
+    classification_result.transcript_validation = transcript_validation
     classification_result.context_consistency = context_consistency
     if transcript_selection is not None:
         classification_result.review_flags = _unique_review_flags(
@@ -478,6 +517,10 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 *classification_result.review_flags,
                 *_review_flags_from_context_consistency(context_consistency),
             ]
+        )
+    if transcript_validation is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *transcript_validation.review_flags]
         )
     if reviewed_review_flags:
         classification_result.review_flags = _unique_review_flags(
@@ -583,6 +626,11 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             if transcript_selection is not None
             else None
         ),
+        "transcript_validation": (
+            json.loads(transcript_validation.model_dump_json())
+            if transcript_validation is not None
+            else None
+        ),
         "context_consistency": (
             json.loads(context_consistency.model_dump_json())
             if context_consistency is not None
@@ -603,6 +651,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             evidence_items,
             normalization_identity=normalization_identity,
             transcript_selection=transcript_selection,
+            transcript_validation=transcript_validation,
             context_consistency=context_consistency,
             vcep_override_context=vcep_override_context,
         ),
@@ -899,6 +948,31 @@ def _should_select_transcript(options: dict[str, Any]) -> bool:
     )
 
 
+def _should_validate_transcripts(
+    options: dict[str, Any],
+    transcript_records: list[Any],
+) -> bool:
+    return bool(
+        options.get("include_transcript_validation")
+        or options.get("include_mane_transcript_validation")
+        or transcript_records
+        or options.get("transcript_metadata_records") is not None
+        or options.get("transcript_metadata_json") is not None
+        or options.get("transcript_metadata_jsonl") is not None
+    )
+
+
+def _transcript_fixture(options: dict[str, Any]) -> Any:
+    return (
+        options.get("transcript_metadata_records")
+        or options.get("transcript_metadata")
+        or options.get("transcript_fixture")
+        or options.get("mane_transcript_fixture")
+        or options.get("transcript_metadata_json")
+        or options.get("transcript_metadata_jsonl")
+    )
+
+
 def _select_transcript_step(
     annotations: list[VariantAnnotation],
     variant: Variant,
@@ -906,6 +980,50 @@ def _select_transcript_step(
 ) -> TranscriptSelection:
     user_transcript = options.get("user_transcript") or _variant_transcript_label(variant)
     return select_transcript(annotations, user_transcript=user_transcript)
+
+
+def _enrich_transcript_selection(
+    selection: TranscriptSelection | None,
+    validation: TranscriptValidationResult,
+) -> TranscriptSelection | None:
+    if selection is None:
+        return None
+    metadata_by_transcript = {
+        item.get("transcript"): item
+        for item in [
+            *(validation.mane_select_candidates or []),
+            *(validation.canonical_candidates or []),
+            *([validation.matched_record] if validation.matched_record else []),
+        ]
+        if isinstance(item, dict) and item.get("transcript")
+    }
+    for collection_name in ("candidate_transcripts", "rejected_transcripts"):
+        collection = getattr(selection, collection_name)
+        for candidate in collection:
+            transcript = candidate.get("transcript")
+            metadata = metadata_by_transcript.get(transcript)
+            if not metadata:
+                continue
+            candidate.update(
+                {
+                    "transcript_version": metadata.get("transcript_version"),
+                    "mane_status": metadata.get("mane_status"),
+                    "protein_accession": metadata.get("protein_accession"),
+                    "transcript_status": metadata.get("transcript_status"),
+                    "genome_build": metadata.get("genome_build"),
+                    "exon_count": metadata.get("exon_count"),
+                    "cds_length": metadata.get("cds_length"),
+                    "nmd_relevance": metadata.get("nmd_relevance"),
+                    "transcript_source": metadata.get("transcript_source"),
+                    "tags": metadata.get("tags") or [],
+                }
+            )
+    selection.review_flags = _unique_review_flags(
+        [*selection.review_flags, *validation.review_flags]
+    )
+    selection.limitations = _unique([*selection.limitations, *validation.limitations])
+    selection.provenance["transcript_validation"] = validation.provenance
+    return selection
 
 
 def _selected_annotation_for_pvs1(
@@ -1075,6 +1193,7 @@ def _provenance_summary(
     *,
     normalization_identity: Any,
     transcript_selection: TranscriptSelection | None,
+    transcript_validation: TranscriptValidationResult | None,
     context_consistency: ContextConsistency | None,
     vcep_override_context: VCEPOverrideContext | None = None,
 ) -> dict[str, Any]:
@@ -1095,6 +1214,9 @@ def _provenance_summary(
         ],
         "transcript_selection": (
             transcript_selection.provenance if transcript_selection is not None else None
+        ),
+        "transcript_validation": (
+            transcript_validation.provenance if transcript_validation is not None else None
         ),
         "context_consistency": (
             context_consistency.provenance if context_consistency is not None else None

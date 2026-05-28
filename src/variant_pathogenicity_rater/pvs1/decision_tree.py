@@ -13,6 +13,7 @@ from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, 
 from variant_pathogenicity_rater.schemas.common import ReviewFlag
 from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
 
 
 def run_pvs1_decision_tree(
@@ -22,6 +23,7 @@ def run_pvs1_decision_tree(
     transcript_selection: TranscriptSelection | None = None,
     gene_disease_context: GeneDiseaseContext | None = None,
     context_consistency: ContextConsistency | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     provider_data: dict[str, Any] | None = None,
     manual_overrides: dict[str, Any] | None = None,
     config: PVS1Config | None = None,
@@ -54,7 +56,13 @@ def run_pvs1_decision_tree(
         blocking.append("LoF is not confirmed as a disease mechanism for this gene-disease context.")
         review_flags.append(_flag("LOF_MECHANISM_NOT_CONFIRMED", "PVS1 is not applied unless LoF is a known disease mechanism.", True))
 
-    transcript = evaluate_transcript_relevance(variant, annotation, transcript_selection, context)
+    transcript = evaluate_transcript_relevance(
+        variant,
+        annotation,
+        transcript_selection,
+        transcript_validation,
+        context,
+    )
     path.append(f"3. transcript relevance: {transcript.relevant}; transcript={transcript.transcript or 'unknown'}.")
     limitations.extend(transcript.limitations)
     review_flags.extend(transcript.review_flags)

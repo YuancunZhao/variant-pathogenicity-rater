@@ -17,6 +17,7 @@ from variant_pathogenicity_rater.schemas.evidence import (
     EvidenceStrength,
 )
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
 
 
 def generate_ps1_pm5_evidence(
@@ -25,6 +26,7 @@ def generate_ps1_pm5_evidence(
     context: GeneDiseaseContext,
     clinvar_records: list[ClinVarRecord],
     context_consistency: ContextConsistency | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     provider_provenance: dict[str, Any] | None = None,
 ) -> tuple[list[EvidenceItem], list[PS1PM5Decision]]:
     decisions = evaluate_ps1_pm5_decisions(
@@ -32,6 +34,7 @@ def generate_ps1_pm5_evidence(
         context=context,
         clinvar_records=clinvar_records,
         context_consistency=context_consistency,
+        transcript_validation=transcript_validation,
         provenance=provider_provenance,
     )
     items = [_decision_to_evidence_item(variant, decision) for decision in decisions]

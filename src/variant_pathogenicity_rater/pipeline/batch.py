@@ -180,6 +180,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                     pipeline_result,
                     parsed_record.record,
                 ),
+                transcript_validation_summary=_transcript_validation_summary(pipeline_result),
                 context_consistency_summary=_context_consistency_summary(pipeline_result),
             )
         )
@@ -589,6 +590,28 @@ def _context_consistency_summary(pipeline_result: dict[str, Any]) -> dict[str, A
         "conflicts": consistency.get("conflicts") or [],
         "warnings": consistency.get("warnings") or [],
         "limitations": consistency.get("limitations") or [],
+    }
+
+
+def _transcript_validation_summary(pipeline_result: dict[str, Any]) -> dict[str, Any] | None:
+    validation = pipeline_result.get("transcript_validation") or (
+        (pipeline_result.get("classification_result") or {}).get("transcript_validation")
+        if isinstance(pipeline_result.get("classification_result"), dict)
+        else None
+    )
+    if not isinstance(validation, dict):
+        return None
+    matched = validation.get("matched_record") or {}
+    return {
+        "status": validation.get("status"),
+        "input_transcript": validation.get("input_transcript"),
+        "matched_transcript": matched.get("transcript") if isinstance(matched, dict) else None,
+        "mane_select_candidate_count": len(validation.get("mane_select_candidates") or []),
+        "canonical_candidate_count": len(validation.get("canonical_candidates") or []),
+        "protein_accession_match": validation.get("protein_accession_match"),
+        "review_flags": validation.get("review_flags") or [],
+        "limitations": validation.get("limitations") or [],
+        "provenance": validation.get("provenance") or {},
     }
 
 

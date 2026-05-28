@@ -12,6 +12,7 @@ from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
 from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
 from variant_pathogenicity_rater.schemas.evidence import EvidenceDirection, EvidenceItem, EvidenceSource, EvidenceStrength
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
 
 
 STRENGTH_MAP = {
@@ -31,6 +32,7 @@ def generate_pvs1_evidence(
     transcript_selection: TranscriptSelection | None = None,
     gene_disease_context: GeneDiseaseContext | None = None,
     context_consistency: ContextConsistency | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     provider_data: dict[str, Any] | None = None,
     manual_overrides: dict[str, Any] | None = None,
     config: PVS1Config | dict[str, Any] | None = None,
@@ -43,6 +45,7 @@ def generate_pvs1_evidence(
         transcript_selection=transcript_selection,
         gene_disease_context=context,
         context_consistency=context_consistency,
+        transcript_validation=transcript_validation,
         provider_data=provider_data,
         manual_overrides=manual_overrides,
         config=cfg,

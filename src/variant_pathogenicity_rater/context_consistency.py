@@ -16,6 +16,7 @@ from variant_pathogenicity_rater.schemas.evidence import (
     PopulationFrequency,
 )
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant, VariantType
+from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
 
 
 TRANSCRIPT_PREFIX_RE = re.compile(r"(?P<prefix>[A-Z]{2}_[0-9]+(?:\.[0-9]+)?):")
@@ -28,6 +29,7 @@ def evaluate_context_consistency(
     *,
     annotation_records: list[VariantAnnotation] | None = None,
     transcript_selection: TranscriptSelection | None = None,
+    transcript_validation: TranscriptValidationResult | None = None,
     clinvar_records: list[ClinVarRecord] | None = None,
     population_records: list[PopulationFrequency] | None = None,
     literature_records: list[LiteratureEvidence] | None = None,
@@ -40,6 +42,7 @@ def evaluate_context_consistency(
 
     _check_gene_context(checks, variant, gene_disease_context, annotations)
     _check_transcript_context(checks, variant, gene_disease_context, annotations, transcript_selection)
+    _check_transcript_validation(checks, transcript_validation)
     _check_hgvs_prefixes(checks, variant, annotations)
     _check_protein_hgvs_ambiguity(checks, variant, annotations)
     _check_consequence_vs_variant_type(checks, variant, annotations)
@@ -76,6 +79,7 @@ def evaluate_context_consistency(
                 "clinvar_record_count": len(clinvar),
                 "population_record_count": len(populations),
                 "literature_record_count": len(literature),
+                "transcript_validation_status": transcript_validation.status if transcript_validation else None,
                 "scope": "context validation only; not ACMG evidence",
             }
         ],
@@ -157,6 +161,40 @@ def _check_transcript_context(
             selected,
             "Selected transcript differs from the normalized variant transcript.",
             "transcript_selection",
+        )
+
+
+def _check_transcript_validation(
+    checks: list[ContextConsistencyCheck],
+    validation: TranscriptValidationResult | None,
+) -> None:
+    if validation is None:
+        return
+    if validation.status in {"conflict", "warning", "insufficient"}:
+        severity = "conflict" if validation.status == "conflict" else validation.status
+        _add(
+            checks,
+            "transcript_metadata_validation_status",
+            severity,
+            "transcript_validation.status",
+            "ok",
+            validation.status,
+            "Transcript metadata validation requires review and cannot override user transcript context.",
+            "transcript_validation",
+        )
+    for flag in validation.review_flags:
+        if flag.code == "MANE_SELECT_TRANSCRIPT_SUPPORTED":
+            continue
+        severity = "conflict" if flag.blocking else "warning"
+        _add(
+            checks,
+            flag.code.lower(),
+            severity,
+            "transcript_validation",
+            "matched transcript/protein/build context",
+            flag.code,
+            flag.message,
+            "transcript_validation",
         )
 
 
