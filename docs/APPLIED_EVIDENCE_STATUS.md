@@ -26,6 +26,29 @@ Current automatic applied evidence generation supports:
 All generated applied evidence requires qualified human review and must retain
 provenance, decision paths, limitations, and safety-gate results.
 
+Current applied evidence depends on validated provider facts only through the
+appropriate rule layer:
+
+- `PVS1` depends on transcript relevance, NMD/terminal-exon or splice context,
+  consequence support, LoF disease mechanism, inheritance/context consistency,
+  and reviewable limitations. MANE/transcript providers can support context
+  review but cannot apply PVS1 directly.
+- `BA1`, `BS1`, and `PM2_Supporting` depend on population provider facts and
+  configured thresholds. gnomAD/local population snapshots supply AF/AC/AN/FAF,
+  ancestry, build, quality, and provenance; `population_rules` decides whether
+  evidence can be applied.
+- `PP3` and `BP4` depend on computational provider consensus, appropriate
+  variant context, transcript/build matching, source quality, and conflict
+  checks. A single predictor or conflicting predictors are insufficient.
+- `PS1` and `PM5` depend on ClinVar comparator facts plus protein/transcript
+  matching, nucleotide distinction, condition match, germline applicability,
+  assertion quality, conflict checks, and provenance. ClinVar assertions are
+  not copied directly into classification.
+
+No provider directly changes classification. Providers supply facts, review
+notes, or drafts; applied evidence enters classification only through validated
+generators or explicit manual `reviewed_applied` evidence.
+
 Manual reviewed evidence is also supported as an explicit curator-supplied
 workflow. It is not automatic evidence generation: only records with
 `evidence_status=reviewed_applied` are converted into applied `EvidenceItem`
@@ -259,20 +282,19 @@ PM3-like trans observations.
 
 ## Recommended Next Task
 
-The recommended next task is toy VCEP profile validation, followed by real
-provider validation.
+The recommended next task is benchmark expansion.
 
-The applied evidence loop and lightweight VCEP signal/override framework are
-now complete enough for controlled internal validation: generated applied
-evidence, candidate/suggested evidence, manual reviewed evidence, VCEP profile
-signals, limited approved overrides, combiner, reporting, batch summaries, and
-annotated-batch summaries are connected while preserving candidate separation.
-The next risk is validation depth: toy profiles should exercise every safety
-boundary, and ClinVar, gnomAD, MANE, and ERepo provider behavior needs real
-validation without weakening the combiner or the no-silent-conversion boundary.
+The applied evidence loop, lightweight VCEP signal/override framework, and
+current real provider validation surface are complete enough for controlled
+internal validation. ClinVar real provider validation, gnomAD local snapshot
+validation, MANE transcript validation, and ClinGen ERepo validation now
+preserve the required provider boundaries: local fixtures/snapshots are the
+primary validation path, optional online behavior is disabled by default,
+provenance/cache/limitations are visible, failures degrade to limitations, and
+no provider directly changes classification.
 
-After that, the next priorities are:
+After benchmark expansion, the next priorities are:
 
-- Benchmark expansion.
+- Selected real-world case validation.
 - Chinese report template.
 - Selected real VCEP profile pilot.

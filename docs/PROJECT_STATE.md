@@ -25,17 +25,19 @@ schema review, report review, conservative regression checks, CLI/MCP smoke
 testing, and safety-boundary validation. This is not a clinical validation
 statement and does not authorize autonomous clinical interpretation.
 
-After VCEP signal/override framework validation, the project state is: the
+After VCEP signal/override framework validation and real provider validation,
+the project state is: the
 generic SNV/small-indel interpretation loop is connected end to end for
 controlled internal review, including generated applied evidence,
 candidate/suggested evidence, reviewed-evidence drafts, curator-applied
 reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, local
 VCEP gene-level profile signals, approved limited profile overrides, reports,
-CLI/MCP surfaces, batch and annotated-batch VCEP summaries, and the unchanged
-ACMG classification combiner. The next project constraint is no longer basic
-workflow connectivity or rule-profile plumbing; it is validation against toy
-profiles, real providers, expanded benchmarks, localized reporting, and a
-narrow real VCEP profile pilot.
+CLI/MCP surfaces, batch and annotated-batch VCEP summaries, local
+ClinVar/gnomAD/MANE/ERepo provider validation, and the unchanged ACMG
+classification combiner. The next project constraint is no longer basic
+workflow connectivity, rule-profile plumbing, or real provider safety posture;
+it is expanded benchmarks, selected real-world case validation, localized
+reporting, and a narrow real VCEP profile pilot.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -147,6 +149,41 @@ No external curated source automatically classifies a variant. ClinVar, ERepo,
 and literature outputs remain candidate/review-note material unless a curator
 explicitly supplies valid `reviewed_applied` evidence with provenance and audit
 trail.
+
+### Real Provider Validation
+
+Real provider validation is complete for the current provider surface:
+
+- ClinVar real provider validation.
+- gnomAD local snapshot validation.
+- MANE transcript validation.
+- ClinGen ERepo validation.
+
+ClinVar uses local fixture/local-file validation and optional online behavior
+that remains disabled by default. It provides review notes and comparator facts
+for PS1/PM5, but ClinVar assertions do not directly apply PP5/BP6 or classify
+a variant.
+
+gnomAD validation uses local snapshots that map into the population-frequency
+schema. Population providers supply AF/AC/AN/FAF, ancestry, quality, build, and
+source-version facts only. `population_rules` remains the only path to applied
+`BA1`, `BS1`, or `PM2_Supporting`, and a provider miss is limitation-only.
+
+MANE/RefSeq/Ensembl transcript validation uses local annotation fixtures.
+Transcript metadata supports transcript review, exon/NMD context, and PVS1
+review assumptions, but it cannot apply PVS1, PP3, BP4, or any other
+criterion by itself.
+
+ClinGen ERepo validation covers exact variant review notes, gene-level VCEP
+activity signals, supporting summaries, citations, provenance, cache behavior,
+and reviewed-evidence drafts. Exact matches and supporting summaries remain
+review-note or draft material unless a curator submits valid
+`reviewed_applied` evidence.
+
+Across all validated providers, local fixtures or local snapshots are the
+primary validation path, optional online behavior is explicitly gated and
+disabled by default, cache/provenance/limitations are visible, failures degrade
+to structured limitations, and no provider directly changes classification.
 
 ### VCEP Signal / Override Framework
 
@@ -300,11 +337,13 @@ interpreted.
 
 ### Online Provider Gating
 
-The default provider posture is offline/local/mock. Online ClinVar is opt-in
-only and candidate-only. Other online population, literature, and computational
-providers are not implemented for the current beta. Any future online provider
-must default off, require explicit enablement, preserve provenance, and degrade
-to limitations on failure.
+The default provider posture is offline/local/mock. Real provider validation is
+based primarily on local fixtures or local snapshots. Optional online ClinVar
+and ClinGen ERepo behavior is opt-in only and disabled by default. Online
+population, transcript, literature, and computational providers are not default
+runtime dependencies for the current beta. Any future online provider must
+default off, require explicit enablement, preserve provenance/cache metadata,
+and degrade to limitations on failure.
 
 ### Failure-To-Limitation
 
@@ -358,12 +397,12 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is validation and hardening of the completed VCEP
-signal/override framework. Start with toy profile validation, then validate
-real provider behavior for ClinVar, gnomAD, MANE, and ERepo using opt-in or
-local-fixture workflows with provenance checks and failure-to-limitation
-behavior.
+The recommended next task is benchmark expansion, followed by selected
+real-world case validation, a Chinese report template, and one narrowly scoped
+real VCEP profile pilot behind explicit profile selection.
 
-After that validation track, the current priorities are benchmark expansion, a
-Chinese report template, and one narrowly scoped real VCEP profile pilot behind
-explicit profile selection.
+Real provider validation for ClinVar, gnomAD, MANE, and ERepo is complete for
+the current provider surface and should now be maintained as a regression
+boundary: local fixture/snapshot validation, optional online disabled by
+default, provenance/cache visibility, failure-to-limitation behavior, and no
+direct provider-driven classification.

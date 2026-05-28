@@ -8,26 +8,32 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 ## Recommended Next Task
 
-The recommended next task is `62_toy_vcep_profile_validation`.
+The recommended next task is `55_benchmark_expansion`.
 
-It is the best next step because the VCEP signal/override framework is now
-implemented and validated at the framework level: gene-level VCEP signals,
-approved profile overrides, draft/provisional signal-only handling, deprecated
-limitation-only handling, profile conflict blocking, batch and annotated-batch
-`vcep_profile_summary`, report provenance, and unchanged combiner behavior are
-in place. The next constraint is validation depth: toy profiles should prove
-profile-off/profile-on behavior and safety boundaries before real provider
-validation and a selected real VCEP profile pilot.
+It is the best next step because the VCEP signal/override framework and the
+current real provider validation surface are complete enough for controlled
+internal validation. ClinVar real provider validation, gnomAD local snapshot
+validation, MANE transcript validation, and ClinGen ERepo validation now
+preserve the intended provider boundaries: local fixtures/snapshots are the
+primary validation path, optional online behavior is disabled by default,
+provenance/cache/limitations remain visible, failures degrade to limitations,
+and no provider directly changes classification.
+
+The next constraint is validation breadth. Benchmark expansion should cover the
+current applied-evidence dependencies, provider limitations, and
+candidate/applied separation before moving into selected real-world case
+validation, a Chinese report template, and a selected real VCEP profile pilot.
 
 ## Prioritized Task List
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
-| `62_toy_vcep_profile_validation` | P0 | Validate the completed VCEP signal/override framework with toy profiles, profile-off/profile-on examples, report provenance, and batch summaries. | High | Profile fixtures, validation docs, benchmark/report examples | Yes |
-| `56_real_provider_validation_clinvar_gnomad_mane_erepo` | P0 | Validate ClinVar, gnomAD, MANE, and ERepo online provider behavior with provenance, local fixtures or opt-in online mode, and failure-to-limitation checks. | High | Provider adapters/fixtures, validation docs, smoke tests, provenance reports | Yes |
-| `55_benchmark_expansion` | P1 | Expand the offline benchmark beyond 21 curated cases with rationale, expected applied/candidate/reviewed evidence, literature drafts, and safety checks. | Medium | Data fixtures, benchmark docs, benchmark tests | Yes |
+| `55_benchmark_expansion` | P0 | Expand the offline benchmark beyond 21 curated cases with rationale, expected applied/candidate/reviewed evidence, provider limitations, literature drafts, and safety checks. | Medium | Data fixtures, benchmark docs, benchmark tests | Yes |
+| `63_selected_real_world_case_validation` | P0 | Validate selected real-world SNV/small-indel cases with completed provider boundaries, provenance review, and no direct provider classification. | High | Case fixtures, validation docs, report examples | Yes |
 | `57_chinese_report_template` | P1 | Add Chinese report output while preserving human-review-required language, VUS caution, provenance, applied/candidate separation, and reviewed-evidence labeling. | Medium | Reporting templates, docs, report tests | Yes |
 | `61_selected_real_vcep_profile_pilot` | P1 | Pilot one selected real VCEP profile only after toy profile and real provider validation pass. | High | Profile config, provenance docs, reports, benchmark cases | Yes |
+| `62_toy_vcep_profile_validation` | Done | Validated the completed VCEP signal/override framework with toy profiles, profile-off/profile-on examples, report provenance, and batch summaries. | High | Profile fixtures, validation docs, benchmark/report examples | Yes |
+| `56_real_provider_validation_clinvar_gnomad_mane_erepo` | Done | Validated ClinVar, gnomAD, MANE, and ERepo provider behavior with local fixtures/snapshots, opt-in online boundaries, provenance, cache visibility, and failure-to-limitation checks. | High | Provider adapters/fixtures, validation docs, smoke tests, provenance reports | Yes |
 | `54_vcep_clingen_rule_knowledge_base` | Done | Implemented lightweight versioned VCEP signal/override framework with explicit profile selection, safe override surface, provenance, reporting, and batch summaries. | High | Profile docs/config schemas, evidence generator inputs, reports, CLI/MCP, batch | Yes |
 | `clingen_erepo_integration_validation` | Done | Validated ClinGen ERepo as a conservative curated-source review-note and reviewed-draft integration with no automatic application. | High | ERepo provider, reviewed drafts, reports, CLI/MCP, docs, tests | Yes |
 | `52_manual_reviewed_evidence_workflow` | Done | Implemented explicit curator-reviewed evidence input with strict validation, provenance, batch/CLI/MCP support, and no silent candidate promotion. | High | Input schemas, validation, provenance, reports, batch, CLI, MCP, docs, tests | Yes |

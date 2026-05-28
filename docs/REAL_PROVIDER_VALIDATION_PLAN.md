@@ -1,14 +1,36 @@
 # Real Provider Validation Plan
 
-This document defines the validation path for real provider behavior across
-ClinVar, gnomAD-like population snapshots, MANE/RefSeq/Ensembl transcript
-metadata, and ClinGen Evidence Repository. It is a validation and safety
-hardening plan, not a plan to make online providers default behavior.
+This document records the validation status and guardrails for real provider
+behavior across ClinVar, gnomAD-like population snapshots, MANE/RefSeq/Ensembl
+transcript metadata, and ClinGen Evidence Repository. It is a validation and
+safety hardening record, not a plan to make online providers default behavior.
 
 The validation goal is to prove that provider data is retrieved, parsed,
 cached, matched, reported, and degraded safely. Concordance with external
 assertions is not clinical correctness, and no provider result is allowed to
 classify a variant by itself.
+
+## Current Validation Status
+
+Real provider validation is complete for the current internal-beta provider
+surface:
+
+- ClinVar real provider validation.
+- gnomAD local snapshot validation.
+- MANE transcript validation.
+- ClinGen Evidence Repository validation.
+
+Completion means that the provider paths have documented local fixture or local
+snapshot validation, opt-in online behavior remains disabled by default where
+available, provenance and cache behavior are visible, provider failures degrade
+to limitations, and provider-derived facts do not directly change
+classification.
+
+This status does not mean the providers are clinical truth sets. It means the
+current provider integrations preserve the project safety model: providers
+supply auditable facts or review context, while evidence generators,
+manual-reviewed evidence, and the unchanged combiner retain their existing
+boundaries.
 
 ## Core Validation Rules
 
@@ -30,14 +52,32 @@ classify a variant by itself.
 - The ACMG classification combiner must remain unchanged for provider
   validation.
 
-## Implementation Roadmap
+## Provider Capability And Boundary Status
 
-### Phase A: ClinVar Real Validation
+### ClinVar
 
-ClinVar should be validated first because the project already has local-file
-and opt-in online ClinVar support, and because ClinVar directly touches the
-highest-risk external-assertion boundary for PS1/PM5 and PP5-style review
-notes.
+ClinVar validation is complete for the current real-provider surface.
+
+Current capability:
+
+- Local fixture/local-file validation covers exact variants, comparator
+  variants, assertion quality, condition matching, germline applicability,
+  conflicts, malformed records, and provenance.
+- Optional online ClinVar remains explicitly gated and disabled by default.
+- Cache/provenance expectations include source endpoint or local file identity,
+  query metadata, retrieval timestamp or local snapshot context, parser
+  version, source version or live-source label, raw payload hash where
+  available, and limitations.
+- Failure, timeout, malformed payload, provider miss, stale source, missing
+  provenance, or context mismatch becomes a limitation, blocked comparator, or
+  candidate/review-note record.
+- ClinVar review notes remain separate from applied evidence.
+- ClinVar assertions never directly apply PP5/BP6 and never classify a variant.
+
+ClinVar can support applied `PS1` or `PM5` only through the comparator
+generator after protein, nucleotide, transcript/protein, condition, germline,
+conflict, quality, context, and provenance gates pass. The provider supplies
+comparator facts; it does not directly change classification.
 
 Required local fixture scenarios:
 
@@ -70,7 +110,7 @@ Optional online smoke validation:
 - Must remain excluded from default CI unless the required environment gates
   are present.
 
-Acceptance checks:
+Current acceptance checks:
 
 - ClinVar review notes remain separate from applied evidence.
 - ClinVar assertions never automatically trigger PP5 or BP6.
@@ -82,12 +122,29 @@ Acceptance checks:
 - ClinVar provider misses are visible as limitations when relevant and do not
   imply absence from ClinVar.
 
-### Phase B: gnomAD Local Snapshot Validation
+### gnomAD Population Snapshot
 
-gnomAD validation should begin with local JSONL snapshots that map into the
-existing population-frequency schema. Online gnomAD integration should be
-deferred until local parsing, provenance, no-record behavior, and quality gates
-are validated.
+gnomAD local snapshot validation is complete for the current population
+provider surface.
+
+Current capability:
+
+- Local JSONL/local snapshot validation maps population facts into the existing
+  population-frequency schema.
+- Online gnomAD remains future/optional behavior and disabled by default.
+- Cache/provenance expectations include snapshot identity, dataset/source
+  version, genome build, query key, parser version, retrieval or snapshot time,
+  raw-record hash where available, and limitations.
+- Provider miss, malformed AF/AC/AN/FAF/filter fields, stale source, low AN,
+  low coverage, non-callable region, ancestry mismatch, founder-population
+  warning, genome-build mismatch, or missing threshold context becomes a
+  limitation or candidate-only result.
+- The population provider supplies normalized frequency facts only.
+- No gnomAD or population provider result directly changes classification.
+
+`population_rules` remains the only path to applied `BA1`, `BS1`, or
+`PM2_Supporting`. A no-record result is not population absence and never
+triggers PM2 by itself.
 
 Required local snapshot fields:
 
@@ -122,7 +179,7 @@ Required validation scenarios:
 - Stale snapshot version.
 - Malformed AF, AC, AN, FAF, or filter fields.
 
-Acceptance checks:
+Current acceptance checks:
 
 - The provider supplies normalized population facts only.
 - `population_rules` remains the only path to applied BA1, BS1, or
@@ -137,11 +194,30 @@ population-frequency schema. It should preserve dataset/build/version details,
 cache raw payloads, and continue to delegate all evidence decisions to
 `population_rules`.
 
-### Phase C: MANE / RefSeq / Ensembl Transcript Metadata Validation
+### MANE / RefSeq / Ensembl Transcript Metadata
 
-Transcript metadata validation should use local annotation fixtures first.
-MANE, RefSeq, and Ensembl metadata are review context for transcript selection
-and PVS1 review support; they do not generate ACMG evidence by themselves.
+MANE transcript validation is complete for the current transcript metadata
+surface.
+
+Current capability:
+
+- Local annotation fixtures validate transcript accession/version, MANE Select
+  and canonical tags, exon/NMD context, coding status, consequence context,
+  ambiguity, mismatch, malformed metadata, and provenance.
+- Optional online transcript metadata behavior remains disabled by default.
+- Cache/provenance expectations include source name, source version, genome
+  build, query metadata, parser version, raw-record provenance, timestamp or
+  snapshot identity, and limitations.
+- Missing transcript, source disagreement, noncoding selection, ambiguous MANE
+  or canonical tags, transcript mismatch, malformed exon/NMD fields, and
+  provider failure become review flags or limitations.
+- Transcript metadata is recommendation/review-note context only.
+- No MANE, RefSeq, or Ensembl metadata directly changes classification.
+
+Transcript metadata can support PVS1 review by clarifying transcript relevance,
+exon position, terminal-exon context, and NMD assumptions. It cannot substitute
+for LoF disease mechanism, inheritance, consequence, context consistency, or
+PVS1 safety gates.
 
 Required metadata:
 
@@ -173,7 +249,7 @@ Required validation scenarios:
 - Exon count, exon position, and NMD metadata are available.
 - Exon or NMD metadata is missing or malformed.
 
-Acceptance checks:
+Current acceptance checks:
 
 - Transcript selection remains recommendation/review-note context only.
 - A selected transcript does not apply PVS1, PP3, BP4, or any other criterion.
@@ -184,11 +260,34 @@ Acceptance checks:
 - Ambiguity, mismatch, missing metadata, and source disagreement become review
   flags or limitations.
 
-### Phase D: ClinGen Evidence Repository Online Validation
+### ClinGen Evidence Repository
 
-ClinGen Evidence Repository validation should preserve the current posture:
-ERepo is a curated-source review-note and reviewed-draft support workflow, not
-an automatic evidence or classification provider.
+ClinGen Evidence Repository validation is complete for the current curated
+source integration surface.
+
+Current capability:
+
+- Local fixture and opt-in online validation cover exact variant matching,
+  gene-level VCEP activity signals, condition/transcript matching, supporting
+  summaries, citations, conflict/stale handling, draft generation, malformed
+  records, cache behavior, and provenance.
+- Optional online ERepo behavior remains explicitly gated and disabled by
+  default.
+- Cache/provenance expectations include source URL or API endpoint, cache key or
+  payload hash, retrieval timestamp, parser version, source version or live
+  source label, VCEP/curation group, assertion date/status/version, citations,
+  and limitations.
+- Online failure, timeout, empty response, malformed response, stale record,
+  unversioned record, condition mismatch, transcript mismatch, ClinVar/ERepo
+  conflict, missing citations, or incomplete provenance becomes a review flag,
+  limitation, or non-applied draft.
+- Exact ERepo matches remain review notes.
+- No ERepo result directly changes classification.
+
+ERepo supporting summaries can seed reviewed-evidence drafts only. Drafts
+default to `needs_more_info` and cannot affect classification unless a curator
+submits valid `reviewed_applied` evidence through the manual reviewed-evidence
+workflow.
 
 Required metadata:
 
@@ -222,7 +321,7 @@ Required validation scenarios:
 - Incomplete provenance.
 - Online failure, timeout, empty response, and malformed response.
 
-Acceptance checks:
+Current acceptance checks:
 
 - Exact variant matches remain review-note evidence, not applied evidence.
 - Gene-level matches remain VCEP activity signals, not variant matches.
@@ -313,7 +412,7 @@ Provider validation must preserve these safety gates:
 - Real provider payload drift causing permissive parser fallbacks.
 - Online smoke tests becoming treated as validation of clinical correctness.
 
-## Deliverables
+## Completed Deliverables
 
 - `docs/REAL_PROVIDER_VALIDATION_PLAN.md`.
 - ClinVar local fixture checklist covering exact variants, comparators,
@@ -331,26 +430,12 @@ Provider validation must preserve these safety gates:
 - Documentation of cache behavior, stale source behavior, malformed response
   behavior, and failure-to-limitation behavior.
 
-## Recommended First Implementation Task
+## Recommended Next Tasks
 
-Start with Phase A: ClinVar real validation.
+Real provider validation is no longer the next implementation task. The
+recommended next validation and product-readiness tasks are:
 
-The first implementation task should not add new online behavior. It should add
-or refine offline ClinVar validation fixtures and tests that prove:
-
-- local snapshot provenance is complete
-- malformed records degrade safely
-- conflict, low review status, somatic-only status, condition mismatch, and
-  missing provenance block applied PS1/PM5
-- exact query variants are distinguished from comparator variants
-- PS1 same-amino-acid comparators require a different nucleotide or genomic
-  change
-- PM5 comparators require the same residue and a different alternate amino
-  acid
-- ClinVar review notes do not leak into applied evidence
-- optional online failure and cache behavior are tested only behind explicit
-  gates
-
-After ClinVar validation is complete, proceed to gnomAD local snapshot
-validation, then transcript metadata validation, then opt-in ClinGen ERepo
-online validation.
+- Benchmark expansion.
+- Selected real-world case validation.
+- Chinese report template.
+- Selected real VCEP profile pilot.

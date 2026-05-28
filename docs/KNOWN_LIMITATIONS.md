@@ -94,14 +94,40 @@ replace qualified clinical, laboratory, or genetics professional review.
 ## Provider Boundaries
 
 - The default data source mode is offline `mock`.
-- Online ClinVar is opt-in only and requires both `mode=online` or
-  `future_online` and `online_enabled=true`.
-- Population, literature, and computational online providers are not
-  implemented for v0.2.0-beta.
+- Real provider validation is complete for the current ClinVar, gnomAD local
+  snapshot, MANE transcript, and ClinGen ERepo provider surfaces, but this is
+  validation of safe provider behavior, not clinical truth-set validation.
+- Local fixtures and local snapshots are the primary validated provider path.
+- Online ClinVar and ClinGen ERepo behavior is opt-in only and disabled by
+  default. Online use requires explicit mode/config gates and must retain cache
+  and provenance metadata.
+- Population, transcript, literature, and computational online providers are
+  not default runtime dependencies for v0.2.0-beta.
 - Local-file provider quality depends on the supplied local snapshot, genome
-  build, parser compatibility, and source freshness.
+  build, parser compatibility, source freshness, and available provenance.
+- Provider cache/provenance should preserve source or snapshot identity, query
+  metadata, source version or live-source label, parser version, retrieval or
+  snapshot time, raw-record or payload hash where available, and limitations.
+- Provider failure, timeout, malformed payload, missing source version, stale
+  source, missing provenance, provider miss, or context mismatch must become a
+  structured limitation, review flag, failed record, or candidate-only output.
 - Provider genome build is checked against input genome build when available.
   Mismatches are retained as context conflicts instead of being silently ignored.
+- No provider directly changes classification. ClinVar/ERepo assertions,
+  gnomAD frequency facts, and MANE/transcript metadata must pass through the
+  existing evidence generators or manual reviewed-evidence workflow before they
+  can affect applied evidence.
+- ClinVar may support PS1/PM5 only as comparator facts after protein,
+  nucleotide, transcript/protein, condition, germline, quality, conflict, and
+  provenance gates pass.
+- gnomAD/local population facts may support BA1/BS1/PM2_Supporting only through
+  `population_rules` and configured thresholds. A provider miss or no local
+  record is not population absence.
+- MANE/RefSeq/Ensembl transcript metadata may support transcript, NMD, and PVS1
+  context review, but cannot apply PVS1 or any other ACMG criterion by itself.
+- ClinGen ERepo exact matches, VCEP activity signals, and supporting summaries
+  remain review notes or reviewed-evidence drafts unless explicitly converted
+  through valid curator-supplied `reviewed_applied` evidence.
 
 ## Release Use
 

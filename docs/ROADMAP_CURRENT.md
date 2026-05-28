@@ -118,6 +118,32 @@ generator safety gates, disabled criteria become candidate/review-note evidence
 instead of silent deletions, and the ACMG classification combiner remains
 unchanged.
 
+### Phase 9: Real Provider Validation
+
+The real provider validation phase validated the current ClinVar, gnomAD,
+MANE/transcript, and ClinGen ERepo provider surfaces without making online
+providers default behavior.
+
+Completed validation includes:
+
+- ClinVar real provider validation.
+- gnomAD local snapshot validation.
+- MANE transcript validation.
+- ClinGen ERepo validation.
+
+This phase confirmed the provider boundary: local fixtures or local snapshots
+are the primary validation path, optional online behavior remains disabled by
+default, provider cache/provenance/limitations are visible, provider failures
+degrade to limitations, and no provider directly changes classification.
+
+ClinVar can provide review notes and comparator facts for PS1/PM5, but not
+direct PP5/BP6 or classification. gnomAD/local population snapshots provide
+frequency facts that must pass through population rules and thresholds. MANE
+and transcript metadata provide transcript/NMD/context review support but do
+not apply PVS1 or other criteria. ERepo provides exact-match review notes,
+gene-level VCEP activity signals, supporting summaries, citations, and
+reviewed-evidence drafts, but not automatic applied evidence.
+
 ## Current Complete Interpretation Workflow
 
 ```text
@@ -132,61 +158,7 @@ variant input
 
 ## Highest Priority Current Tasks
 
-### 1. Toy Profile Validation
-
-Goal: validate the completed VCEP signal/override framework with intentionally
-small toy profiles that exercise profile-off/profile-on behavior, approved
-override provenance, draft/provisional signal-only handling, deprecated
-limitation-only handling, profile conflict blocking, and per-record batch
-summaries.
-
-Why it matters: the framework plumbing is now implemented, but toy profiles are
-the safest way to prove each boundary before introducing real VCEP guidance.
-
-Architecture impact: should focus on validation fixtures, benchmark cases,
-report examples, and documentation. Business logic, tests outside the intended
-validation surface, and the combiner should remain stable.
-
-Safety risks: overinterpreting toy profiles as clinical guidance, missing
-candidate/applied leakage, and losing provenance in batch or annotated-batch
-outputs.
-
-Expected deliverables: toy profile fixture set, profile-off/profile-on
-comparison cases, report examples, batch/annotated-batch examples, and
-documented safety expectations.
-
-Release gate expectations: no default profile activation, no combiner change,
-candidate-only leakage checks, report provenance checks, and batch
-`vcep_profile_summary` checks.
-
-### 2. Real Provider Validation: ClinVar / gnomAD / MANE / ERepo Online
-
-Goal: validate provider behavior against real ClinVar, gnomAD, MANE, and
-ClinGen ERepo online data using opt-in or local-fixture workflows with source
-versions, provenance, and failure-to-limitation behavior.
-
-Why it matters: the current loop is useful, but real provider validation is
-needed before broader internal use. Concordance with external assertions is not
-clinical correctness, so validation must focus on provenance, context matching,
-and safe degradation.
-
-Architecture impact: expected changes should focus on provider fixtures,
-validation scripts or smoke tests, documentation, provenance checks, and report
-review. Online behavior must remain explicitly gated.
-
-Safety risks: direct ClinVar assertion reuse, treating provider misses as
-absence, hiding MANE/transcript mismatch, and weakening candidate/applied
-separation under real-data pressure.
-
-Expected deliverables: documented validation protocol, local snapshots or
-fixtures where possible, ClinVar/gnomAD/MANE/ERepo provenance checks, mismatch
-examples, and review of failure wording.
-
-Release gate expectations: no network dependency in default tests, no candidate
-leakage, source-version documentation, opt-in ERepo online checks,
-failure-to-limitation checks, and combiner unchanged.
-
-### 3. Benchmark Expansion
+### 1. Benchmark Expansion
 
 Goal: expand the curated benchmark beyond the current beta-sized set while
 keeping it offline, auditable, and safety-focused.
@@ -211,7 +183,35 @@ updated benchmark documentation.
 Release gate expectations: benchmark pass, full pytest pass, no combiner
 relaxation, and clear statement that the benchmark is not a clinical truth set.
 
-### 4. Chinese Report Template
+### 2. Selected Real-World Case Validation
+
+Goal: validate selected real-world SNV/small-indel cases end to end using the
+completed provider-validation posture: local fixtures/snapshots where possible,
+optional online disabled by default, provenance visible, provider failures
+converted to limitations, and no direct provider-driven classification.
+
+Why it matters: curated benchmarks catch known rule regressions, but selected
+real-world cases test realistic combinations of provider gaps, transcript
+mismatch, population quality, ClinVar comparator ambiguity, and ERepo review
+context.
+
+Architecture impact: should focus on case data, expected outputs, provenance
+review, report examples, and documentation. Business logic and the combiner
+should remain stable unless a clearly scoped defect is found.
+
+Safety risks: treating external assertions as truth, treating population
+provider misses as absence, overusing transcript metadata to justify PVS1, and
+weakening candidate/applied separation.
+
+Expected deliverables: selected case set, per-case rationale, expected
+applied/candidate/review-note evidence, expected limitations, provider
+provenance review, and report examples.
+
+Release gate expectations: no default network dependency, no direct provider
+classification, no combiner change, and explicit limitations for unresolved
+provider or context gaps.
+
+### 3. Chinese Report Template
 
 Goal: provide a Chinese-language report template that preserves the same safety
 wording, applied/candidate separation, reviewed-evidence labeling, provenance,
@@ -235,10 +235,10 @@ Release gate expectations: report wording safety review by a qualified reader,
 pytest pass, smoke report generation, and no changes to evidence logic or the
 combiner.
 
-### 5. Selected Real VCEP Profile Pilot
+### 4. Selected Real VCEP Profile Pilot
 
-Goal: after toy profile validation and real provider validation, pilot one
-carefully selected real VCEP profile behind explicit selection.
+Goal: pilot one carefully selected real VCEP profile behind explicit selection,
+now that toy profile validation and real provider validation are complete.
 
 Why it matters: disease-specific profiles are the path from generic ACMG
 support toward realistic internal interpretation workflows, but they require

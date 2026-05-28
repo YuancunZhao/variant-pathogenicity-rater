@@ -31,6 +31,7 @@ sources, or reviewed-evidence drafts, also read:
 - `docs/CLINGEN_EREPO_INTEGRATION.md`
 - `docs/MANUAL_REVIEWED_EVIDENCE.md`
 - `docs/APPLIED_EVIDENCE_STATUS.md`
+- `docs/REAL_PROVIDER_VALIDATION_PLAN.md`
 
 If the task touches VCEP profiles, rule knowledge, profile overrides, or
 disease/gene-specific guidance, also read:
@@ -62,6 +63,16 @@ disease/gene-specific guidance, also read:
 17. Disabled VCEP-profile criteria must become candidate/review-note evidence,
     not silent deletions.
 18. VCEP override provenance and report visibility are required.
+19. Real provider validation must preserve local fixture/local snapshot
+    coverage as the primary validation path.
+20. Optional online providers must remain disabled by default and explicitly
+    gated.
+21. Provider cache, provenance, source version, query metadata, parser version,
+    and limitations must stay visible.
+22. Provider failures, misses, malformed payloads, stale sources, and context
+    mismatches must degrade to limitations, review flags, failed records, or
+    candidate-only output.
+23. No provider directly changes classification.
 
 ## Evidence Governance
 
@@ -86,6 +97,11 @@ When adding or modifying evidence behavior:
   non-conflicting profiles and the documented safe override surface.
 - Preserve `vcep_profile_summary` in batch and annotated-batch records when
   VCEP profile context is present.
+- Keep current provider dependencies explicit: PVS1 depends on
+  transcript/NMD/context/LoF mechanism, BA1/BS1/PM2 depends on population
+  provider facts and thresholds, PP3/BP4 depends on computational provider
+  consensus, and PS1/PM5 depends on ClinVar comparator plus protein/transcript
+  matching.
 
 ## Planning Expectations
 
@@ -101,9 +117,12 @@ Before implementation, identify:
 Do not implement a new ACMG evidence criterion or broaden variant scope unless
 the task explicitly asks for it and the roadmap supports it.
 
-The current recommended next task is toy VCEP profile validation, followed by
-real provider validation for ClinVar, gnomAD, MANE, and ERepo, benchmark
-expansion, a Chinese report template, and a selected real VCEP profile pilot.
+The current recommended next task is benchmark expansion. Real provider
+validation is complete for the current ClinVar, gnomAD local snapshot, MANE
+transcript, and ClinGen ERepo surfaces and should now be treated as a
+regression boundary. After benchmark expansion, prioritize selected real-world
+case validation, a Chinese report template, and a selected real VCEP profile
+pilot.
 
 ## Completion Report
 
