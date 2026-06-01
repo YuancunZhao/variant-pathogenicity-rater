@@ -10,13 +10,13 @@ signal/override boundaries, provider limitations, and provenance expectations.
 
 ## Dataset Contents
 
-The benchmark currently contains 70 cases:
+The benchmark currently contains 100 cases:
 
-- 4 pathogenic
+- 5 pathogenic
 - 4 likely pathogenic
-- 49 VUS
+- 76 VUS
 - 7 likely benign
-- 6 benign
+- 8 benign
 
 Each case includes gene, transcript, HGVS c./p., variant type, disease,
 inheritance, mock population data, mock computational predictions, a mock
@@ -44,6 +44,15 @@ provider facts into local JSONL fixtures under
 `data/benchmark_provider_fixtures/`. Each Phase B case includes
 `provider_fixture_refs` for population, ClinVar, computational, literature,
 ClinGen ERepo, or VCEP profile context.
+
+Phase B fixture references use the stable form `provider:case_id`, such as
+`population:bench-41`. Phase C keeps that pattern through `bench-100` and adds
+`annotation.jsonl` and `transcript_metadata.jsonl` for local PVS1, splice,
+MANE, and transcript-boundary validation. The benchmark tests require every
+external fixture reference to resolve, require fixture ids to match their owning
+case ids, and fail on unused fixture rows. This keeps the benchmark as an
+integrated local-provider regression set rather than a collection of
+disconnected mock payloads.
 
 ## Evidence Model
 
@@ -92,6 +101,11 @@ The regression tests cover:
 - Phase B real-world style examples across BRCA1/BRCA2, CFTR, GJB2, PAH,
   TP53, cardiomyopathy genes, splice-edge variants, high-AF benign examples,
   ClinVar conflict/context mismatch, and rare PP3/BP4-only VUS cases.
+- Phase C edge cases across last-exon/NMD/start-loss/canonical-splice PVS1
+  boundaries, population threshold and provider-quality failures, computational
+  conflict and SpliceAI-only cases, ClinVar PS1/PM5 comparator gates,
+  ERepo/VCEP review-note and override behavior, reviewed evidence, literature
+  drafts, and transcript/MANE validation boundaries.
 
 ## Expansion Strategy
 
@@ -101,12 +115,19 @@ The benchmark expansion is staged:
   safety-boundary coverage.
 - Phase B: 40 to 70 cases, implemented, broadening real-world style examples
   and moving the added provider facts into `data/benchmark_provider_fixtures/`.
-- Phase C: 70 to 100+ cases, planned, should add broader transcript, ancestry,
-  malformed-provider, stale-source, VCEP-profile, and report-smoke coverage.
+- Phase C: 70 to 100 cases, implemented, adding broader PVS1 edge, population,
+  computational, ClinVar PS1/PM5, ERepo/VCEP, reviewed-evidence, literature,
+  and transcript/MANE coverage while staying fully offline.
+- Phase D: 100+ cases, deferred; likely candidates include broader malformed
+  provider payloads, stale-source provenance, more condition-specific VCEP
+  conflict cases, and report-smoke expansion.
 
 The ACMG classification combiner must remain unchanged during benchmark
 expansion. Benchmark expectations are regression expectations for the current
 conservative pipeline and must not be treated as clinical truth assertions.
+Expected applied and candidate evidence are checked separately and strictly,
+including evidence strength, so candidate/review-note evidence cannot satisfy
+an applied-evidence expectation.
 
 Run the benchmark regression suite with:
 

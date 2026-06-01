@@ -20,11 +20,43 @@ VALID_CLASSIFICATIONS = {
     "likely_benign",
     "benign",
 }
+PHASE_B_START = 41
+PHASE_C_START = 71
+FIXTURE_PROVIDER_NAMES = {
+    "annotation",
+    "population",
+    "clinvar",
+    "computational",
+    "literature",
+    "clingen_erepo",
+    "transcript_metadata",
+    "vcep_profile",
+}
 
 
 def _benchmark_cases() -> list[dict[str, Any]]:
     payload = json.loads(BENCHMARK_PATH.read_text())
     return payload["cases"]
+
+
+def _phase_b_cases() -> list[dict[str, Any]]:
+    return [
+        case
+        for case in _benchmark_cases()
+        if int(case["case_id"].split("-", 1)[1]) >= PHASE_B_START
+    ]
+
+
+def _phase_c_cases() -> list[dict[str, Any]]:
+    return [
+        case
+        for case in _benchmark_cases()
+        if int(case["case_id"].split("-", 1)[1]) >= PHASE_C_START
+    ]
+
+
+def _case_by_id(case_id: str) -> dict[str, Any]:
+    return next(case for case in _benchmark_cases() if case["case_id"] == case_id)
 
 
 @lru_cache(maxsize=None)
@@ -57,6 +89,13 @@ def _fixture_value(case: dict[str, Any], name: str) -> Any | None:
     return _fixture_records(name).get(fixture_id)
 
 
+def _fixture_id(ref: str) -> tuple[str, str] | None:
+    if ":" not in ref or ref.startswith("inline:"):
+        return None
+    provider, fixture_id = ref.split(":", 1)
+    return provider, fixture_id
+
+
 def _variant_id(case: dict[str, Any]) -> str:
     genomic = case["genomic"]
     return (
@@ -85,6 +124,8 @@ def _pipeline_payload(case: dict[str, Any]) -> dict[str, Any]:
         if _fixture_value(case, "literature") is not None
         else case["mock_literature_evidence"]
     )
+    annotation_records = _fixture_value(case, "annotation")
+    transcript_metadata_records = _fixture_value(case, "transcript_metadata")
 
     options = {
         "mock_mode": True,
@@ -95,6 +136,10 @@ def _pipeline_payload(case: dict[str, Any]) -> dict[str, Any]:
         "literature_records": literature_records,
         "mock_supplemental_evidence_items": case["mock_applied_evidence"],
     }
+    if annotation_records is not None:
+        options["annotation_records"] = annotation_records
+    if transcript_metadata_records is not None:
+        options["transcript_metadata_records"] = transcript_metadata_records
     erepo_records = _fixture_value(case, "clingen_erepo")
     if erepo_records is not None:
         options["include_clingen_erepo"] = True
@@ -177,6 +222,18 @@ def _source_names(items: list[dict[str, Any]]) -> set[str]:
     }
 
 
+def _evidence_sources_by_code(items: list[dict[str, Any]], code: str) -> set[str]:
+    return {
+        item.get("source", {}).get("name", "")
+        for item in items
+        if item["code"] == code and item.get("source", {}).get("name")
+    }
+
+
+def _evidence_by_code(items: list[dict[str, Any]], code: str) -> list[dict[str, Any]]:
+    return [item for item in items if item["code"] == code]
+
+
 def _section(report_text: str, heading: str, next_heading: str | None = None) -> str:
     start = report_text.index(heading)
     if next_heading is None:
@@ -218,6 +275,213 @@ def test_benchmark_dataset_shape_and_classification_coverage() -> None:
     }
     for case in cases:
         assert required_fields.issubset(case), case["case_id"]
+        assert isinstance(case["expected_applied_evidence"], list), case["case_id"]
+        assert isinstance(case["expected_candidate_evidence"], list), case["case_id"]
+
+
+def test_benchmark_case_ids_are_unique_stable_and_manifest_count_matches() -> None:
+    payload = json.loads(BENCHMARK_PATH.read_text())
+    cases = payload["cases"]
+    case_ids = [case["case_id"] for case in cases]
+
+    assert payload["case_count"] == len(cases)
+    assert len(case_ids) == len(set(case_ids))
+    assert case_ids == [f"bench-{index:02d}" for index in range(1, len(cases) + 1)]
+
+
+def test_phase_b_cases_have_purpose_category_and_strict_expectations() -> None:
+    for case in _phase_b_cases():
+        assert case.get("case_category"), case["case_id"]
+        assert case.get("safety_focus"), case["case_id"]
+        assert case.get("rationale"), case["case_id"]
+        assert case.get("variant_input"), case["case_id"]
+        assert case.get("disease_context"), case["case_id"]
+        assert isinstance(case.get("expected_applied_evidence"), list), case["case_id"]
+        assert isinstance(case.get("expected_candidate_evidence"), list), case["case_id"]
+        assert "expected_limitations" in case, case["case_id"]
+
+
+def test_phase_b_provider_fixture_refs_resolve_and_do_not_cross_pollute() -> None:
+    for case in _phase_b_cases():
+        refs = case.get("provider_fixture_refs") or {}
+        assert {"population", "clinvar", "computational", "literature"}.issubset(refs), case["case_id"]
+        for provider_name, ref in refs.items():
+            assert provider_name in FIXTURE_PROVIDER_NAMES, (case["case_id"], provider_name)
+            parsed = _fixture_id(str(ref))
+            assert parsed is not None, (case["case_id"], provider_name, ref)
+            fixture_provider, fixture_id = parsed
+            assert fixture_provider == provider_name, (case["case_id"], provider_name, ref)
+            assert fixture_id == case["case_id"], (case["case_id"], provider_name, ref)
+            assert fixture_id in _fixture_records(fixture_provider), (case["case_id"], provider_name, ref)
+
+
+def test_no_unused_phase_b_fixture_rows() -> None:
+    used: dict[str, set[str]] = {name: set() for name in FIXTURE_PROVIDER_NAMES}
+    for case in _phase_b_cases():
+        for ref in (case.get("provider_fixture_refs") or {}).values():
+            parsed = _fixture_id(str(ref))
+            if parsed is None:
+                continue
+            provider_name, fixture_id = parsed
+            used[provider_name].add(fixture_id)
+
+    for provider_name in FIXTURE_PROVIDER_NAMES:
+        fixture_ids = set(_fixture_records(provider_name))
+        assert fixture_ids == used[provider_name], provider_name
+
+
+def test_reviewed_evidence_cases_preserve_source_links_and_apply_only_when_reviewed() -> None:
+    for case in _benchmark_cases():
+        reviewed = case.get("reviewed_evidence") or []
+        if not reviewed:
+            continue
+
+        result = rate_variant(_pipeline_payload(case))
+        applied_items = [item for item in result["evidence_items"] if not _is_candidate(item)]
+        candidate_items = [item for item in result["evidence_items"] if _is_candidate(item)]
+
+        for record in reviewed:
+            source_id = record.get("source_candidate_evidence_id")
+            status = record["evidence_status"]
+            code = record["acmg_code"]
+            if source_id:
+                assert any(
+                    item.get("evidence_id") == source_id
+                    or item.get("supporting_data", {}).get("source_candidate_evidence_id") == source_id
+                    for item in candidate_items + applied_items
+                ), (case["case_id"], source_id)
+            if status == "reviewed_applied":
+                assert "manual_reviewed_evidence" in _evidence_sources_by_code(applied_items, code)
+            else:
+                assert "manual_reviewed_evidence" not in _evidence_sources_by_code(applied_items, code)
+                assert "manual_reviewed_evidence" in _evidence_sources_by_code(candidate_items, code)
+
+
+def test_erepo_cases_keep_erepo_evidence_review_note_only() -> None:
+    erepo_cases = [
+        case for case in _benchmark_cases()
+        if (case.get("provider_fixture_refs") or {}).get("clingen_erepo")
+        or case.get("options_overrides", {}).get("include_clingen_erepo")
+    ]
+    assert erepo_cases
+
+    for case in erepo_cases:
+        result = rate_variant(_pipeline_payload(case))
+        applied_items = [item for item in result["evidence_items"] if not _is_candidate(item)]
+        candidate_items = [item for item in result["evidence_items"] if _is_candidate(item)]
+
+        assert not any(item["source"]["name"] == "ClinGen Evidence Repository" for item in applied_items)
+        assert any(item["source"]["name"] == "ClinGen Evidence Repository" for item in candidate_items)
+        assert result["clingen_erepo_reviewed_evidence_drafts"]
+        assert all(
+            draft["evidence_status"] != "reviewed_applied"
+            for draft in result["clingen_erepo_reviewed_evidence_drafts"]
+        )
+
+
+def test_vcep_signal_only_cases_do_not_change_classification_or_evidence() -> None:
+    signal_cases = [
+        case
+        for case in _benchmark_cases()
+        if "VCEP signal-only no classification change" in case.get("safety_focus", [])
+    ]
+    assert signal_cases
+
+    for case in signal_cases:
+        with_signal = rate_variant(_pipeline_payload(case))
+        without_signal_case = json.loads(json.dumps(case))
+        refs = without_signal_case.get("provider_fixture_refs") or {}
+        refs.pop("vcep_profile", None)
+        overrides = without_signal_case.get("options_overrides") or {}
+        overrides.pop("vcep_profile_records", None)
+        overrides["include_vcep_signals"] = False
+        overrides["apply_vcep_overrides"] = False
+        without_signal_case["options_overrides"] = overrides
+        without_signal = rate_variant(_pipeline_payload(without_signal_case))
+
+        assert with_signal["final_classification"] == without_signal["final_classification"]
+        assert _codes(with_signal["applied_evidence"]) == _codes(without_signal["applied_evidence"])
+
+
+def test_phase_c_cases_cover_planned_edge_categories() -> None:
+    cases = _phase_c_cases()
+    assert len(cases) == 30
+    assert [case["case_id"] for case in cases] == [f"bench-{index:02d}" for index in range(71, 101)]
+
+    categories = {case["case_category"] for case in cases}
+    assert {
+        "pvs1_edge",
+        "splice_edge",
+        "transcript_mismatch",
+        "population_edge",
+        "computational_edge",
+        "clinvar_ps1_pm5",
+        "erepo_vcep",
+    }.issubset(categories)
+
+
+def test_phase_c_pvs1_population_and_computational_boundaries() -> None:
+    for case_id in ["bench-72", "bench-73", "bench-74", "bench-75", "bench-76", "bench-77", "bench-89", "bench-90", "bench-100"]:
+        result = rate_variant(_pipeline_payload(_case_by_id(case_id)))
+        applied = [item for item in result["evidence_items"] if not _is_candidate(item)]
+        candidates = [item for item in result["evidence_items"] if _is_candidate(item)]
+        assert not _evidence_by_code(applied, "PVS1"), case_id
+        assert _evidence_by_code(candidates, "PVS1"), case_id
+
+    last_exon = rate_variant(_pipeline_payload(_case_by_id("bench-71")))
+    pvs1_items = _evidence_by_code(last_exon["applied_evidence"], "PVS1")
+    assert pvs1_items and pvs1_items[0]["strength"] == "supporting"
+
+    assert _case_by_id("bench-78")["expected_applied_evidence"] == []
+    assert _case_by_id("bench-78")["expected_candidate_evidence"] == [{"code": "BA1", "strength": "none"}]
+    assert _case_by_id("bench-79")["expected_applied_evidence"] == [{"code": "BA1", "strength": "stand_alone"}]
+    assert {"LOW_COVERAGE_POPULATION_FREQUENCY"}.issubset(set(_case_by_id("bench-80")["expected_review_flags"]))
+    assert {"POPULATION_MATCH_UNCONFIRMED", "POPULATION_MISMATCH_WARNING"}.issubset(set(_case_by_id("bench-81")["expected_review_flags"]))
+    assert {"FOUNDER_VARIANT_WARNING"}.issubset(set(_case_by_id("bench-82")["expected_review_flags"]))
+    assert {"CONTEXT_PROVIDER_GENOME_BUILD_VS_INPUT_GENOME_BUILD"}.issubset(set(_case_by_id("bench-83")["expected_review_flags"]))
+
+    for case_id in ["bench-87", "bench-88"]:
+        case = _case_by_id(case_id)
+        assert not any(item["code"] in {"PP3", "BP4"} for item in case["expected_applied_evidence"])
+        assert "COMPUTATIONAL_PREDICTION_CONFLICT" in case["expected_review_flags"]
+
+    splice_high = _case_by_id("bench-89")
+    assert {"PVS1", "PP3"} == {item["code"] for item in splice_high["expected_candidate_evidence"]}
+    splice_low = _case_by_id("bench-90")
+    assert {"PVS1", "PM2", "BP4"} == {item["code"] for item in splice_low["expected_candidate_evidence"]}
+
+
+def test_phase_c_clinvar_erepo_vcep_and_reviewed_boundaries() -> None:
+    ps1 = _case_by_id("bench-91")
+    assert {"PS1", "PS3"}.issubset({item["code"] for item in ps1["expected_applied_evidence"]})
+    assert ps1["expected_candidate_evidence"] == [{"code": "PP5", "strength": "none"}]
+
+    assert not any(item["code"] in {"PS1", "PM5"} for item in _case_by_id("bench-92")["expected_applied_evidence"])
+    assert not any(item["code"] == "PS1" for item in _case_by_id("bench-93")["expected_applied_evidence"])
+    assert any(item["code"] == "PM5" for item in _case_by_id("bench-94")["expected_applied_evidence"])
+    assert any(item["code"] == "PM5" for item in _case_by_id("bench-95")["expected_candidate_evidence"])
+    assert not any(item["code"] in {"PS1", "PM5"} for item in _case_by_id("bench-96")["expected_applied_evidence"])
+
+    erepo_result = rate_variant(_pipeline_payload(_case_by_id("bench-97")))
+    erepo_applied = [item for item in erepo_result["evidence_items"] if not _is_candidate(item)]
+    erepo_candidates = [item for item in erepo_result["evidence_items"] if _is_candidate(item)]
+    assert "ClinGen Evidence Repository" not in _source_names(erepo_applied)
+    assert "ClinGen Evidence Repository" in _source_names(erepo_candidates)
+
+    vcep_ba1 = rate_variant(_pipeline_payload(_case_by_id("bench-99")))
+    ba1 = next(item for item in vcep_ba1["applied_evidence"] if item["code"] == "BA1")
+    assert ba1["supporting_data"]["vcep_override"]["override_applied"] is True
+
+    vcep_pvs1_disabled = rate_variant(_pipeline_payload(_case_by_id("bench-100")))
+    pvs1 = next(item for item in vcep_pvs1_disabled["review_note_evidence"] if item["code"] == "PVS1")
+    assert pvs1["supporting_data"]["vcep_override"]["override_applied_to_item"] is False
+
+    reviewed_applied_sources = {
+        item["source"]["name"]
+        for case_id in ["bench-85", "bench-91", "bench-94"]
+        for item in rate_variant(_pipeline_payload(_case_by_id(case_id)))["applied_evidence"]
+    }
+    assert "manual_reviewed_evidence" in reviewed_applied_sources
 
 
 @pytest.mark.parametrize("case", _benchmark_cases(), ids=lambda case: case["case_id"])
