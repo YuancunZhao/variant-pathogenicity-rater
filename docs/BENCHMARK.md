@@ -1,40 +1,68 @@
 # Curated SNV/Small-Indel Benchmark
 
 `data/benchmark_snv_cases.json` is an offline, curated mock benchmark for the
-phase-1 ACMG SNV/small-indel pipeline. It is not a clinical truth set and does
-not call external services. Its purpose is regression testing for medical safety
+ACMG SNV/small-indel pipeline. It is not a clinical truth set and does not call
+external services. Its purpose is regression testing for medical safety
 behaviors: evidence separation, conservative VUS defaults, valid population
-threshold context, ClinVar conflict handling, and PVS1 edge-case restraint.
+threshold context, ClinVar conflict handling, PVS1 edge-case restraint,
+reviewed-evidence boundaries, ClinGen ERepo review-note behavior, VCEP
+signal/override boundaries, provider limitations, and provenance expectations.
 
 ## Dataset Contents
 
-The benchmark currently contains 21 cases:
+The benchmark currently contains 70 cases:
 
 - 4 pathogenic
 - 4 likely pathogenic
-- 5 VUS
-- 4 likely benign
-- 4 benign
+- 49 VUS
+- 7 likely benign
+- 6 benign
 
 Each case includes gene, transcript, HGVS c./p., variant type, disease,
 inheritance, mock population data, mock computational predictions, a mock
 ClinVar record, mock literature evidence, expected classification, expected
-applied evidence, expected candidate evidence, expected review flags, and a
-rationale.
+applied evidence, expected candidate evidence, expected review flags, expected
+limitations, and a rationale.
+
+Phase A expanded the dataset from 21 to 40 cases. The added cases cover:
+
+- generated applied `PVS1`, `PM2_Supporting`, `BA1`, `BS1`, `PP3`, `BP4`,
+  `PS1`, and `PM5`;
+- `PVS1` candidate-only behavior when LoF mechanism is unconfirmed;
+- candidate-only isolation for ClinVar, computational, literature-draft, and
+  VCEP-disabled evidence;
+- curator-only `reviewed_applied` evidence using reviewed `PM3`;
+- literature-suggested draft evidence that remains `needs_more_info`;
+- ClinGen ERepo exact variant matches as review notes only;
+- VCEP signal-only behavior and approved safe override behavior;
+- provider limitation cases for population miss, ancestry mismatch, and low
+  allele number.
+
+Phase A kept provider facts embedded as inline local fixtures in the benchmark
+case file. Phase B expanded the dataset from 40 to 70 cases and moved the new
+provider facts into local JSONL fixtures under
+`data/benchmark_provider_fixtures/`. Each Phase B case includes
+`provider_fixture_refs` for population, ClinVar, computational, literature,
+ClinGen ERepo, or VCEP profile context.
 
 ## Evidence Model
 
-Population, computational, ClinVar, literature, and PVS1 evidence are evaluated
-through the normal `rate_variant` pipeline. The benchmark also uses
-`options.mock_supplemental_evidence_items` for curated local applied evidence
-such as PS3, PS4, PM1, PM3, PM5, BS2, BS3, BP2, BP6, and BP7. These items are
-validated as normal `EvidenceItem` records and then passed to the ACMG combiner;
-the expected classifications are not hard-coded.
+Population, computational, ClinVar, literature, ClinGen ERepo, VCEP profile,
+manual reviewed evidence, and PVS1 evidence are evaluated through the normal
+`rate_variant` pipeline. The benchmark also uses
+`options.mock_supplemental_evidence_items` for curated local applied or
+candidate evidence such as PS3, PS4, PM1, PM3, PM5, BS2, BS3, BP2, BP6, BP7,
+and literature-style draft notes. These items are validated as normal
+`EvidenceItem` records and then passed through the same candidate/applied
+separation rules as runtime evidence; the expected classifications are not
+hard-coded.
 
-ClinVar and literature evidence remain candidate/review-note evidence unless the
-pipeline explicitly applies an ACMG criterion through an evaluator. Candidate
-items must appear in the report's `Candidate / Review-Note Evidence` section and
-must not change the final classification.
+ClinVar, ClinGen ERepo, literature, VCEP signal, and draft reviewed evidence
+remain candidate/review-note evidence unless the pipeline explicitly applies an
+ACMG criterion through a validated evaluator or a curator supplies valid
+`reviewed_applied` evidence. Candidate items must appear in the report's
+`Candidate / Review-Note Evidence` section and must not change the final
+classification.
 
 ## Safety Scenarios
 
@@ -51,6 +79,34 @@ The regression tests cover:
 - Candidate literature/ClinVar evidence not affecting classification.
 - PVS1 start-loss edge cases staying candidate-only.
 - Opposing pathogenic and benign evidence defaulting to VUS.
+- ClinVar comparator-based PS1 and PM5 application.
+- ClinGen ERepo exact matches staying review-note only.
+- VCEP signal-only profiles not changing evidence or classification.
+- Approved VCEP overrides moving disabled generated criteria to candidate-only
+  review notes with provenance.
+- Reviewed-applied evidence entering classification only through explicit
+  curator records.
+- Literature suggested drafts staying `needs_more_info` and not counted.
+- Provider misses, ancestry mismatch, and low allele number becoming
+  limitations or candidate-only evidence rather than applied criteria.
+- Phase B real-world style examples across BRCA1/BRCA2, CFTR, GJB2, PAH,
+  TP53, cardiomyopathy genes, splice-edge variants, high-AF benign examples,
+  ClinVar conflict/context mismatch, and rare PP3/BP4-only VUS cases.
+
+## Expansion Strategy
+
+The benchmark expansion is staged:
+
+- Phase A: 21 to 40 cases, implemented, focused on applied-evidence and
+  safety-boundary coverage.
+- Phase B: 40 to 70 cases, implemented, broadening real-world style examples
+  and moving the added provider facts into `data/benchmark_provider_fixtures/`.
+- Phase C: 70 to 100+ cases, planned, should add broader transcript, ancestry,
+  malformed-provider, stale-source, VCEP-profile, and report-smoke coverage.
+
+The ACMG classification combiner must remain unchanged during benchmark
+expansion. Benchmark expectations are regression expectations for the current
+conservative pipeline and must not be treated as clinical truth assertions.
 
 Run the benchmark regression suite with:
 
