@@ -50,7 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     rate = subparsers.add_parser("rate", help="Rate a single SNV/small indel variant.")
     _add_variant_arguments(rate)
-    rate.add_argument("--output", choices=["json", "markdown"], default="json")
+    rate.add_argument("--output", choices=["json", "markdown", "markdown-zh"], default="json")
+    _add_report_arguments(rate)
     rate.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
     rate.add_argument(
         "--include-clingen-erepo",
@@ -75,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     batch.add_argument("--output", help="Optional output file path.")
     batch.add_argument("--output-format", choices=["json", "jsonl"], default="json")
+    _add_report_arguments(batch)
     batch.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
     batch.add_argument(
         "--include-clingen-erepo",
@@ -109,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     annotated.add_argument("--output", help="Optional output file path.")
     annotated.add_argument("--output-format", choices=["json", "jsonl"], default="json")
+    _add_report_arguments(annotated)
     annotated.add_argument("--reviewed-evidence", help="Reviewed evidence JSON file path.")
     annotated.add_argument(
         "--include-report",
@@ -186,13 +189,27 @@ def _add_population_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--language",
+        choices=["en", "zh"],
+        default="en",
+        help="Report language for generated report text. Defaults to en.",
+    )
+    parser.add_argument(
+        "--report-mode",
+        choices=["concise", "detailed", "laboratory", "clinician"],
+        help="Report rendering mode. Defaults to detailed, or laboratory for markdown-zh.",
+    )
+
+
 def _cmd_rate(args: argparse.Namespace) -> int:
     payload = _variant_payload_from_args(args)
     if args.reviewed_evidence:
         payload["reviewed_evidence"] = _single_reviewed_evidence_payload(args.reviewed_evidence)
     payload["options"] = _clingen_erepo_options(args)
     result = rate_variant(payload)
-    if args.output == "markdown":
+    if args.output in {"markdown", "markdown-zh"}:
         print(str(result.get("report_text") or ""))
     else:
         print(_json_dumps(result))
@@ -212,6 +229,7 @@ def _cmd_batch(args: argparse.Namespace) -> int:
     if args.reviewed_evidence:
         payload["reviewed_evidence"] = _load_json_file(args.reviewed_evidence)
     result = rate_variant_batch(payload)
+    _add_chinese_batch_summary_if_requested(result, args)
     _write_result(result, args.output, args.output_format)
     if result.get("failed", 0):
         print(
@@ -275,6 +293,7 @@ def _cmd_annotated_batch(args: argparse.Namespace) -> int:
         ),
         "human_review_required": True,
     }
+    _add_chinese_batch_summary_if_requested(result, args)
     _write_result(result, args.output, args.output_format)
     if batch_result.get("failed", 0):
         print(
@@ -359,9 +378,35 @@ def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
     if getattr(args, "vcep_kb_dir", None):
         options["include_vcep_signals"] = True
         options["vcep_kb_dir"] = args.vcep_kb_dir
+    output = getattr(args, "output", None)
+    language = getattr(args, "language", "en")
+    report_mode = getattr(args, "report_mode", None)
+    if output == "markdown-zh":
+        language = "zh"
+        report_mode = report_mode or "laboratory"
+    if language == "zh":
+        report_mode = report_mode or "laboratory"
+    if language:
+        options["report_language"] = language
+    if report_mode:
+        options["report_mode"] = report_mode
     if data_source_overrides:
         options["data_sources"] = {"sources": data_source_overrides}
     return options
+
+
+def _add_chinese_batch_summary_if_requested(result: dict[str, Any], args: argparse.Namespace) -> None:
+    if getattr(args, "language", "en") != "zh":
+        return
+    summary = result.get("summary") if isinstance(result.get("summary"), dict) else {}
+    result["summary_zh"] = {
+        "用途": "批量结果摘要仅用于分诊和审计，不替代单条变异人工复核。",
+        "总记录数": result.get("total_records") or summary.get("total_records") or 0,
+        "成功": result.get("succeeded") or summary.get("succeeded") or 0,
+        "失败": result.get("failed") or summary.get("failed") or 0,
+        "人工复核必需": True,
+        "说明": "中文 batch summary 不改变每条记录的分类、证据、局限性或人工复核要求。",
+    }
 
 
 def _package_status(import_name: str, distribution_name: str | None = None) -> str:

@@ -157,6 +157,57 @@ def _clinvar_conflict_evidence() -> EvidenceItem:
     )
 
 
+def _erepo_candidate_evidence() -> EvidenceItem:
+    return EvidenceItem(
+        evidence_id="ev-erepo-001",
+        code="PVS1",
+        strength=EvidenceStrength.NONE,
+        direction=EvidenceDirection.PATHOGENIC,
+        reason="ClinGen ERepo exact match is review-note only pending curator review.",
+        source=EvidenceSource(
+            name="ClinGen Evidence Repository",
+            version="fixture-v1",
+            raw_snapshot_ref="erepo.jsonl#ev-erepo-001",
+        ),
+        confidence=0.8,
+        requires_review=True,
+        triggered_by=["clingen_erepo"],
+        supporting_data={
+            "candidate_only": True,
+            "applied": False,
+            "clingen_erepo_record": {
+                "record_id": "erepo-001",
+                "classification": "Pathogenic",
+                "vcep_name": "BRCA VCEP",
+            },
+            "clingen_erepo_match": {"match_level": "exact_variant"},
+        },
+    )
+
+
+def _manual_reviewed_evidence() -> EvidenceItem:
+    return EvidenceItem(
+        evidence_id="ev-reviewed-001",
+        code="PS3",
+        strength=EvidenceStrength.STRONG,
+        direction=EvidenceDirection.PATHOGENIC,
+        reason="Curator reviewed a validated functional assay and applied PS3.",
+        source=EvidenceSource(name="manual_reviewed_evidence", version="reviewed-v1"),
+        confidence=0.9,
+        requires_review=True,
+        triggered_by=["curator_review"],
+        supporting_data={
+            "evidence_status": "reviewed_applied",
+            "curator_decision": "apply_ps3",
+            "curator_name": "curator-1",
+            "review_date": "2026-05-30",
+            "source_candidate_evidence_id": "ev-lit-001",
+            "override_reason": "validated assay matched disease mechanism",
+            "provenance": {"source": "internal_review", "record_id": "review-001"},
+        },
+    )
+
+
 def _transcript_selection() -> TranscriptSelection:
     return TranscriptSelection(
         selected_transcript="NM_000059.4",
@@ -398,5 +449,160 @@ def test_json_summary_has_stable_usability_keys() -> None:
         "human_review_required",
     }
     assert expected.issubset(report.content)
+
+
+def test_chinese_laboratory_report_contains_required_sections_and_safety_text() -> None:
+    report = generate_report(
+        _classification_result(
+            evidence_items=[
+                _population_evidence(),
+                _literature_candidate_evidence(),
+                _clinvar_conflict_evidence(),
+                _manual_reviewed_evidence(),
+            ],
+            transcript_selection=_transcript_selection(),
+            context_consistency=_context_conflict(),
+        ),
+        output_format="markdown",
+        mode="laboratory",
+        language="zh",
+    )
+
+    required_sections = [
+        "# 变异致病性机器辅助判读报告",
+        "## 报告摘要",
+        "## 变异基本信息",
+        "## 机器辅助分类建议",
+        "## 分类依据说明",
+        "## 已计入 ACMG 证据",
+        "## 候选/复核证据",
+        "## 人工审核证据",
+        "## ClinVar / ClinGen ERepo / 文献证据",
+        "## 转录本 / MANE 验证",
+        "## VCEP / 特殊规则提示",
+        "## 数据来源与溯源",
+        "## 局限性",
+        "## 人工复核清单",
+        "## 免责声明",
+    ]
+    for section in required_sections:
+        assert section in report.content
+    assert report.language == "zh"
+    assert "机器辅助分类建议" in report.content
+    assert "不是最终临床结论" in report.content
+    assert "人工复核必需: true" in report.content
+
+
+def test_chinese_report_separates_applied_candidate_and_reviewed_evidence() -> None:
+    report = generate_report(
+        _classification_result(
+            evidence_items=[
+                _population_evidence(),
+                _literature_candidate_evidence(),
+                _clinvar_conflict_evidence(),
+                _manual_reviewed_evidence(),
+            ],
+        ),
+        output_format="markdown",
+        mode="laboratory",
+        language="zh",
+    )
+
+    applied_section = report.content.split("## 候选/复核证据")[0]
+    candidate_section = report.content.split("## 候选/复核证据")[1]
+    assert "ev-pop-001" in applied_section
+    assert "ev-reviewed-001" in applied_section
+    assert "- ev-lit-001:" not in applied_section
+    assert "- ev-clinvar-001:" not in applied_section
+    assert "ev-lit-001" in candidate_section
+    assert "ev-clinvar-001" in candidate_section
+    assert "未计入分类组合器" in candidate_section
+    assert "Curator decision: apply_ps3" in report.content
+    assert "Review date: 2026-05-30" in report.content
+    assert "rationale: Curator reviewed" in report.content
+    assert "Source candidate evidence ID: ev-lit-001" in report.content
+    assert "Provenance:" in report.content
+
+
+def test_chinese_report_says_erepo_is_not_automatically_applied() -> None:
+    report = generate_report(
+        _classification_result(
+            evidence_items=[_population_evidence(), _erepo_candidate_evidence()],
+        ),
+        output_format="markdown",
+        mode="laboratory",
+        language="zh",
+    )
+
+    applied_section = report.content.split("## 候选/复核证据")[0]
+    assert "- ev-erepo-001:" not in applied_section
+    assert "ev-erepo-001" in report.content
+    assert "ClinVar 和 ClinGen Evidence Repository 结果为外部整理资料和复核线索" in report.content
+    assert "不会自动作为 ACMG 证据计入" in report.content
+    assert "ClinGen ERepo record" in report.content
+
+
+def test_chinese_vus_wording_is_conservative() -> None:
+    report = generate_report(
+        _classification_result(
+            final_classification="vus",
+            evidence_items=[_population_evidence(), _literature_candidate_evidence()],
+        ),
+        output_format="markdown",
+        mode="laboratory",
+        language="zh",
+    )
+
+    assert "意义未明" in report.content
+    assert "现有证据不足以支持致病或良性分类" in report.content
+    assert "倾向致病" not in report.content
+    assert "倾向良性" not in report.content
+    assert "疑似致病" not in report.content
+
+
+def test_chinese_json_report_keeps_stable_keys_and_localized_notes() -> None:
+    report = generate_report(
+        _classification_result(evidence_items=[_population_evidence(), _literature_candidate_evidence()]),
+        output_format="json",
+        mode="laboratory",
+        language="zh",
+    )
+
+    expected = {
+        "executive_summary",
+        "final_classification",
+        "why_this_classification",
+        "applied_evidence",
+        "review_note_evidence",
+        "context_consistency",
+        "transcript_selection",
+        "data_sources",
+        "limitations",
+        "missing_data",
+        "safety_notes",
+        "human_review_required",
+    }
+    assert expected.issubset(report.content)
+    assert report.content["language"] == "zh"
+    assert report.content["final_classification"]["label"] == "意义未明"
+    assert "候选/复核证据" in report.content["review_note_evidence"]["note"]
+    assert "机器辅助分类建议" in json.dumps(report.content, ensure_ascii=False)
     assert report.content["applied_evidence"]["items"][0]["evidence_id"] == "ev-pop-001"
     assert report.content["review_note_evidence"]["items"][0]["evidence_id"] == "ev-lit-001"
+
+
+def test_mcp_generate_report_tool_returns_chinese_markdown() -> None:
+    payload = {
+        "classification_result": json.loads(_classification_result().model_dump_json()),
+        "format": "markdown",
+        "mode": "laboratory",
+        "language": "zh",
+    }
+
+    response = asyncio.run(generate_report_tool(payload))
+
+    assert response["status"] == "ok"
+    assert response["report"]["language"] == "zh"
+    assert "markdown" in response
+    assert "## 报告摘要" in response["markdown"]
+    assert "不是最终临床结论" in response["markdown"]

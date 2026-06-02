@@ -88,6 +88,18 @@ def _complete_brca1_pvs1_payload() -> dict:
     }
 
 
+def _without_runtime_timestamps(value):
+    if isinstance(value, dict):
+        return {
+            key: _without_runtime_timestamps(item)
+            for key, item in value.items()
+            if key not in {"retrieval_timestamp", "timestamp"}
+        }
+    if isinstance(value, list):
+        return [_without_runtime_timestamps(item) for item in value]
+    return value
+
+
 def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
     result = rate_variant(_flat_variant_payload())
 
@@ -204,6 +216,91 @@ def test_report_json_stable_keys_present_for_single_and_batch() -> None:
     assert {"total_records", "succeeded", "failed", "classification_distribution"}.issubset(
         batch["summary"]
     )
+
+
+def test_report_language_does_not_change_classification_or_evidence_items() -> None:
+    base_payload = {
+        **_flat_variant_payload(),
+        "options": {
+            "include_population": False,
+            "include_computational": False,
+            "include_clinvar": False,
+            "include_literature": False,
+        },
+    }
+    english = rate_variant(
+        {
+            **base_payload,
+            "options": {
+                **base_payload["options"],
+                "report_language": "en",
+                "report_mode": "laboratory",
+            },
+        }
+    )
+    chinese = rate_variant(
+        {
+            **base_payload,
+            "options": {
+                **base_payload["options"],
+                "report_language": "zh",
+                "report_mode": "laboratory",
+            },
+        }
+    )
+
+    assert english["final_classification"] == chinese["final_classification"]
+    assert english["classification_result"]["final_classification"] == chinese["classification_result"][
+        "final_classification"
+    ]
+    assert english["classification_result"]["applied_combination_rule"] == chinese[
+        "classification_result"
+    ]["applied_combination_rule"]
+    assert _without_runtime_timestamps(english["evidence_items"]) == _without_runtime_timestamps(
+        chinese["evidence_items"]
+    )
+    assert _without_runtime_timestamps(english["applied_evidence"]) == _without_runtime_timestamps(
+        chinese["applied_evidence"]
+    )
+    assert _without_runtime_timestamps(english["review_note_evidence"]) == _without_runtime_timestamps(
+        chinese["review_note_evidence"]
+    )
+    assert _without_runtime_timestamps(
+        english["report"]["source_result"]["evidence_items"]
+    ) == _without_runtime_timestamps(chinese["report"]["source_result"]["evidence_items"])
+    assert "## 报告摘要" in chinese["report_text"]
+    assert "## Executive Summary" in english["report_text"]
+
+
+def test_mcp_rate_variant_accepts_chinese_report_options_without_changing_result() -> None:
+    server = _server()
+    request = {
+        "jsonrpc": "2.0",
+        "id": 58,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant",
+            "arguments": {
+                **_flat_variant_payload(),
+                "options": {
+                    "include_population": False,
+                    "include_computational": False,
+                    "include_clinvar": False,
+                    "include_literature": False,
+                    "report_language": "zh",
+                    "report_mode": "laboratory",
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(server.handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert tool_payload["status"] == "ok"
+    assert tool_payload["classification_result"]["human_review_required"] is True
+    assert tool_payload["report"]["language"] == "zh"
+    assert "## 报告摘要" in tool_payload["report_text"]
 
 
 def test_context_conflict_is_reported_without_changing_classification() -> None:

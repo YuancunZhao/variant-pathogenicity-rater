@@ -13,20 +13,20 @@ For the current applied evidence generation status review, see
 The current working expectation is that day-to-day project work occurs from the
 active development branch unless a release-specific branch is explicitly named.
 At the time this controller document was created, the local branch was
-`develop`. Prior release-readiness documentation also records a
-`feature/beta-gap-analysis` review path for the v0.2.0-beta internal testing
-gate. Future tasks should therefore confirm the current branch before editing,
-but should treat the documented beta safety posture as the controlling design
-baseline.
+`develop`. Prior release-readiness documentation also records historical
+v0.2.0 alpha/beta review paths, but the v0.3.0 readiness record is now the
+current release baseline. Future tasks should therefore confirm the current
+branch before editing and preserve the documented v0.3.0 safety posture.
 
-The project is in an internal beta state. The v0.2.0-beta review concluded that
-the current implementation is suitable for controlled internal workflow testing,
-schema review, report review, conservative regression checks, CLI/MCP smoke
-testing, and safety-boundary validation. This is not a clinical validation
-statement and does not authorize autonomous clinical interpretation.
+The project is in a v0.3.0 internal release state. The v0.3.0 readiness review
+concluded that the current implementation is suitable for controlled internal
+workflow testing, schema review, report review, conservative regression checks,
+CLI/MCP smoke testing, provider validation review, benchmark regression, and
+safety-boundary validation. This is not a clinical validation statement and
+does not authorize autonomous clinical interpretation.
 
-After VCEP signal/override framework validation and real provider validation,
-real provider validation, and benchmark Phase C, the project state is: the
+After VCEP signal/override framework validation, real provider validation, and
+benchmark Phase C, the project state is: the
 generic SNV/small-indel interpretation loop is connected end to end for
 controlled internal review, including generated applied evidence,
 candidate/suggested evidence, reviewed-evidence drafts, curator-applied
@@ -197,7 +197,7 @@ Current benchmark status:
 - Provider fixture-backed through `data/benchmark_provider_fixtures/`.
 - Includes local population, ClinVar, computational, literature, ClinGen
   ERepo, VCEP profile, annotation, and transcript metadata fixtures.
-- Latest full regression status: `562 passed, 1 skipped`.
+- Latest full regression status: `573 passed, 1 skipped`.
 
 The benchmark covers generated and reviewed evidence boundaries for `PVS1`,
 `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed

@@ -91,6 +91,12 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
         "additionalProperties"
     ] is False
     assert schemas["rate_variant_batch"]["additionalProperties"] is False
+    assert schemas["rate_variant"]["properties"]["options"]["properties"]["report_language"][
+        "enum"
+    ] == ["en", "zh"]
+    assert schemas["rate_variant"]["properties"]["options"]["properties"]["report_mode"][
+        "enum"
+    ] == ["concise", "detailed", "laboratory", "clinician"]
     assert "reviewed_evidence" in schemas["rate_variant"]["properties"]
     assert "reviewed_evidence" in schemas["rate_variant_batch"]["properties"]
     assert (

@@ -1358,6 +1358,16 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "include_transcript_selection": {"type": "boolean"},
             "include_transcript_validation": {"type": "boolean"},
             "include_mane_transcript_validation": {"type": "boolean"},
+            "report_language": {
+                "type": "string",
+                "enum": ["en", "zh"],
+                "description": "Report rendering language only; does not affect evidence generation or classification.",
+            },
+            "report_mode": {
+                "type": "string",
+                "enum": ["concise", "detailed", "laboratory", "clinician"],
+                "description": "Report rendering mode only; does not affect evidence generation or classification.",
+            },
             "data_sources": _data_sources_override_schema(),
             "annotations": {
                 "type": "array",
@@ -1729,7 +1739,7 @@ def _generate_report_input_schema() -> dict[str, Any]:
             "language": {
                 "type": "string",
                 "enum": ["en", "zh"],
-                "description": "English is complete. Chinese is reserved for future localization.",
+                "description": "Report language. Chinese output is intended for laboratory internal review and keeps evidence safety boundaries.",
             },
         },
         "anyOf": [

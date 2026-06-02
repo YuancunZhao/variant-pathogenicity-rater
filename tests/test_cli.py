@@ -85,6 +85,81 @@ def test_single_rate_markdown_shows_pvs1_decision_path(capsys) -> None:
     assert "Candidate / Review-Note Evidence" in captured.out
 
 
+def test_single_rate_markdown_zh_alias_outputs_chinese_laboratory_report(capsys) -> None:
+    exit_code = main(
+        [
+            "rate",
+            "--gene",
+            "BRCA1",
+            "--transcript",
+            "NM_007294.4",
+            "--hgvs-c",
+            "NM_007294.4:c.68_69delAG",
+            "--hgvs-p",
+            "NP_009225.1:p.Glu23ValfsTer17",
+            "--chromosome",
+            "17",
+            "--position",
+            "43092919",
+            "--ref",
+            "AG",
+            "--alt",
+            "A",
+            "--disease",
+            "Hereditary breast and ovarian cancer",
+            "--inheritance",
+            "autosomal dominant",
+            "--output",
+            "markdown-zh",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "# 变异致病性机器辅助判读报告" in captured.out
+    assert "## 报告摘要" in captured.out
+    assert "不是最终临床结论" in captured.out
+
+
+def test_single_rate_explicit_chinese_markdown_report_options(capsys) -> None:
+    exit_code = main(
+        [
+            "rate",
+            "--gene",
+            "BRCA1",
+            "--transcript",
+            "NM_007294.4",
+            "--hgvs-c",
+            "NM_007294.4:c.68_69delAG",
+            "--hgvs-p",
+            "NP_009225.1:p.Glu23ValfsTer17",
+            "--chromosome",
+            "17",
+            "--position",
+            "43092919",
+            "--ref",
+            "AG",
+            "--alt",
+            "A",
+            "--disease",
+            "Hereditary breast and ovarian cancer",
+            "--inheritance",
+            "autosomal dominant",
+            "--output",
+            "markdown",
+            "--language",
+            "zh",
+            "--report-mode",
+            "laboratory",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "## 人工复核清单" in captured.out
+    assert "候选/复核证据" in captured.out
+
+
 def test_batch_jsonl(capsys, tmp_path) -> None:
     input_path = tmp_path / "batch.jsonl"
     input_path.write_text(
@@ -115,6 +190,45 @@ def test_batch_jsonl(capsys, tmp_path) -> None:
     assert [line["type"] for line in lines] == ["result", "result", "summary"]
     assert lines[-1]["succeeded"] == 2
     assert lines[-1]["failed"] == 0
+
+
+def test_batch_language_zh_adds_internal_review_summary(capsys, tmp_path) -> None:
+    input_path = tmp_path / "batch.jsonl"
+    input_path.write_text(json.dumps(_record()), encoding="utf-8")
+
+    base_exit_code = main(
+        [
+            "batch",
+            "--input",
+            str(input_path),
+            "--format",
+            "jsonl",
+        ]
+    )
+    base_payload = json.loads(capsys.readouterr().out)
+
+    exit_code = main(
+        [
+            "batch",
+            "--input",
+            str(input_path),
+            "--format",
+            "jsonl",
+            "--language",
+            "zh",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert base_exit_code == 0
+    assert exit_code == 0
+    assert payload["summary_zh"]["人工复核必需"] is True
+    assert "不替代单条变异人工复核" in payload["summary_zh"]["用途"]
+    assert payload["summary"] == base_payload["summary"]
+    assert payload["total_records"] == base_payload["total_records"]
+    assert payload["succeeded"] == base_payload["succeeded"]
+    assert payload["failed"] == base_payload["failed"]
 
 
 def test_single_rate_with_clingen_erepo_local_file(capsys, tmp_path) -> None:

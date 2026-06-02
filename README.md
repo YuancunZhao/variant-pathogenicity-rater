@@ -1,10 +1,10 @@
 # Variant Pathogenicity Rater
 
-Current version: v0.2.0-beta internal test release.
+Current version: v0.3.0 internal release.
 
 Codex Plugin plus MCP server framework for SNV/small indel ACMG variant interpretation tools.
 Variant Pathogenicity Rater is a semi-automated ACMG interpretation assistant,
-not a clinical sign-out system. The current post-v0.2.0-beta workflow supports
+not a clinical sign-out system. The current v0.3.0 workflow supports
 an offline, mock-backed end-to-end `rate_variant` loop: normalization,
 annotation/context consistency, automatic applied evidence generation,
 candidate/suggested evidence, manual reviewed evidence, ACMG classification
@@ -14,11 +14,11 @@ Current automatic applied evidence generation covers PVS1, BA1, BS1,
 PM2_Supporting, PP3, BP4, PS1, and PM5. Curator-reviewed `reviewed_applied`
 records can also supply applied evidence such as PS3, BS3, PS2, PM6, PP1, PS4,
 PP4, and PM3. Literature and ClinVar suggestions do not apply evidence by
-themselves. v0.2.0-beta adds noisy input hardening, context consistency checks,
-report usability refinements, CLI and MCP batch workflows, real-world annotated
-batch ingestion, per-record provenance, failed-record preservation, stricter
-schema validation, and release-readiness documentation around the existing
-safety boundaries.
+themselves. v0.3.0 adds comparator-based PS1/PM5 generation, manual reviewed
+evidence intake, literature-to-reviewed draft workflow, ClinGen ERepo
+review-note integration, VCEP signal/override review context, real provider
+validation, a 100-case offline benchmark, and Chinese laboratory-internal
+reports around the existing safety boundaries.
 
 All conclusions are machine proposals and always require qualified human review. The default workflow does not use the network.
 
@@ -61,7 +61,7 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 ```
 
-This editable install is the expected setup for internal v0.2.0-beta testing. It
+This editable install is the expected setup for internal v0.3.0 testing. It
 installs the package from `src/`, the MCP server dependencies, and `pytest`.
 
 Validate the environment:
@@ -163,6 +163,14 @@ consistency are review context and are not counted by the classification
 combiner. VUS reports use conservative wording and do not imply that the variant
 is likely pathogenic.
 
+Chinese laboratory-internal reports are available with `language=zh` or the CLI
+`--output markdown-zh` shortcut. They keep the same presentation-only boundary:
+no ACMG criteria are added, no evidence generation is rerun, and the combiner is
+not changed. Chinese reports preserve applied evidence, candidate/review-note
+evidence, manual reviewed evidence, provenance, limitations, and human-review
+checklists, and state that the output is a machine proposal rather than a final
+clinical conclusion.
+
 See [docs/REPORTING.md](docs/REPORTING.md) for section definitions, JSON keys,
 batch summary fields, and safety wording.
 
@@ -173,6 +181,8 @@ variant, batch, annotated-batch, and environment-check workflows:
 
 ```bash
 vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown-zh
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown --language zh --report-mode laboratory
 vpr batch --input variants.jsonl --format jsonl
 vpr annotated-batch --input vep.tsv --source vep --include-report
 vpr check-env
@@ -298,7 +308,7 @@ export VPR_CLINVAR_MODE=online
 export VPR_CLINVAR_ONLINE_ENABLED=true
 export VPR_CLINVAR_TIMEOUT_SECONDS=10
 export VPR_CLINVAR_EMAIL=curator@example.org
-export VPR_CLINVAR_USER_AGENT="variant-pathogenicity-rater/0.2.0-beta curator@example.org"
+export VPR_CLINVAR_USER_AGENT="variant-pathogenicity-rater/0.3.0 curator@example.org"
 ```
 
 `VPR_CLINVAR_MODE=future_online` is accepted as an alias for the current online provider when `VPR_CLINVAR_ONLINE_ENABLED=true` is also present. Online query results are stored in the disk cache configured by `cache_dir` and `ttl_seconds`; cache hits reuse the cached payload and preserve provenance metadata.
@@ -382,7 +392,7 @@ Environment variables:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `VPR_SERVER_NAME` | `variant-pathogenicity-rater` | MCP server name |
-| `VPR_SERVER_VERSION` | `0.2.0-beta` | MCP server version |
+| `VPR_SERVER_VERSION` | `0.3.0` | MCP server version |
 | `VPR_LOG_LEVEL` | `INFO` | Structured log level |
 | `VPR_TOOLS_PACKAGE` | `tools` | Python package used for dynamic discovery |
 | `VPR_ENABLE_HEALTH_TOOL` | `true` | Enable `health_check` |

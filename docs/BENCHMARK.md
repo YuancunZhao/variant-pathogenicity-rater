@@ -26,7 +26,7 @@ Current dataset metadata:
 - Phase C fixture additions: local `annotation.jsonl` and
   `transcript_metadata.jsonl` for PVS1, splice, MANE, and transcript validation
   boundaries.
-- Latest full regression status: `562 passed, 1 skipped`.
+- Latest full regression status: `573 passed, 1 skipped`.
 
 Each case includes gene, transcript, HGVS c./p., variant type, disease,
 inheritance, mock population data, mock computational predictions, a mock
@@ -157,7 +157,9 @@ Current known gaps outside this benchmark baseline:
 
 - Real online provider smoke gates are optional and not part of default CI.
 - A selected real VCEP profile pilot has not been implemented.
-- Chinese report templates are not implemented.
+- Chinese report templates are implemented for laboratory-internal reports, but
+  broader localization review and site-specific sign-out wording remain outside
+  this benchmark baseline.
 - Larger real-world hospital annotation validation has not been completed.
 - CNV/SV interpretation is not supported.
 

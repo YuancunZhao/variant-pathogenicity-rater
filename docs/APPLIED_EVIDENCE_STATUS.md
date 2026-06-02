@@ -20,7 +20,7 @@ baseline:
 - Provider fixture-backed, including population, ClinVar, computational,
   literature, ClinGen ERepo, VCEP profile, annotation, and transcript metadata
   fixtures.
-- Latest full regression status: `562 passed, 1 skipped`.
+- Latest full regression status: `573 passed, 1 skipped`.
 
 The benchmark covers applied and candidate boundaries for `PVS1`, `BA1`,
 `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence,

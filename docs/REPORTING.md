@@ -51,6 +51,22 @@ The legacy JSON keys `evidence`, `data_source_summary`, `cautions`,
 `clinvar_conflict_detected`, and `human_review_note` remain present for
 compatibility.
 
+Reports support `language=en` and `language=zh`. Chinese output is a laboratory
+internal review template and remains presentation-only. It localizes section
+headings, classification labels, notes, and safety wording while preserving the
+same applied/candidate/reviewed evidence boundaries. JSON output with
+`language=zh` keeps the stable top-level keys listed above.
+
+CLI convenience examples:
+
+```bash
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown-zh
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown --language zh --report-mode laboratory
+```
+
+See `docs/CHINESE_REPORT_TEMPLATE.md` for the Chinese section structure,
+terminology table, and fixed safety wording.
+
 ## Safety Wording
 
 - VUS wording is conservative: a VUS is not described as leaning pathogenic or
@@ -73,6 +89,9 @@ compatibility.
   change.
 - Every report states that qualified human review is required before clinical or
   laboratory use.
+- Chinese reports explicitly state that the classification is a machine
+  proposal, not a final clinical conclusion, and that VUS means uncertainty
+  rather than a pathogenic or benign leaning.
 
 ## Batch Summary
 
@@ -89,3 +108,6 @@ Batch results include both per-record outputs and a stable `summary` object:
 
 The batch summary is for triage and audit only. It does not override per-record
 classification, review flags, limitations, or human review requirements.
+When CLI batch output is requested with `--language zh`, an additional
+`summary_zh` object may be included for internal triage wording. It does not
+replace or modify the stable `summary` object.

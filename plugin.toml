@@ -1,6 +1,6 @@
 [plugin]
 name = "variant-pathogenicity-rater"
-version = "0.2.0-beta"
+version = "0.3.0"
 description = "Codex Plugin MCP server for SNV/small indel ACMG variant interpretation tools."
 
 [server]

@@ -12,7 +12,18 @@ from variant_pathogenicity_rater.reporting.templates import (
     MODE_TEMPLATES,
     SPLICEAI_CAUTION,
     VUS_NOTE,
-    ZH_PLACEHOLDER,
+    ZH_CANDIDATE_EVIDENCE_CAUTION,
+    ZH_CLASSIFICATION_LABELS,
+    ZH_CLINVAR_CONFLICT_ALERT,
+    ZH_COMPUTATIONAL_CAUTION,
+    ZH_EXTERNAL_SOURCE_CAUTION,
+    ZH_HUMAN_REVIEW_NOTE,
+    ZH_LITERATURE_CAUTION,
+    ZH_MACHINE_PROPOSAL_NOTE,
+    ZH_NOT_FINAL_ASSERTION,
+    ZH_REVIEWED_EVIDENCE_CAUTION,
+    ZH_SPLICEAI_CAUTION,
+    ZH_VUS_NOTE,
 )
 from variant_pathogenicity_rater.schemas.classification import ClassificationResult
 from variant_pathogenicity_rater.schemas.evidence import EvidenceItem
@@ -56,6 +67,9 @@ def generate_report(
     report_mode = ReportMode(mode)
     report_language = ReportLanguage(language)
     summary = _summary(result)
+    if report_language == ReportLanguage.CHINESE:
+        summary.classification_label = _zh_classification_label(summary.final_classification)
+        summary.human_review_note = ZH_HUMAN_REVIEW_NOTE
 
     if report_format == ReportFormat.JSON:
         content: str | dict[str, Any] = _json_content(result, summary, report_mode, report_language)
@@ -246,6 +260,8 @@ def _json_content(
     language: ReportLanguage,
 ) -> dict[str, Any]:
     cautions = _cautions(result, summary)
+    if language == ReportLanguage.CHINESE:
+        cautions = _zh_cautions(result, summary)
     applied_items = [entry.model_dump(mode="json") for entry in summary.triggered_acmg_evidence]
     candidate_items = [entry.model_dump(mode="json") for entry in summary.candidate_acmg_evidence]
     context_consistency = (
@@ -282,17 +298,29 @@ def _json_content(
             "confidence": summary.confidence,
             "machine_proposal_only": True,
         },
-        "why_this_classification": _why_this_classification(summary),
+        "why_this_classification": _why_this_classification(summary, language),
         "applied_evidence": {
-            "note": "Only these ACMG evidence items were treated as applied evidence in the supplied classification result.",
+            "note": _localized_text(
+                language,
+                "Only these ACMG evidence items were treated as applied evidence in the supplied classification result.",
+                "仅此处列出的 ACMG 证据条目在 supplied classification result 中被作为已计入证据处理。",
+            ),
             "items": applied_items,
         },
         "review_note_evidence": {
-            "note": "Candidate/review-note evidence was not counted by the classification combiner.",
+            "note": _localized_text(
+                language,
+                "Candidate/review-note evidence was not counted by the classification combiner.",
+                ZH_CANDIDATE_EVIDENCE_CAUTION,
+            ),
             "items": candidate_items,
         },
         "clingen_erepo": {
-            "note": "ClinGen ERepo assertions are curated external review notes and were not counted as applied ACMG evidence.",
+            "note": _localized_text(
+                language,
+                "ClinGen ERepo assertions are curated external review notes and were not counted as applied ACMG evidence.",
+                ZH_EXTERNAL_SOURCE_CAUTION,
+            ),
             "items": [
                 item
                 for item in candidate_items
@@ -308,19 +336,35 @@ def _json_content(
             "candidate_items": candidate_items,
         },
         "context_consistency": {
-            "note": "Context consistency is review context only; it is not ACMG evidence and does not change the classification.",
+            "note": _localized_text(
+                language,
+                "Context consistency is review context only; it is not ACMG evidence and does not change the classification.",
+                "上下文一致性仅为复核信息，不是 ACMG 证据，也不会改变分类。",
+            ),
             "summary": context_consistency,
         },
         "transcript_selection": {
-            "note": "Transcript selection is recommendation/review-note context only; it is not ACMG evidence.",
+            "note": _localized_text(
+                language,
+                "Transcript selection is recommendation/review-note context only; it is not ACMG evidence.",
+                "转录本选择仅为推荐/复核信息，不是 ACMG 证据。",
+            ),
             "summary": transcript_selection,
         },
         "transcript_validation": {
-            "note": "MANE/transcript validation is review context only; it is not ACMG evidence and does not change the classification.",
+            "note": _localized_text(
+                language,
+                "MANE/transcript validation is review context only; it is not ACMG evidence and does not change the classification.",
+                "MANE/转录本验证仅为复核信息，不是 ACMG 证据，也不会改变分类。",
+            ),
             "summary": transcript_validation,
         },
         "data_sources": {
-            "note": "Source provenance describes where evidence or review notes came from; it does not determine whether evidence was applied.",
+            "note": _localized_text(
+                language,
+                "Source provenance describes where evidence or review notes came from; it does not determine whether evidence was applied.",
+                "数据来源与溯源说明证据或复核线索的来源；它本身不决定证据是否已计入。",
+            ),
             "items": [
                 source.model_dump(mode="json") for source in summary.data_source_summary
             ],
@@ -345,6 +389,9 @@ def _text_content(
     mode: ReportMode,
     language: ReportLanguage,
 ) -> str:
+    if language == ReportLanguage.CHINESE:
+        return _zh_text_content(result, summary, mode)
+
     template = MODE_TEMPLATES[mode]
     lines = [
         f"# {template.title}",
@@ -430,6 +477,390 @@ def _text_content(
 
     lines.extend(["", "## Human Review Note", HUMAN_REVIEW_NOTE])
     return "\n".join(lines)
+
+
+def _zh_text_content(
+    result: ClassificationResult,
+    summary: VariantReportSummary,
+    mode: ReportMode,
+) -> str:
+    template = MODE_TEMPLATES[mode]
+    lines = [
+        "# 变异致病性机器辅助判读报告",
+        "",
+        "实验室内部辅助判读/人工复核报告",
+        "",
+        "## 报告摘要",
+        f"- 最终机器辅助分类建议: {summary.classification_label}",
+        f"- 原始分类值: {summary.final_classification}",
+        "- 本报告不是最终临床结论，不应作为独立的临床签发或诊断依据。",
+        f"- 已计入证据数量: {len(summary.triggered_acmg_evidence)}",
+        f"- 候选/复核证据数量: {len(summary.candidate_acmg_evidence)}",
+        "- 人工复核必需: true",
+        f"- 报告模式: {template.opening_label}",
+        "",
+        "## 变异基本信息",
+        f"- 变异: {summary.variant_id}",
+        f"- 基因: {summary.gene_symbol or '未提供'}",
+        f"- 转录本: {summary.transcript or '未提供'}",
+        f"- HGVS c.: {summary.hgvs_c or '未提供'}",
+        f"- HGVS p.: {summary.hgvs_p or '未提供'}",
+        f"- 基因组位置: {summary.genomic_location}",
+        "",
+        "## 机器辅助分类建议",
+        f"- 机器辅助分类建议: {summary.classification_label}",
+        f"- 分类组合规则: {summary.applied_combination_rule or '无'}",
+        f"- 置信度: {summary.confidence:.2f}",
+        "- 需要人工复核: true",
+        f"- {ZH_MACHINE_PROPOSAL_NOTE}",
+        f"- {ZH_NOT_FINAL_ASSERTION}",
+        "",
+        "## 分类依据说明",
+        f"- 分类器提供的机器建议: {summary.classification_label}",
+        f"- 分类器提供的组合规则: {summary.applied_combination_rule or '无'}",
+        "- 报告仅呈现 supplied classifier output，不重新计算或修改分类。",
+    ]
+    if summary.pathogenic_evidence_summary:
+        lines.append("- 已计入致病方向证据摘要: " + "; ".join(summary.pathogenic_evidence_summary))
+    if summary.benign_evidence_summary:
+        lines.append("- 已计入良性方向证据摘要: " + "; ".join(summary.benign_evidence_summary))
+
+    lines.extend(["", "## 安全提示"])
+    for note in _zh_cautions(result, summary):
+        lines.append(f"- {note}")
+    lines.append(f"- {ZH_HUMAN_REVIEW_NOTE}")
+
+    lines.extend(_zh_applied_evidence_lines(summary, include_details=template.include_evidence_table))
+    lines.extend(_zh_candidate_evidence_lines(summary, include_details=template.include_evidence_table))
+    lines.extend(_zh_manual_reviewed_evidence_section(summary))
+    lines.extend(_zh_external_evidence_section(summary))
+    lines.extend(_zh_transcript_and_mane_section(summary))
+    lines.extend(_zh_vcep_section(summary))
+
+    lines.extend(["", "## 上下文一致性"])
+    consistency = summary.context_consistency
+    if consistency is None:
+        lines.append("- 未提供上下文一致性摘要。")
+    else:
+        lines.extend(
+            [
+                f"- 状态: {consistency.status}",
+                f"- 需要人工复核: {str(consistency.review_required).lower()}",
+                "- 仅为复核上下文，不是 ACMG 证据，不是分类改变，也未被分类组合器计入。",
+            ]
+        )
+        if consistency.conflicts:
+            lines.append("- 冲突:")
+            lines.extend(
+                f"  - {check.check_name}: expected {check.expected}; observed {check.observed}; {check.reason}"
+                for check in consistency.conflicts
+            )
+        if consistency.warnings:
+            lines.append("- 警告/上下文不足:")
+            lines.extend(
+                f"  - {check.check_name}: expected {check.expected}; observed {check.observed}; {check.reason}"
+                for check in consistency.warnings
+            )
+        if consistency.limitations:
+            lines.append("- 一致性局限性: " + "; ".join(consistency.limitations))
+
+    lines.extend(["", "## 冲突证据"])
+    if summary.clinvar_conflict_detected:
+        lines.append(f"- {ZH_CLINVAR_CONFLICT_ALERT}")
+    if summary.conflicting_evidence:
+        lines.extend(f"- {item}" for item in summary.conflicting_evidence)
+    if not summary.clinvar_conflict_detected and not summary.conflicting_evidence:
+        lines.append("- supplied classification result 未报告冲突证据。")
+
+    lines.extend(["", "## 数据来源与溯源"])
+    if not summary.data_source_summary:
+        lines.append("- 未提供证据数据来源。")
+    else:
+        lines.append("- 数据来源与溯源说明证据或复核线索的来源；它本身不决定证据是否已计入。")
+        for source in summary.data_source_summary:
+            version = f" ({source.version})" if source.version else ""
+            ids = ", ".join(source.evidence_ids) if source.evidence_ids else "none"
+            lines.append(f"- {source.name}{version}: evidence IDs {ids}")
+            if template.include_audit_details:
+                if source.retrieval_timestamp:
+                    lines.append(f"  - Retrieved: {source.retrieval_timestamp}")
+                if source.raw_snapshot_ref:
+                    lines.append(f"  - Raw snapshot: {source.raw_snapshot_ref}")
+                if source.query:
+                    lines.append(f"  - Query: {_json_fragment(source.query)}")
+
+    lines.extend(["", "## 局限性"])
+    if summary.limitations:
+        lines.extend(f"- {item}" for item in summary.limitations)
+    else:
+        lines.append("- 除强制人工复核外，未提供额外局限性。")
+
+    lines.extend(["", "## 可能缺失的数据"])
+    lines.extend(f"- {item}" for item in _missing_data(summary))
+
+    lines.extend(
+        [
+            "",
+            "## 人工复核清单",
+            "- 复核变异标准化结果、基因、转录本、HGVS 和基因组坐标。",
+            "- 逐条复核所有已计入 ACMG 证据、证据强度、方向和 supporting data。",
+            "- 确认候选/复核证据未被误当作已计入证据。",
+            "- 核对 ClinVar、ClinGen ERepo、文献和 reviewed evidence 的 provenance/audit trail。",
+            "- 解决冲突证据、上下文不一致、转录本/MANE 问题和所有局限性。",
+            "- 在签发或临床使用前，由具备资质的人员形成最终判断。",
+            "",
+            "## 免责声明",
+            f"- {ZH_MACHINE_PROPOSAL_NOTE}",
+            f"- {ZH_HUMAN_REVIEW_NOTE}",
+            f"- {ZH_NOT_FINAL_ASSERTION}",
+            f"- {ZH_REVIEWED_EVIDENCE_CAUTION}",
+            f"- {ZH_EXTERNAL_SOURCE_CAUTION}",
+            f"- {ZH_LITERATURE_CAUTION}",
+        ]
+    )
+
+    if template.include_audit_details and result.audit_trail:
+        lines.extend(["", "## Audit Trail"])
+        lines.extend(
+            f"- {event.event_type} via {event.tool_name or 'system'} at "
+            f"{event.timestamp.isoformat()}"
+            for event in result.audit_trail
+        )
+
+    return "\n".join(lines)
+
+
+def _zh_applied_evidence_lines(
+    summary: VariantReportSummary,
+    *,
+    include_details: bool,
+) -> list[str]:
+    lines = ["", "## 已计入 ACMG 证据", "- 仅此 section 列出 supplied classification result 中已计入的证据。"]
+    if not summary.triggered_acmg_evidence:
+        lines.append("- 未提供已计入 ACMG 证据。")
+        return lines
+    for entry in summary.triggered_acmg_evidence:
+        lines.append(
+            f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
+            f"{entry.direction}; source: {entry.source}; rationale: {entry.rationale}"
+        )
+        if include_details:
+            lines.append(f"  - Confidence: {entry.confidence:.2f}")
+            lines.append(f"  - Requires review: {str(entry.requires_review).lower()}")
+            lines.extend(_zh_manual_review_lines(entry))
+            if entry.triggered_by:
+                lines.append(f"  - Triggered by: {', '.join(entry.triggered_by)}")
+            if entry.pvs1_decision_path:
+                lines.append("  - PVS1 decision path: " + " | ".join(entry.pvs1_decision_path))
+            if entry.population_decision_path:
+                lines.append("  - Population decision path: " + " | ".join(entry.population_decision_path))
+            if entry.computational_predictor_summary:
+                lines.append("  - Computational consensus: " + str(entry.computational_consensus_direction or "not available"))
+            if entry.ps1_pm5_decision_path:
+                lines.append("  - PS1/PM5 decision path: " + " | ".join(entry.ps1_pm5_decision_path))
+            if entry.vcep_override:
+                lines.append("  - VCEP override: " + _vcep_override_fragment(entry.vcep_override))
+    return lines
+
+
+def _zh_candidate_evidence_lines(
+    summary: VariantReportSummary,
+    *,
+    include_details: bool,
+) -> list[str]:
+    lines = ["", "## 候选/复核证据", f"- {ZH_CANDIDATE_EVIDENCE_CAUTION}"]
+    if not summary.candidate_acmg_evidence:
+        lines.append("- 未提供候选/复核证据。")
+        return lines
+    for entry in summary.candidate_acmg_evidence:
+        lines.append(
+            f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
+            f"{entry.direction}; status: 候选/复核证据，未计入分类组合器; "
+            f"source: {entry.source}; rationale: {entry.rationale}"
+        )
+        if include_details:
+            lines.append(f"  - Confidence: {entry.confidence:.2f}")
+            lines.append("  - Status: candidate/review-note only; not used in classification")
+            lines.extend(_zh_manual_review_lines(entry))
+            if entry.citation:
+                lines.append(f"  - Citation: {entry.citation}")
+            if entry.provenance:
+                lines.append("  - Provenance: " + _json_fragment(entry.provenance))
+            if entry.review_flags:
+                lines.append("  - Review flags: " + ", ".join(flag.code for flag in entry.review_flags))
+            if entry.pvs1_blocking_reasons:
+                lines.append("  - PVS1 blocking reasons: " + "; ".join(entry.pvs1_blocking_reasons))
+            if entry.population_blocking_reasons:
+                lines.append("  - Population blocking reasons: " + "; ".join(entry.population_blocking_reasons))
+            if entry.computational_conflict_reasons:
+                lines.append("  - Computational conflicts: " + "; ".join(entry.computational_conflict_reasons))
+            if entry.ps1_pm5_review_note:
+                lines.append("  - PS1/PM5 review note: " + entry.ps1_pm5_review_note)
+            if entry.ps1_pm5_blocking_reasons:
+                lines.append("  - PS1/PM5 blocking reasons: " + "; ".join(entry.ps1_pm5_blocking_reasons))
+            if entry.vcep_override:
+                lines.append("  - VCEP override: " + _vcep_override_fragment(entry.vcep_override))
+    return lines
+
+
+def _zh_manual_review_lines(entry: EvidenceReportEntry) -> list[str]:
+    if entry.source != "manual_reviewed_evidence" and not entry.curator_decision:
+        return []
+    lines = ["  - Manual reviewed evidence: true"]
+    if entry.reviewed_evidence_status:
+        lines.append(f"  - Reviewed evidence status: {entry.reviewed_evidence_status}")
+    if entry.curator_decision:
+        lines.append(f"  - Curator decision: {entry.curator_decision}")
+    if entry.curator_name:
+        lines.append(f"  - Curator: {entry.curator_name}")
+    if entry.review_date:
+        lines.append(f"  - Review date: {entry.review_date}")
+    if entry.source_candidate_evidence_id:
+        lines.append(f"  - Source candidate evidence ID: {entry.source_candidate_evidence_id}")
+    if entry.override_reason:
+        lines.append(f"  - Override reason: {entry.override_reason}")
+    if entry.reviewed_provenance:
+        lines.append("  - Provenance: " + _json_fragment(entry.reviewed_provenance))
+    return lines
+
+
+def _zh_manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str]:
+    entries = [*summary.triggered_acmg_evidence, *summary.candidate_acmg_evidence]
+    reviewed_entries = [
+        entry
+        for entry in entries
+        if entry.source == "manual_reviewed_evidence" or entry.curator_decision
+    ]
+    lines = [
+        "",
+        "## 人工审核证据",
+        f"- {ZH_REVIEWED_EVIDENCE_CAUTION}",
+    ]
+    if not reviewed_entries:
+        lines.append("- 未提供人工审核证据记录。")
+        return lines
+    for entry in reviewed_entries:
+        lines.append(
+            f"- {entry.evidence_id}: {entry.code} / {entry.reviewed_evidence_status or 'reviewed'}; "
+            f"rationale: {entry.rationale}"
+        )
+        lines.extend(_zh_manual_review_lines(entry))
+    return lines
+
+
+def _zh_external_evidence_section(summary: VariantReportSummary) -> list[str]:
+    external_sources = {"ClinVar", "ClinGen Evidence Repository", "Literature"}
+    entries = [
+        entry
+        for entry in [*summary.triggered_acmg_evidence, *summary.candidate_acmg_evidence]
+        if entry.source in external_sources
+    ]
+    lines = [
+        "",
+        "## ClinVar / ClinGen ERepo / 文献证据",
+        f"- {ZH_EXTERNAL_SOURCE_CAUTION}",
+        f"- {ZH_LITERATURE_CAUTION}",
+    ]
+    if not entries:
+        lines.append("- 未提供 ClinVar、ClinGen ERepo 或文献证据条目。")
+        return lines
+    for entry in entries:
+        status = "已计入" if entry in summary.triggered_acmg_evidence else "候选/复核，未计入"
+        lines.append(
+            f"- {entry.evidence_id}: source={entry.source}; status={status}; "
+            f"code={entry.code}; rationale: {entry.rationale}"
+        )
+        if entry.citation:
+            lines.append(f"  - Citation: {entry.citation}")
+        if entry.provenance:
+            lines.append("  - Provenance: " + _json_fragment(entry.provenance))
+        if entry.clingen_erepo_record:
+            lines.append("  - ClinGen ERepo record: " + _json_fragment(entry.clingen_erepo_record))
+        if entry.clingen_erepo_match:
+            lines.append("  - ClinGen ERepo match: " + _json_fragment(entry.clingen_erepo_match))
+    return lines
+
+
+def _zh_transcript_and_mane_section(summary: VariantReportSummary) -> list[str]:
+    lines = [
+        "",
+        "## 转录本 / MANE 验证",
+        "- 转录本选择和 MANE/转录本验证仅为复核上下文，不是 ACMG 证据，也不会改变分类。",
+    ]
+    selection = summary.transcript_selection
+    if selection is None:
+        lines.append("- 未提供转录本选择摘要。")
+    else:
+        lines.extend(
+            [
+                f"- 推荐转录本: {selection.selected_transcript or 'none'}",
+                f"- 基因: {selection.selected_gene or '未提供'}",
+                f"- 原因: {selection.selection_reason}",
+                f"- 置信度: {selection.selection_confidence:.2f}",
+            ]
+        )
+    validation = summary.transcript_validation
+    if validation is None:
+        lines.append("- 未提供 MANE/转录本验证摘要。")
+    else:
+        matched = validation.matched_record or {}
+        lines.extend(
+            [
+                f"- 验证状态: {validation.status}",
+                f"- 输入转录本: {validation.input_transcript or '未提供'}",
+                f"- 匹配转录本: {matched.get('transcript') or 'none'}",
+                f"- MANE Select candidates: {len(validation.mane_select_candidates)}",
+                f"- Canonical candidates: {len(validation.canonical_candidates)}",
+            ]
+        )
+        if matched:
+            lines.append(
+                "- Matched transcript provenance: "
+                f"source={matched.get('transcript_source') or 'not provided'}; "
+                f"version={matched.get('source_version') or 'not provided'}; "
+                f"build={matched.get('genome_build') or 'not provided'}"
+            )
+        if validation.limitations:
+            lines.append("- 转录本验证局限性: " + "; ".join(validation.limitations))
+    return lines
+
+
+def _zh_vcep_section(summary: VariantReportSummary) -> list[str]:
+    lines = [
+        "",
+        "## VCEP / 特殊规则提示",
+        "- VCEP profile signals 为复核上下文；signal presence alone 未被计入 ACMG 证据，也未改变分类。",
+    ]
+    payload = summary.vcep_profile_context
+    if not payload:
+        lines.append("- 未提供 VCEP profile context。")
+        return lines
+    matches = payload.get("matches") or []
+    if not matches:
+        lines.append("- 未识别到匹配的 VCEP profile。")
+    for match in matches:
+        profile = match.get("profile") or {}
+        lines.append(
+            f"- {profile.get('profile_id') or 'profile'}: {profile.get('vcep_name') or 'VCEP not provided'}; "
+            f"status={profile.get('status') or 'not provided'}; "
+            f"version={profile.get('version') or 'not provided'}; "
+            f"match_level={match.get('match_level') or 'not provided'}"
+        )
+        if profile.get("source"):
+            lines.append(f"  - Source: {profile['source']}")
+        if profile.get("citations"):
+            lines.append("  - Citations: " + ", ".join(str(item) for item in profile["citations"]))
+        if match.get("override_blocking_reasons"):
+            lines.append("  - Override blocking reasons: " + "; ".join(str(item) for item in match["override_blocking_reasons"]))
+    override = payload.get("override_context") or {}
+    if override:
+        lines.append(f"- Overrides explicitly enabled: {str(override.get('override_enabled', False)).lower()}")
+        lines.append(f"- Overrides applied: {str(override.get('override_applied', False)).lower()}")
+        if override.get("disabled_criteria"):
+            lines.append("- Disabled criteria: " + ", ".join(str(item) for item in override["disabled_criteria"]))
+    if payload.get("limitations"):
+        lines.append("- VCEP 局限性: " + "; ".join(str(item) for item in payload["limitations"]))
+    return lines
 
 
 def _evidence_chain_lines(
@@ -824,7 +1255,9 @@ def _data_source_lines(
 
 
 def _json_fragment(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=True, sort_keys=True)
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
+    return json.dumps(value, ensure_ascii=True, sort_keys=True, default=str)
 
 
 def _vcep_override_fragment(value: dict[str, Any]) -> str:
@@ -866,8 +1299,6 @@ def _caution_lines(
     if cautions:
         lines.extend(["", "## Cautions"])
         lines.extend(f"- {item}" for item in cautions)
-    if language == ReportLanguage.CHINESE:
-        lines.append(f"- {ZH_PLACEHOLDER}")
     return lines
 
 
@@ -886,6 +1317,22 @@ def _cautions(result: ClassificationResult, summary: VariantReportSummary) -> li
     return cautions
 
 
+def _zh_cautions(result: ClassificationResult, summary: VariantReportSummary) -> list[str]:
+    cautions: list[str] = [ZH_MACHINE_PROPOSAL_NOTE, ZH_NOT_FINAL_ASSERTION]
+    if summary.final_classification == "vus":
+        cautions.append(ZH_VUS_NOTE)
+    if any(str(item.code) in {"PP3", "BP4"} for item in result.evidence_items):
+        cautions.append(ZH_COMPUTATIONAL_CAUTION)
+    if any("spliceai" in trigger.lower() for item in result.evidence_items for trigger in item.triggered_by):
+        cautions.append(ZH_SPLICEAI_CAUTION)
+    if summary.candidate_acmg_evidence:
+        cautions.append(ZH_CANDIDATE_EVIDENCE_CAUTION)
+    if summary.clinvar_conflict_detected:
+        cautions.append(ZH_CLINVAR_CONFLICT_ALERT)
+    cautions.extend([ZH_REVIEWED_EVIDENCE_CAUTION, ZH_EXTERNAL_SOURCE_CAUTION, ZH_LITERATURE_CAUTION])
+    return list(dict.fromkeys(cautions))
+
+
 def _executive_summary(summary: VariantReportSummary) -> dict[str, Any]:
     return {
         "final_machine_proposal": summary.final_classification,
@@ -900,7 +1347,21 @@ def _executive_summary(summary: VariantReportSummary) -> dict[str, Any]:
     }
 
 
-def _why_this_classification(summary: VariantReportSummary) -> list[str]:
+def _why_this_classification(
+    summary: VariantReportSummary,
+    language: ReportLanguage = ReportLanguage.ENGLISH,
+) -> list[str]:
+    if language == ReportLanguage.CHINESE:
+        lines = [
+            f"最终机器辅助分类建议: {summary.classification_label}。",
+            f"已应用组合规则: {summary.applied_combination_rule or '无'}。",
+            "报告仅呈现 supplied classifier output，不改变最终分类。",
+        ]
+        if summary.pathogenic_evidence_summary:
+            lines.append("已计入致病方向证据: " + "; ".join(summary.pathogenic_evidence_summary))
+        if summary.benign_evidence_summary:
+            lines.append("已计入良性方向证据: " + "; ".join(summary.benign_evidence_summary))
+        return lines
     lines = [
         f"Final machine proposal: {summary.classification_label}.",
         f"Applied combination rule: {summary.applied_combination_rule or 'none'}.",
@@ -911,6 +1372,14 @@ def _why_this_classification(summary: VariantReportSummary) -> list[str]:
     if summary.benign_evidence_summary:
         lines.append("Applied benign evidence: " + "; ".join(summary.benign_evidence_summary))
     return lines
+
+
+def _localized_text(language: ReportLanguage, english: str, chinese: str) -> str:
+    return chinese if language == ReportLanguage.CHINESE else english
+
+
+def _zh_classification_label(value: str) -> str:
+    return ZH_CLASSIFICATION_LABELS.get(value, value)
 
 
 def _missing_data(summary: VariantReportSummary) -> list[str]:

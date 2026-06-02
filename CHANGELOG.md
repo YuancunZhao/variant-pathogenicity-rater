@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.3.0 - 2026-06-02
+
+Internal release for controlled review of the end-to-end SNV/small-indel
+interpretation assistant.
+
+### Added
+
+- Applied evidence generation coverage for `PVS1`, `BA1`, `BS1`,
+  `PM2_Supporting`, `PP3`, `BP4`, `PS1`, and `PM5`.
+- Manual reviewed evidence workflow requiring explicit `reviewed_applied`
+  curator records before non-automatic criteria can enter classification.
+- Literature suggested-evidence to reviewed-draft workflow, with drafts
+  defaulting to non-applied review status.
+- ClinGen ERepo review-note integration and reviewed-evidence draft support.
+- VCEP signal/override framework with signal-only profile context and limited
+  approved override behavior.
+- Real provider validation for ClinVar, gnomAD local snapshots, MANE transcript
+  metadata, and ClinGen ERepo local/fixture workflows.
+- 100-case offline curated benchmark with provider fixture references.
+- Chinese laboratory-internal report template for markdown, plain text, and JSON
+  report output.
+- Release notes and readiness review for v0.3.0 internal release.
+
+### Safety Notes
+
+- ACMG business logic and the classification combiner were not changed for this
+  release review.
+- Candidate evidence remains excluded from classification.
+- Reviewed evidence is counted only when a valid record explicitly sets
+  `evidence_status=reviewed_applied`.
+- Providers supply facts, review notes, or drafts only; they cannot directly
+  classify a variant.
+- ClinVar, ClinGen ERepo, and literature outputs are not automatically applied.
+- VCEP signals alone do not change evidence or classification.
+- Approved VCEP overrides cannot bypass generator safety gates, create evidence,
+  or promote candidate evidence.
+- VUS wording remains conservative in English and Chinese report output.
+
 ## 0.2.0-beta - 2026-05-25
 
 Internal beta release review for controlled testing on

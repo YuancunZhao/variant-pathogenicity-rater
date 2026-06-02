@@ -1,5 +1,134 @@
 # Release Readiness Review
 
+## v0.3.0 Readiness
+
+Review date: 2026-06-02
+Target release: v0.3.0
+Scope: internal release readiness review for the current `develop` branch,
+covering applied evidence generation, reviewed evidence, literature drafts,
+ClinGen ERepo, VCEP signal/override behavior, real provider validation,
+benchmark regression, Chinese reports, CLI, MCP, batch, annotated-batch, and
+report workflows.
+
+### Summary
+
+The current `develop` branch is ready for v0.3.0 internal release after
+release metadata and stale documentation were synchronized. This conclusion is
+limited to internal controlled review and is not a clinical validation
+statement.
+
+Release gate record:
+
+- Test command:
+  `PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest`
+- Test result: `573 passed, 1 skipped`
+- Benchmark gate: 100 offline curated SNV/small-indel cases passed through
+  `tests/test_benchmark_dataset.py`
+- Provider/network posture: offline default; no network used in release review
+- Safety posture: human review required
+
+### Blocking Issues
+
+No blocking release issues remain after metadata and documentation updates.
+
+Resolved release-blocking metadata/documentation issues:
+
+- Release version metadata was still set to `0.2.0-beta`.
+- README still described the current release as v0.2.0-beta.
+- MCP default server version was still `0.2.0-beta`.
+- Benchmark/project-state docs carried stale full-regression counts.
+- Benchmark known gaps still said Chinese report templates were not implemented.
+- v0.3.0 release notes were missing.
+
+### Non-Blocking Issues
+
+- Default validation remains offline; optional online provider smoke gates are
+  outside this release gate.
+- The 100-case benchmark is a safety regression set, not a clinical truth set.
+- Local provider quality still depends on caller-supplied source versions,
+  snapshots, genome build, transcript metadata, and provenance.
+- A selected real VCEP profile pilot remains future work.
+- CNV/SV interpretation is not supported.
+
+### Functional Gate
+
+- Applied evidence generation is present for `PVS1`, `BA1`, `BS1`,
+  `PM2_Supporting`, `PP3`, `BP4`, `PS1`, and `PM5`.
+- Manual reviewed evidence workflow is present; only explicit valid
+  `reviewed_applied` records are converted into counted evidence.
+- Literature suggested evidence to reviewed-draft workflow is present; drafts
+  default to non-applied review status.
+- ClinGen ERepo integration is present for review notes, VCEP signals,
+  supporting summaries, provenance, and reviewed-evidence drafts.
+- VCEP signal/override framework is present for signal-only context, approved
+  limited overrides, deprecated/draft/conflict handling, reports, batch, and
+  annotated-batch summaries.
+- Real provider validation is present for ClinVar, gnomAD local snapshots,
+  MANE transcript metadata, and ClinGen ERepo local/fixture workflows.
+- Benchmark coverage is present for 100 offline curated SNV/small-indel cases.
+- Chinese laboratory-internal report template is present for markdown, plain
+  text, and JSON report output.
+- CLI, MCP, batch, annotated-batch, and report workflows are present and tested.
+
+### Safety Gate
+
+- The ACMG classification combiner was not changed for this release review.
+- Candidate/review-note evidence remains excluded from classification.
+- Reviewed evidence is counted only through explicit valid
+  `reviewed_applied` records.
+- Providers cannot directly classify a variant; they supply facts, review notes,
+  limitations, or drafts.
+- ClinVar, ClinGen ERepo, and literature outputs are not automatically applied.
+- VCEP signal alone does not change evidence or classification.
+- Approved overrides cannot bypass generator gates, create evidence, or promote
+  candidate evidence.
+- Reports render supplied results only and do not alter evidence or
+  classification.
+- VUS wording remains conservative in English and Chinese outputs.
+
+### Test Gate
+
+- Full pytest: `573 passed, 1 skipped`.
+- Benchmark: `112 passed`.
+- CLI/MCP smoke: covered by `tests/test_cli.py` and `tests/test_mcp_smoke.py`.
+- Reviewed evidence: covered by `tests/test_manual_reviewed_evidence.py` and
+  literature draft workflow tests.
+- Provider validation: covered by ClinVar, gnomAD local snapshot, MANE
+  transcript, and ClinGen ERepo validation tests.
+- Chinese report: covered by report generator tests.
+
+### Documentation Review
+
+Reviewed and updated documentation:
+
+- `README.md`
+- `CHANGELOG.md`
+- `VERSION`
+- `pyproject.toml`
+- `plugin.toml`
+- `mcp-server/config.py`
+- `docs/PROJECT_STATE.md`
+- `docs/APPLIED_EVIDENCE_STATUS.md`
+- `docs/BENCHMARK.md`
+- `docs/CHINESE_REPORT_TEMPLATE.md`
+- `docs/RELEASE_READINESS.md`
+- `docs/V0_3_0_RELEASE_NOTES.md`
+
+### Version Review
+
+- `VERSION`: `0.3.0`
+- `pyproject.toml`: `0.3.0`
+- `plugin.toml`: `0.3.0`
+- MCP default server version: `0.3.0`
+
+Suggested internal tag:
+
+```bash
+git tag -a v0.3.0 -m "v0.3.0 internal release"
+```
+
+---
+
 ## v0.2.0-beta Readiness
 
 Review date: 2026-05-25

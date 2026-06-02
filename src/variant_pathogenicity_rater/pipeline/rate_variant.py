@@ -560,6 +560,8 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             evidence_items=evidence_items,
             limitations=_unique(limitations),
             audit_trail=audit_trail + classification_result.audit_trail,
+            mode=options.get("report_mode", "detailed"),
+            language=options.get("report_language", "en"),
         ),
     )
     if report is None:

@@ -45,6 +45,17 @@ Markdown report output:
 vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown
 ```
 
+Chinese laboratory-internal report output:
+
+```bash
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown-zh
+vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68A\>G --output markdown --language zh --report-mode laboratory
+```
+
+Chinese reports are presentation-only. They render the supplied
+`ClassificationResult` in laboratory internal review wording and do not modify
+evidence generation, the ACMG combiner, or safety rules.
+
 Manual reviewed evidence can be supplied explicitly:
 
 ```bash
@@ -75,7 +86,11 @@ Supported output formats are `json` and `jsonl`.
 vpr batch --input variants.jsonl --format jsonl
 vpr batch --input variants.tsv --format tsv --output result.json
 vpr batch --input variants.vcf.tsv --format vcf-like --output-format jsonl
+vpr batch --input variants.jsonl --format jsonl --language zh
 ```
+
+`--language zh` adds a Chinese `summary_zh` triage note while preserving the
+stable per-record output and existing `summary` fields.
 
 Batch reviewed evidence uses a JSON file with `records` entries keyed by
 `input_index`; it is not silently applied to every record:
