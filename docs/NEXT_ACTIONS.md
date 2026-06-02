@@ -8,30 +8,29 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 ## Recommended Next Task
 
-The recommended next task is `55_benchmark_expansion`.
+The recommended next task is `57_chinese_report_template`.
 
-It is the best next step because the VCEP signal/override framework and the
-current real provider validation surface are complete enough for controlled
-internal validation. ClinVar real provider validation, gnomAD local snapshot
-validation, MANE transcript validation, and ClinGen ERepo validation now
-preserve the intended provider boundaries: local fixtures/snapshots are the
-primary validation path, optional online behavior is disabled by default,
-provenance/cache/limitations remain visible, failures degrade to limitations,
-and no provider directly changes classification.
+It is the best next step because benchmark Phase C is complete. The current
+benchmark baseline is 100 offline curated SNV/small-indel cases, version
+`offline-curated-v4-phase-c`, provider fixture-backed, and includes annotation
+and transcript metadata fixtures. The latest full regression status is
+`562 passed, 1 skipped`.
 
-The next constraint is validation breadth. Benchmark expansion should cover the
-current applied-evidence dependencies, provider limitations, and
-candidate/applied separation before moving into selected real-world case
-validation, a Chinese report template, and a selected real VCEP profile pilot.
+The next constraint is product-facing review usability rather than basic
+validation breadth. A Chinese report template should preserve the same
+human-review-required wording, VUS caution, applied/candidate separation,
+reviewed-evidence labeling, provenance, limitations, and VCEP/ERepo boundaries
+as the English report without changing evidence logic or the combiner.
 
 ## Prioritized Task List
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
-| `55_benchmark_expansion` | P0 | Expand the offline benchmark beyond 21 curated cases with rationale, expected applied/candidate/reviewed evidence, provider limitations, literature drafts, and safety checks. | Medium | Data fixtures, benchmark docs, benchmark tests | Yes |
+| `57_chinese_report_template` | P0 | Add Chinese report output while preserving human-review-required language, VUS caution, provenance, applied/candidate separation, and reviewed-evidence labeling. | Medium | Reporting templates, docs, report tests | Yes |
 | `63_selected_real_world_case_validation` | P0 | Validate selected real-world SNV/small-indel cases with completed provider boundaries, provenance review, and no direct provider classification. | High | Case fixtures, validation docs, report examples | Yes |
-| `57_chinese_report_template` | P1 | Add Chinese report output while preserving human-review-required language, VUS caution, provenance, applied/candidate separation, and reviewed-evidence labeling. | Medium | Reporting templates, docs, report tests | Yes |
-| `61_selected_real_vcep_profile_pilot` | P1 | Pilot one selected real VCEP profile only after toy profile and real provider validation pass. | High | Profile config, provenance docs, reports, benchmark cases | Yes |
+| `61_selected_real_vcep_profile_pilot` | P1 | Pilot one selected real VCEP profile only after toy profile, real provider validation, and benchmark Phase C pass. | High | Profile config, provenance docs, reports, benchmark cases | Yes |
+| `64_optional_online_smoke_gates` | P2 | Add explicitly gated online smoke checks for provider reachability, cache/provenance, parser resilience, and failure-to-limitation behavior. | Medium | Provider smoke tests, docs, optional CI docs | Yes |
+| `55_benchmark_expansion` | Done | Expanded the offline benchmark to 100 curated SNV/small-indel cases with fixture-backed providers, annotation/transcript fixtures, strict applied/candidate expectations, and Phase C safety coverage. | Medium | Data fixtures, benchmark docs, benchmark tests | Yes |
 | `62_toy_vcep_profile_validation` | Done | Validated the completed VCEP signal/override framework with toy profiles, profile-off/profile-on examples, report provenance, and batch summaries. | High | Profile fixtures, validation docs, benchmark/report examples | Yes |
 | `56_real_provider_validation_clinvar_gnomad_mane_erepo` | Done | Validated ClinVar, gnomAD, MANE, and ERepo provider behavior with local fixtures/snapshots, opt-in online boundaries, provenance, cache visibility, and failure-to-limitation checks. | High | Provider adapters/fixtures, validation docs, smoke tests, provenance reports | Yes |
 | `54_vcep_clingen_rule_knowledge_base` | Done | Implemented lightweight versioned VCEP signal/override framework with explicit profile selection, safe override surface, provenance, reporting, and batch summaries. | High | Profile docs/config schemas, evidence generator inputs, reports, CLI/MCP, batch | Yes |
@@ -53,3 +52,11 @@ required clinical context.
 Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
+
+Current known gaps after benchmark Phase C:
+
+- Real online provider smoke gates are optional and not part of default CI.
+- A selected real VCEP profile pilot has not been implemented.
+- Chinese report templates are not implemented.
+- Larger real-world hospital annotation validation has not been completed.
+- CNV/SV interpretation is not supported.

@@ -32,6 +32,20 @@ supply auditable facts or review context, while evidence generators,
 manual-reviewed evidence, and the unchanged combiner retain their existing
 boundaries.
 
+Benchmark Phase C now exercises these provider boundaries in the offline
+integration baseline:
+
+- 100 curated SNV/small-indel benchmark cases.
+- Benchmark version `offline-curated-v4-phase-c`.
+- Fixture-backed provider records for population, ClinVar, computational,
+  literature, ClinGen ERepo, VCEP profiles, annotation, and transcript
+  metadata.
+- Coverage of provider miss, low allele number, ancestry mismatch, founder
+  warning, genome-build mismatch, missing thresholds, ClinVar conflict,
+  condition mismatch, ERepo review-note behavior, VCEP signal/override
+  boundaries, and transcript/MANE validation.
+- Latest full regression status: `562 passed, 1 skipped`.
+
 ## Core Validation Rules
 
 - Default provider mode remains offline `mock` or local-file.
@@ -377,6 +391,10 @@ Online smoke acceptance:
 - Online provider output does not bypass local generator safety gates.
 - Online provider output does not introduce CI nondeterminism.
 
+Current gap: optional online smoke gates remain the main provider-validation
+area not yet standardized as a current roadmap deliverable. They should remain
+opt-in only and must not become default CI requirements.
+
 ## Safety Gates
 
 Provider validation must preserve these safety gates:
@@ -435,7 +453,12 @@ Provider validation must preserve these safety gates:
 Real provider validation is no longer the next implementation task. The
 recommended next validation and product-readiness tasks are:
 
-- Benchmark expansion.
-- Selected real-world case validation.
 - Chinese report template.
+- Selected real-world case validation.
 - Selected real VCEP profile pilot.
+- Optional online smoke gates.
+
+Benchmark expansion through Phase C is complete. Remaining gaps outside this
+provider-validation baseline include real online provider smoke standardization,
+larger real-world hospital annotation validation, a selected real VCEP profile
+pilot, Chinese report templates, and unsupported CNV/SV interpretation.

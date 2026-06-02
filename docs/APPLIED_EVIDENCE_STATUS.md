@@ -10,6 +10,25 @@ The classification combiner remains unchanged. It combines supplied evidence
 items and does not trigger evidence. Candidate-only and review-note evidence
 must remain visible for review but excluded from classification.
 
+## Current Benchmark Validation
+
+Benchmark Phase C is complete and is the current applied-evidence regression
+baseline:
+
+- 100 offline curated SNV/small-indel cases.
+- Benchmark version `offline-curated-v4-phase-c`.
+- Provider fixture-backed, including population, ClinVar, computational,
+  literature, ClinGen ERepo, VCEP profile, annotation, and transcript metadata
+  fixtures.
+- Latest full regression status: `562 passed, 1 skipped`.
+
+The benchmark covers applied and candidate boundaries for `PVS1`, `BA1`,
+`BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence,
+literature draft workflows, ClinGen ERepo review notes, VCEP signal/override
+behavior, provider limitations, transcript/MANE validation, and strict
+candidate/applied separation. It remains a safety regression set rather than a
+clinical truth set.
+
 ## Implemented Applied Evidence
 
 Current automatic applied evidence generation supports:
@@ -273,7 +292,7 @@ PM3-like trans observations.
 - Provider provenance and source snapshots remain essential; missing provenance
   should continue to block or downgrade evidence.
 - Benchmark coverage is safety-oriented and still small relative to the ACMG
-  surface.
+  surface, even after Phase C expansion to 100 cases.
 - All generated evidence remains machine proposal material and requires
   qualified human review.
 - VCEP signal-only output, approved overrides, and disabled-criterion
@@ -282,19 +301,25 @@ PM3-like trans observations.
 
 ## Recommended Next Task
 
-The recommended next task is benchmark expansion.
+The recommended next task is the Chinese report template.
 
-The applied evidence loop, lightweight VCEP signal/override framework, and
-current real provider validation surface are complete enough for controlled
-internal validation. ClinVar real provider validation, gnomAD local snapshot
-validation, MANE transcript validation, and ClinGen ERepo validation now
-preserve the required provider boundaries: local fixtures/snapshots are the
-primary validation path, optional online behavior is disabled by default,
-provenance/cache/limitations are visible, failures degrade to limitations, and
-no provider directly changes classification.
+The applied evidence loop, lightweight VCEP signal/override framework, current
+real provider validation surface, and benchmark Phase C baseline are complete
+enough for controlled internal validation. ClinVar real provider validation,
+gnomAD local snapshot validation, MANE transcript validation, ClinGen ERepo
+validation, and the 100-case offline benchmark now preserve the required
+boundaries: local fixtures/snapshots are the primary validation path, optional
+online behavior is disabled by default, provenance/cache/limitations are
+visible, failures degrade to limitations, candidate/review-note evidence stays
+outside classification, and no provider directly changes classification.
 
-After benchmark expansion, the next priorities are:
+The next priorities are:
 
-- Selected real-world case validation.
 - Chinese report template.
+- Selected real-world case validation.
 - Selected real VCEP profile pilot.
+- Optional online smoke gates.
+
+Current known gaps remain real online provider smoke, selected real VCEP
+profile pilot, Chinese report template, larger real-world hospital annotation
+validation, and CNV/SV support.

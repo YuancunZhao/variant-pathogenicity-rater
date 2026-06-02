@@ -144,6 +144,26 @@ not apply PVS1 or other criteria. ERepo provides exact-match review notes,
 gene-level VCEP activity signals, supporting summaries, citations, and
 reviewed-evidence drafts, but not automatic applied evidence.
 
+### Phase 10: Benchmark Phase C Expansion
+
+The benchmark Phase C expansion is complete. The current curated benchmark now
+contains 100 offline SNV/small-indel cases with version
+`offline-curated-v4-phase-c`.
+
+Phase C kept the benchmark fully offline and provider fixture-backed. It
+expanded `data/benchmark_provider_fixtures/` with local annotation and
+transcript metadata fixtures in addition to population, ClinVar,
+computational, literature, ClinGen ERepo, and VCEP profile fixtures.
+
+Current benchmark coverage includes `PVS1`, `BA1`, `BS1`, `PM2_Supporting`,
+`PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence, literature draft
+workflow boundaries, ClinGen ERepo review notes, VCEP signal/override behavior,
+provider limitation cases, transcript/MANE validation, and strict
+candidate/applied separation.
+
+The latest full regression baseline after Phase C is `562 passed, 1 skipped`.
+The classification combiner remained unchanged.
+
 ## Current Complete Interpretation Workflow
 
 ```text
@@ -158,30 +178,31 @@ variant input
 
 ## Highest Priority Current Tasks
 
-### 1. Benchmark Expansion
+### 1. Chinese Report Template
 
-Goal: expand the curated benchmark beyond the current beta-sized set while
-keeping it offline, auditable, and safety-focused.
+Goal: provide a Chinese-language report template that preserves the same safety
+wording, applied/candidate separation, reviewed-evidence labeling, provenance,
+limitations, and review-required posture as the existing reports.
 
-Why it matters: the current 21-case benchmark is useful but small. More cases
-are needed to catch regressions in PVS1 restraint, population thresholds,
-computational conflicts, ClinVar conflict handling, manual reviewed evidence,
-literature drafts, and candidate evidence separation.
+Why it matters: report usability improves when reviewers can read safety
+language and evidence summaries in the language of their workflow. With the
+100-case benchmark now in place, localization is the most direct product-facing
+gap that does not require changing evidence logic.
 
-Architecture impact: should primarily touch data fixtures and tests, not
-runtime business logic. This is a validation/hardening task rather than feature
-implementation.
+Architecture impact: expected changes should be in reporting templates,
+formatting, localization wording, and report tests. It must not change
+classification behavior.
 
-Safety risks: benchmark expected classifications must not be used to justify
-weakening safety logic. Uncertain cases should allow conservative outcomes
-rather than forcing overconfident labels.
+Safety risks: translated wording must not imply clinical sign-out, certainty,
+or automatic evidence application. VUS caution and human review requirements
+must remain explicit.
 
-Expected deliverables: expanded curated case file, rationale per case, expected
-applied/candidate/reviewed evidence, expected limitations/review flags, and
-updated benchmark documentation.
+Expected deliverables: Chinese Markdown/report output, terminology glossary,
+report tests, and documentation showing parity with English safety sections.
 
-Release gate expectations: benchmark pass, full pytest pass, no combiner
-relaxation, and clear statement that the benchmark is not a clinical truth set.
+Release gate expectations: report wording safety review by a qualified reader,
+pytest pass, smoke report generation, and no changes to evidence logic or the
+combiner.
 
 ### 2. Selected Real-World Case Validation
 
@@ -211,31 +232,7 @@ Release gate expectations: no default network dependency, no direct provider
 classification, no combiner change, and explicit limitations for unresolved
 provider or context gaps.
 
-### 3. Chinese Report Template
-
-Goal: provide a Chinese-language report template that preserves the same safety
-wording, applied/candidate separation, reviewed-evidence labeling, provenance,
-limitations, and review-required posture as the existing reports.
-
-Why it matters: report usability improves when reviewers can read safety
-language and evidence summaries in the language of their workflow.
-
-Architecture impact: expected changes should be in reporting templates,
-formatting, localization wording, and report tests. It must not change
-classification behavior.
-
-Safety risks: translated wording must not imply clinical sign-out, certainty,
-or automatic evidence application. VUS caution and human review requirements
-must remain explicit.
-
-Expected deliverables: Chinese Markdown/report output, terminology glossary,
-report tests, and documentation showing parity with English safety sections.
-
-Release gate expectations: report wording safety review by a qualified reader,
-pytest pass, smoke report generation, and no changes to evidence logic or the
-combiner.
-
-### 4. Selected Real VCEP Profile Pilot
+### 3. Selected Real VCEP Profile Pilot
 
 Goal: pilot one carefully selected real VCEP profile behind explicit selection,
 now that toy profile validation and real provider validation are complete.
@@ -259,6 +256,29 @@ examples, and a clear statement of what the pilot does not automate.
 Release gate expectations: design approval, benchmark pass, no default clinical
 profile activation, no combiner change without explicit review, and clear
 profile limitations.
+
+### 4. Optional Online Smoke Gates
+
+Goal: add or standardize optional online smoke gates for provider reachability
+and parser resilience without making network access part of default CI.
+
+Why it matters: real online providers can drift. Optional smoke gates can catch
+breaking endpoint or parser changes while preserving the current offline
+validation baseline.
+
+Architecture impact: should focus on gated smoke tests, provider provenance,
+cache behavior, timeout/failure-to-limitation behavior, and documentation.
+
+Safety risks: online smoke must not be treated as clinical validation, must not
+introduce default network dependencies, and must not allow live provider
+assertions to bypass local safety gates.
+
+Expected deliverables: explicitly gated smoke command(s), cache/provenance
+assertions, failure-to-limitation checks, and documentation that default CI
+remains offline.
+
+Release gate expectations: skipped by default, opt-in only, no combiner change,
+and no direct provider-driven classification.
 
 ## Tasks Not Appropriate For The Current Stage
 

@@ -26,18 +26,19 @@ testing, and safety-boundary validation. This is not a clinical validation
 statement and does not authorize autonomous clinical interpretation.
 
 After VCEP signal/override framework validation and real provider validation,
-the project state is: the
+real provider validation, and benchmark Phase C, the project state is: the
 generic SNV/small-indel interpretation loop is connected end to end for
 controlled internal review, including generated applied evidence,
 candidate/suggested evidence, reviewed-evidence drafts, curator-applied
 reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, local
 VCEP gene-level profile signals, approved limited profile overrides, reports,
 CLI/MCP surfaces, batch and annotated-batch VCEP summaries, local
-ClinVar/gnomAD/MANE/ERepo provider validation, and the unchanged ACMG
-classification combiner. The next project constraint is no longer basic
-workflow connectivity, rule-profile plumbing, or real provider safety posture;
-it is expanded benchmarks, selected real-world case validation, localized
-reporting, and a narrow real VCEP profile pilot.
+ClinVar/gnomAD/MANE/ERepo provider validation, a 100-case offline curated
+fixture-backed benchmark, and the unchanged ACMG classification combiner. The
+next project constraint is no longer basic workflow connectivity,
+rule-profile plumbing, real provider safety posture, or first-pass benchmark
+breadth; it is localized reporting, selected real-world case validation, a
+narrow real VCEP profile pilot, and optional online smoke gates.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -184,6 +185,26 @@ Across all validated providers, local fixtures or local snapshots are the
 primary validation path, optional online behavior is explicitly gated and
 disabled by default, cache/provenance/limitations are visible, failures degrade
 to structured limitations, and no provider directly changes classification.
+
+### Benchmark Validation
+
+Benchmark Phase C is complete and is the current validation baseline.
+
+Current benchmark status:
+
+- 100 offline curated SNV/small-indel cases.
+- Benchmark version `offline-curated-v4-phase-c`.
+- Provider fixture-backed through `data/benchmark_provider_fixtures/`.
+- Includes local population, ClinVar, computational, literature, ClinGen
+  ERepo, VCEP profile, annotation, and transcript metadata fixtures.
+- Latest full regression status: `562 passed, 1 skipped`.
+
+The benchmark covers generated and reviewed evidence boundaries for `PVS1`,
+`BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed
+evidence, literature draft workflows, ClinGen ERepo review-note behavior, VCEP
+signal/override behavior, provider limitations, transcript/MANE validation,
+and candidate/applied evidence separation. It remains a safety-oriented
+regression set, not a clinical truth set.
 
 ### VCEP Signal / Override Framework
 
@@ -379,30 +400,38 @@ override of user-supplied context.
 
 ## Current Test Status
 
-The latest documented v0.2.0-beta release gate recorded:
+The latest documented full regression run after benchmark Phase C recorded:
 
-- Approximate full pytest count: 282 passed.
-- Benchmark coverage: 21 curated offline SNV/small-indel cases.
-- Real-data smoke coverage: 10 curated offline cases.
+- Full pytest: `562 passed, 1 skipped`.
+- Benchmark coverage: 100 curated offline SNV/small-indel cases.
+- Benchmark version: `offline-curated-v4-phase-c`.
+- Benchmark provider posture: fixture-backed, including annotation and
+  transcript metadata fixtures.
 
 The benchmark is safety-oriented rather than a clinical truth set. It checks
-classification behavior, evidence separation, conservative VUS defaults,
-population-threshold context, ClinVar conflict handling, and PVS1 restraint.
-The smoke suite exercises representative real-variant examples offline and
-checks that ClinVar/literature candidate evidence does not leak into applied
-classification.
+classification behavior, applied/candidate evidence separation, conservative
+VUS defaults, population-threshold context, ClinVar conflict handling, PVS1
+restraint, reviewed evidence, literature drafts, ERepo review-note behavior,
+VCEP signal/override boundaries, provider limitations, provenance, and
+transcript/MANE validation. The smoke suite exercises representative
+real-variant examples offline and checks that ClinVar/literature candidate
+evidence does not leak into applied classification.
 
 Future release reviews should refresh these counts from the current branch
 instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is benchmark expansion, followed by selected
-real-world case validation, a Chinese report template, and one narrowly scoped
-real VCEP profile pilot behind explicit profile selection.
+The recommended next task is the Chinese report template, followed by selected
+real-world case validation, one narrowly scoped real VCEP profile pilot behind
+explicit profile selection, and optional online provider smoke gates.
 
 Real provider validation for ClinVar, gnomAD, MANE, and ERepo is complete for
 the current provider surface and should now be maintained as a regression
 boundary: local fixture/snapshot validation, optional online disabled by
 default, provenance/cache visibility, failure-to-limitation behavior, and no
 direct provider-driven classification.
+
+Current known gaps are real online provider smoke gates, a selected real VCEP
+profile pilot, Chinese report templates, larger real-world hospital annotation
+validation, and CNV/SV support.

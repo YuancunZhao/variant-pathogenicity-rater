@@ -12,6 +12,7 @@ Before planning or editing, read these files:
 - `docs/ROADMAP_CURRENT.md`
 - `docs/KNOWN_LIMITATIONS.md`
 - `docs/APPLIED_EVIDENCE_GENERATION.md`
+- `docs/APPLIED_EVIDENCE_STATUS.md`
 
 If the task touches release readiness, also read:
 
@@ -73,6 +74,10 @@ disease/gene-specific guidance, also read:
     mismatches must degrade to limitations, review flags, failed records, or
     candidate-only output.
 23. No provider directly changes classification.
+24. Benchmark Phase C is the current regression baseline: 100 offline curated
+    SNV/small-indel cases, version `offline-curated-v4-phase-c`,
+    fixture-backed providers including annotation/transcript metadata, and
+    latest full regression status `562 passed, 1 skipped`.
 
 ## Evidence Governance
 
@@ -89,7 +94,8 @@ When adding or modifying evidence behavior:
   inheritance, ancestry, consequence, provider-record, and genome build.
 - Preserve failure-to-limitation behavior.
 - Keep report wording clear that machine output is a proposal.
-- Keep benchmark and smoke expectations conservative.
+- Keep benchmark and smoke expectations conservative. Benchmark expectations
+  are safety regression expectations, not clinical truth labels.
 - Keep ERepo exact matches, gene-level VCEP signals, literature suggestions,
   and unsupported criterion suggestions outside the combiner unless explicitly
   converted through reviewed evidence.
@@ -117,12 +123,18 @@ Before implementation, identify:
 Do not implement a new ACMG evidence criterion or broaden variant scope unless
 the task explicitly asks for it and the roadmap supports it.
 
-The current recommended next task is benchmark expansion. Real provider
+The current recommended next task is the Chinese report template. Real provider
 validation is complete for the current ClinVar, gnomAD local snapshot, MANE
 transcript, and ClinGen ERepo surfaces and should now be treated as a
-regression boundary. After benchmark expansion, prioritize selected real-world
-case validation, a Chinese report template, and a selected real VCEP profile
-pilot.
+regression boundary. Benchmark Phase C is also complete and should be treated
+as the current safety regression baseline. After the Chinese report template,
+prioritize selected real-world case validation, a selected real VCEP profile
+pilot, and optional online smoke gates.
+
+Current known gaps after benchmark Phase C are real online provider smoke
+standardization, selected real VCEP profile pilot, Chinese report template,
+larger real-world hospital annotation validation, and unsupported CNV/SV
+interpretation.
 
 ## Completion Report
 

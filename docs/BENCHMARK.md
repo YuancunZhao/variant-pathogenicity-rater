@@ -18,6 +18,16 @@ The benchmark currently contains 100 cases:
 - 7 likely benign
 - 8 benign
 
+Current dataset metadata:
+
+- Benchmark version: `offline-curated-v4-phase-c`.
+- Scope: 100 offline curated SNV/small-indel cases.
+- Provider data: fixture-backed through `data/benchmark_provider_fixtures/`.
+- Phase C fixture additions: local `annotation.jsonl` and
+  `transcript_metadata.jsonl` for PVS1, splice, MANE, and transcript validation
+  boundaries.
+- Latest full regression status: `562 passed, 1 skipped`.
+
 Each case includes gene, transcript, HGVS c./p., variant type, disease,
 inheritance, mock population data, mock computational predictions, a mock
 ClinVar record, mock literature evidence, expected classification, expected
@@ -53,6 +63,11 @@ external fixture reference to resolve, require fixture ids to match their owning
 case ids, and fail on unused fixture rows. This keeps the benchmark as an
 integrated local-provider regression set rather than a collection of
 disconnected mock payloads.
+
+Phase C is now the current benchmark baseline. It is still an offline
+validation set, not a clinical truth set. It is intended to catch integration
+regressions in applied evidence generation, provider limitation handling,
+candidate/applied separation, provenance, and report-visible safety boundaries.
 
 ## Evidence Model
 
@@ -107,6 +122,22 @@ The regression tests cover:
   ERepo/VCEP review-note and override behavior, reviewed evidence, literature
   drafts, and transcript/MANE validation boundaries.
 
+The current benchmark coverage includes:
+
+- `PVS1` applied, downgraded, and candidate-only paths.
+- `BA1`, `BS1`, and `PM2_Supporting` population rule gates.
+- `PP3` and `BP4` computational consensus and conflict gates.
+- `PS1` and `PM5` ClinVar comparator gates.
+- Manual `reviewed_applied`, `reviewed_rejected`, and `needs_more_info`
+  evidence boundaries.
+- Literature suggested-evidence drafts.
+- ClinGen ERepo exact-match review-note behavior.
+- VCEP signal-only and approved override behavior.
+- Provider limitations for miss, low AN, ancestry mismatch, founder warning,
+  genome-build mismatch, and missing thresholds.
+- Transcript/MANE validation and transcript-dependent evidence blocking.
+- Strict applied/candidate evidence separation.
+
 ## Expansion Strategy
 
 The benchmark expansion is staged:
@@ -121,6 +152,21 @@ The benchmark expansion is staged:
 - Phase D: 100+ cases, deferred; likely candidates include broader malformed
   provider payloads, stale-source provenance, more condition-specific VCEP
   conflict cases, and report-smoke expansion.
+
+Current known gaps outside this benchmark baseline:
+
+- Real online provider smoke gates are optional and not part of default CI.
+- A selected real VCEP profile pilot has not been implemented.
+- Chinese report templates are not implemented.
+- Larger real-world hospital annotation validation has not been completed.
+- CNV/SV interpretation is not supported.
+
+Recommended next validation/product tasks:
+
+- Chinese report template with safety-language parity.
+- Selected real-world SNV/small-indel case validation.
+- Selected real VCEP profile pilot behind explicit activation.
+- Optional online smoke gates for provider reachability and parser resilience.
 
 The ACMG classification combiner must remain unchanged during benchmark
 expansion. Benchmark expectations are regression expectations for the current
