@@ -20,6 +20,13 @@ class ProvenanceMetadata(SchemaModel):
     parser_version: str = Field(default="v1", min_length=1)
     source_url: str | None = None
     endpoint: str | None = None
+    provider_mode: str | None = None
+    cache_hit: bool | None = None
+    http_status: int | None = Field(default=None, ge=100, le=599)
+    request_method: str | None = None
+    request_url: str | None = None
+    dataset: str | None = None
+    raw_payload_kind: str | None = None
     review_status: str | None = None
     last_evaluated: str | None = None
     confidence: float = Field(default=0.5, ge=0, le=1)
@@ -50,6 +57,13 @@ def provenance_from_raw_record(
     retrieved_at: str | None = None,
     source_url: str | None = None,
     endpoint: str | None = None,
+    provider_mode: str | None = None,
+    cache_hit: bool | None = None,
+    http_status: int | None = None,
+    request_method: str | None = None,
+    request_url: str | None = None,
+    dataset: str | None = None,
+    raw_payload_kind: str | None = None,
     review_status: str | None = None,
     last_evaluated: str | None = None,
     ancestry: str | None = None,
@@ -66,6 +80,13 @@ def provenance_from_raw_record(
         parser_version=parser_version,
         source_url=source_url,
         endpoint=endpoint,
+        provider_mode=provider_mode,
+        cache_hit=cache_hit,
+        http_status=http_status,
+        request_method=request_method,
+        request_url=request_url,
+        dataset=dataset,
+        raw_payload_kind=raw_payload_kind,
         review_status=review_status,
         last_evaluated=last_evaluated,
         confidence=confidence,
@@ -88,3 +109,22 @@ def attach_provenance_to_source(
     source.raw_snapshot_ref = provenance.raw_record_hash
     source.provenance = provenance
     return source
+
+
+def evidence_source_from_provenance(
+    *,
+    name: str,
+    provenance: ProvenanceMetadata,
+    url: str | None = None,
+    database_id: str | None = None,
+) -> EvidenceSource:
+    source = EvidenceSource(
+        name=name,
+        version=provenance.source_version,
+        url=url or provenance.source_url,
+        database_id=database_id,
+        retrieval_timestamp=provenance.retrieved_at,
+        query=provenance.query,
+        raw_snapshot_ref=provenance.raw_record_hash,
+    )
+    return attach_provenance_to_source(source, provenance)

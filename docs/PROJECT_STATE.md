@@ -25,23 +25,26 @@ CLI/MCP smoke testing, provider validation review, benchmark regression, and
 safety-boundary validation. This is not a clinical validation statement and
 does not authorize autonomous clinical interpretation.
 
-After VCEP signal/override framework validation, real provider validation, and
-benchmark Phase C, the project state is: the
-generic SNV/small-indel interpretation loop is connected end to end for
-controlled internal review, including generated applied evidence,
-candidate/suggested evidence, reviewed-evidence drafts, curator-applied
-reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, local
-VCEP gene-level profile signals, approved limited profile overrides, reports,
-CLI/MCP surfaces, batch and annotated-batch VCEP summaries, local
-ClinVar/gnomAD/MANE/ERepo provider validation, a 100-case offline curated
-fixture-backed benchmark, natural-language input wrappers, offline variant
-resolution, Chinese laboratory reporting, and the unchanged ACMG classification
-combiner. The next project constraint is no longer basic workflow connectivity,
-rule-profile plumbing, real provider safety posture, first-pass benchmark
-breadth, localization, natural-language/HGVS text intake, or HGVS c. resolution
-for key fixture-backed cases; it is selected real-world case validation, a
-narrow real VCEP profile pilot, optional online smoke gates, and larger
-real-world annotation validation.
+After VCEP signal/override framework validation, real provider validation,
+benchmark Phase C, the General Literature Search and Summary Engine, and the
+74 real provider pipeline, the
+project state is: the generic SNV/small-indel interpretation loop is connected
+end to end for controlled internal review, including generated applied
+evidence, candidate/suggested evidence, literature search summaries,
+reviewed-evidence drafts, curator-applied reviewed evidence, ClinVar review
+notes, ClinGen ERepo review notes, local VCEP gene-level profile signals,
+approved limited profile overrides, reports, CLI/MCP surfaces, batch and
+annotated-batch VCEP summaries, local ClinVar/gnomAD/MANE/ERepo provider
+validation, a 100-case offline curated fixture-backed benchmark,
+natural-language input wrappers, offline variant resolution, opt-in online
+ClinVar/gnomAD/Ensembl VEP/PubMed/LitVar provider adapters, Chinese laboratory
+reporting, and the unchanged ACMG classification combiner. The next project
+constraint is no longer basic workflow connectivity, rule-profile plumbing,
+real provider safety posture, first-pass benchmark breadth, localization,
+natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
+cases, or general literature search/summarization; it is selected real-world
+case validation, optional online smoke review for the provider adapters, a
+narrow real VCEP profile pilot, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -139,15 +142,27 @@ classification combiner.
 ### Literature Workflow
 
 The literature workflow is a review-note and suggestion workflow. It may
-surface claims relevant to PS3/BS3, PS2/PM6, PP1/PS4/PP4, PM3, and PS1/PM5,
-but those outputs remain candidate-only unless the manual reviewed evidence
-workflow explicitly supplies a valid `reviewed_applied` record under strict
-gates. Literature retrieval, extraction, and confidence scoring do not by
-themselves authorize applied evidence.
+surface claims relevant to PS3/BS3, PS2/PM6, PP1, PS4, PM3, PP4, PS1/PM5,
+PM1, and PVS1 mechanism support, but those outputs remain candidate-only unless
+the manual reviewed evidence workflow explicitly supplies a valid
+`reviewed_applied` record under strict gates. Literature retrieval, extraction,
+query planning, duplicate collapse, criterion summaries, and confidence scoring
+do not by themselves authorize applied evidence.
+
+The General Literature Search and Summary Engine is implemented and has passed
+integration review. `search_and_summarize_literature` supports deterministic
+query planning, local/offline caller-supplied literature records, duplicate
+publication/family/cohort collapse, criterion-specific summaries, blocking
+flags for variant or disease mismatch, limitations for abstract-only evidence,
+review flags for low-confidence extraction, and reviewed-evidence draft
+generation. Codex/Life Science Research literature records are treated as
+caller-supplied records, not trusted clinical evidence.
 
 Literature suggestions can be converted into reviewed-evidence drafts. Drafts
 default to non-applied review status and require curator editing before they can
-be submitted as `reviewed_applied`.
+be submitted as `reviewed_applied`. `suggested_strength` is reviewer guidance
+only; literature-derived evidence-like outputs use candidate/review-note
+semantics and do not change classification.
 
 ### External Curated Source Integration
 
@@ -230,7 +245,8 @@ Current benchmark status:
 - Provider fixture-backed through `data/benchmark_provider_fixtures/`.
 - Includes local population, ClinVar, computational, literature, ClinGen
   ERepo, VCEP profile, annotation, and transcript metadata fixtures.
-- Latest full regression status: `626 passed, 1 skipped`.
+- Latest full regression status after General Literature Engine integration
+  review: `641 passed, 1 skipped`.
 
 The benchmark covers generated and reviewed evidence boundaries for `PVS1`,
 `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed

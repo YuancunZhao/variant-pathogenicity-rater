@@ -11,25 +11,31 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 The recommended next task is `63_selected_real_world_case_validation`.
 
 It is the best next step because benchmark Phase C, Chinese report output, the
-offline Variant Resolution Framework, and real resolution provider validation
-are implemented. The current
-interpretation loop now preserves normalization, resolution, evidence,
+offline Variant Resolution Framework, real resolution provider validation, and
+the General Literature Search and Summary Engine are implemented and have
+passed integration review. The current interpretation loop now preserves
+normalization, resolution, evidence, literature search/summarization,
 classification, and reporting boundaries, so the highest-value next work is
-selected real-world case validation using local fixtures/snapshots and
-explicit provenance.
+selected real-world case validation using local fixtures/snapshots and explicit
+provenance.
 
 The next constraint is real-world review confidence rather than adding another
 automatic evidence rule. Selected cases should exercise transcript resolution,
-provider gaps, ClinVar comparator ambiguity, ERepo review notes, and report
-wording without changing evidence logic or the combiner.
+provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
+summary/draft behavior, duplicate literature/case handling, and report wording
+without changing evidence logic or the combiner.
 
 ## Prioritized Task List
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
 | `63_selected_real_world_case_validation` | P0 | Validate selected real-world SNV/small-indel cases with completed provider boundaries, provenance review, and no direct provider classification. | High | Case fixtures, validation docs, report examples | Yes |
+| `74_real_provider_pipeline` | Done | Added opt-in online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar provider adapters with shared HTTP/cache/provenance handling and mocked offline validation. | High | Online providers, CLI/MCP, provenance/cache docs, tests | Yes |
+| `72_online_pubmed_litvar_adapter_pilot` | Done | Implemented opt-in PubMed/LitVar adapters for the completed literature engine while keeping offline/local fixtures as default validation. | High | Literature providers, provenance/cache docs, optional smoke tests | Yes |
 | `61_selected_real_vcep_profile_pilot` | P1 | Pilot one selected real VCEP profile only after toy profile, real provider validation, and benchmark Phase C pass. | High | Profile config, provenance docs, reports, benchmark cases | Yes |
 | `64_optional_online_smoke_gates` | P2 | Add explicitly gated online smoke checks for provider reachability, cache/provenance, parser resilience, and failure-to-limitation behavior. | Medium | Provider smoke tests, docs, optional CI docs | Yes |
+| `73_cnv_sv_framework_planning` | P2 | Plan future CNV/SV support as a design-only framework with separate variant models, validation, and safety boundaries. | High | Design docs, schema sketches, validation plan | Yes |
+| `71_general_literature_search_and_summary_engine` | Done | Implemented and integration-reviewed general literature query planning, local/offline records, duplicate collapse, criterion summaries, blocking/review flags, CLI/MCP, report section, and reviewed drafts. | High | Literature agent, CLI/MCP, reports, docs, tests | Yes |
 | `69_real_resolution_provider_validation` | Done | Validated offline real-resolution provider snapshots for HGVS c. to transcript, protein consequence, coordinate, exon, and NMD context, with mismatch flags and no evidence generation. | High | Resolution fixtures, safety flags, validation docs, tests | Yes |
 | `65_variant_resolution_framework` | Done | Added an offline fixture-backed Variant Resolution Layer for transcript, protein, coordinate, exon, and NMD context with CLI/MCP/report integration and no ACMG evidence generation. | High | Resolution fixtures, pipeline, CLI/MCP, reports, docs, tests | Yes |
 | `57_chinese_report_template` | Done | Added Chinese report output while preserving human-review-required language, VUS caution, provenance, applied/candidate separation, and reviewed-evidence labeling. | Medium | Reporting templates, docs, report tests | Yes |
@@ -58,7 +64,13 @@ stage. Those belong in design or future validated tracks.
 
 Current known gaps after benchmark Phase C:
 
-- Real online provider smoke gates are optional and not part of default CI.
+- Real-world case validation has not yet exercised the full completed
+  literature-engine plus provider stack on selected cases.
+- PubMed/LitVar online adapters are implemented but remain opt-in and
+  candidate-only.
+- Real online provider smoke gates are optional, env-gated, and not part of
+  default CI.
 - A selected real VCEP profile pilot has not been implemented.
 - Larger real-world hospital annotation validation has not been completed.
-- CNV/SV interpretation is not supported.
+- CNV/SV interpretation is not supported; only framework planning is currently
+  appropriate.

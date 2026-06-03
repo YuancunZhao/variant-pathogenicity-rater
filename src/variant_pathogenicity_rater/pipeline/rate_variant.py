@@ -46,6 +46,9 @@ from variant_pathogenicity_rater.evidence.clinvar import ClinVarQuery
 from variant_pathogenicity_rater.evidence.literature import (
     extract_literature_evidence,
 )
+from variant_pathogenicity_rater.literature_agent import (
+    search_and_summarize_literature,
+)
 from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.reporting import generate_report
@@ -399,26 +402,57 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
 
     literature_records = []
     if options.get("include_literature", True):
-        literature_result = _run_step(
-            "search_literature_evidence",
-            audit_trail,
-            limitations,
-            lambda: extract_literature_evidence(
-                normalized_variant,
-                context,
-                build_literature_provider(
-                    data_sources_config.source("literature"),
-                    options.get("literature_records"),
+        if _use_online_literature(options):
+            literature_summary_result = _run_step(
+                "search_and_summarize_literature",
+                audit_trail,
+                limitations,
+                lambda: search_and_summarize_literature(
+                    {
+                        "gene": context.gene_symbol or normalized_variant.gene_symbol or "unknown",
+                        "variant": normalized_variant.hgvs_c
+                        or normalized_variant.hgvs_p
+                        or normalized_variant.variant_id,
+                        "transcript": _variant_transcript_label(normalized_variant),
+                        "disease": context.disease_name,
+                        "inheritance": context.inheritance_mode,
+                        "phenotype": context.phenotype_terms,
+                        "literature_records": options.get("literature_records") or [],
+                        "pmids": options.get("pmids") or [],
+                        "search_query": options.get("search_query"),
+                        "variant_aliases": options.get("variant_aliases") or [],
+                        "use_online_pubmed": bool(options.get("use_online_pubmed")),
+                        "use_online_litvar": bool(options.get("use_online_litvar")),
+                        "provider_cache_dir": options.get("provider_cache_dir"),
+                    }
                 ),
-            ),
-        )
-        if literature_result is not None:
-            literature_records = list(literature_result.literature_records)
-            evidence_items.extend(literature_result.candidate_evidence_items)
-            limitations.extend(literature_result.limitations)
-            step_results["search_literature_evidence"] = json.loads(
-                literature_result.model_dump_json()
             )
+            if literature_summary_result is not None:
+                limitations.extend(literature_summary_result.limitations)
+                step_results["search_and_summarize_literature"] = (
+                    literature_summary_result.model_dump(mode="json")
+                )
+        else:
+            literature_result = _run_step(
+                "search_literature_evidence",
+                audit_trail,
+                limitations,
+                lambda: extract_literature_evidence(
+                    normalized_variant,
+                    context,
+                    build_literature_provider(
+                        data_sources_config.source("literature"),
+                        options.get("literature_records"),
+                    ),
+                ),
+            )
+            if literature_result is not None:
+                literature_records = list(literature_result.literature_records)
+                evidence_items.extend(literature_result.candidate_evidence_items)
+                limitations.extend(literature_result.limitations)
+                step_results["search_literature_evidence"] = json.loads(
+                    literature_result.model_dump_json()
+                )
 
     supplemental_items = _run_step(
         "load_mock_supplemental_evidence",
@@ -913,7 +947,36 @@ def _manual_nmd_context_supplied(arguments: dict[str, Any]) -> bool:
 def _options(arguments: dict[str, Any]) -> dict[str, Any]:
     options = dict(arguments.get("options") or {})
     options.setdefault("mock_mode", True)
+    return _normalize_online_provider_options(options)
+
+
+def _normalize_online_provider_options(options: dict[str, Any]) -> dict[str, Any]:
+    data_sources = dict(options.get("data_sources") or {})
+    sources = dict(data_sources.get("sources") or data_sources.get("data_sources") or {})
+    cache_root = options.get("provider_cache_dir")
+    mappings = {
+        "use_online_clinvar": ("clinvar", "clinvar"),
+        "use_online_gnomad": ("population", "gnomad"),
+        "use_online_vep": ("computational", "vep"),
+        "use_online_pubmed": ("literature", "literature"),
+        "use_online_litvar": ("literature", "literature"),
+    }
+    for flag, (source_name, cache_name) in mappings.items():
+        if not options.get(flag):
+            continue
+        source = dict(sources.get(source_name) or {})
+        source.update({"mode": "online", "online_enabled": True})
+        if cache_root and not source.get("cache_dir"):
+            source["cache_dir"] = f"{str(cache_root).rstrip('/')}/{cache_name}"
+        sources[source_name] = source
+    if sources:
+        data_sources["sources"] = sources
+        options["data_sources"] = data_sources
     return options
+
+
+def _use_online_literature(options: dict[str, Any]) -> bool:
+    return bool(options.get("use_online_pubmed") or options.get("use_online_litvar"))
 
 
 def _reviewed_evidence_payload(

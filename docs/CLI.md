@@ -94,6 +94,34 @@ VCEP signals are review context only. Overrides require an approved,
 non-conflicting profile and `--apply-vcep-overrides`; they do not modify the
 combiner.
 
+## Online Provider Opt-In
+
+`rate`, `rate-text`, `batch`, and `annotated-batch` accept explicit online
+provider flags:
+
+```bash
+--online-clinvar
+--online-gnomad
+--online-vep
+--online-pubmed
+--online-litvar
+--provider-cache-dir .cache/variant_pathogenicity_rater/providers
+```
+
+All flags default to false. Supplying a flag sets only that provider to online
+mode with `online_enabled=true`; unflagged providers remain in the configured
+offline/mock/local mode.
+
+Online providers supply auditable records only. They do not create applied
+`EvidenceItem` records and do not change the ACMG combiner. ClinVar remains
+review-note/comparator context, gnomAD and VEP facts pass only through existing
+population/computational evaluators, and PubMed/LitVar records remain
+candidate-only literature material.
+
+Provider failure, timeout, malformed response, no record, build mismatch,
+missing predictor data, or abstract-only literature metadata is returned as a
+limitation. Default CLI runs do not require network access.
+
 ## Natural-Language Variant Text
 
 `rate-text` parses a short natural-language or HGVS-like string into structured
@@ -207,7 +235,8 @@ vpr literature-search \
 
 Online PubMed and LitVar are disabled by default. `--online-pubmed` and
 `--online-litvar` are explicit opt-ins; failures or unavailable online
-retrieval are returned as limitations.
+retrieval are returned as limitations. `--provider-cache-dir` controls the
+online literature cache root.
 
 `literature-draft-reviewed` converts `assess_literature_evidence` JSON output
 into manual reviewed-evidence draft templates. The command does not apply

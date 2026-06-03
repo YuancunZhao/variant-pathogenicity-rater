@@ -19,10 +19,17 @@ themselves. v0.3.0 adds comparator-based PS1/PM5 generation, manual reviewed
 evidence intake, literature-to-reviewed draft workflow, ClinGen ERepo
 review-note integration, natural-language input, offline variant resolution,
 VCEP signal/override review context, real provider validation, a 100-case
-offline benchmark, and Chinese laboratory-internal reports around the existing
+offline benchmark, opt-in online ClinVar/gnomAD/Ensembl VEP/PubMed/LitVar
+provider adapters, and Chinese laboratory-internal reports around the existing
 safety boundaries.
 
 All conclusions are machine proposals and always require qualified human review. The default workflow does not use the network.
+
+Online provider support is disabled by default. Explicit CLI/MCP options can
+enable ClinVar, gnomAD, Ensembl VEP, PubMed, or LitVar adapters, but provider
+records remain auditable facts or review notes. Providers do not create applied
+evidence and do not modify the ACMG combiner. See
+`docs/REAL_PROVIDER_PIPELINE.md` and `docs/ONLINE_PROVIDER_SAFETY.md`.
 
 ## Directory Structure
 
@@ -51,6 +58,7 @@ All conclusions are machine proposals and always require qualified human review.
 - Environment-variable based configuration
 - stdio JSON-RPC transport callable by a Codex Plugin
 - Integrated offline `rate_variant` pipeline with audit trail and limitations
+- Opt-in online provider adapters with shared cache/provenance/failure handling
 - JSON output suitable for direct Codex display
 
 ## Installation

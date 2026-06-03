@@ -20,14 +20,16 @@ baseline:
 - Provider fixture-backed, including population, ClinVar, computational,
   literature, ClinGen ERepo, VCEP profile, annotation, and transcript metadata
   fixtures.
-- Latest full regression status: `573 passed, 1 skipped`.
+- Latest full regression status after General Literature Engine integration
+  review: `641 passed, 1 skipped`.
 
 The benchmark covers applied and candidate boundaries for `PVS1`, `BA1`,
 `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence,
-literature draft workflows, ClinGen ERepo review notes, VCEP signal/override
-behavior, provider limitations, transcript/MANE validation, and strict
-candidate/applied separation. It remains a safety regression set rather than a
-clinical truth set.
+literature draft workflows, the General Literature Search and Summary Engine,
+ClinGen ERepo review notes, VCEP signal/override behavior, provider
+limitations, transcript/MANE validation, and strict candidate/applied
+separation. It remains a safety regression set rather than a clinical truth
+set.
 
 ## Implemented Applied Evidence
 
@@ -64,6 +66,14 @@ appropriate rule layer:
   assertion quality, conflict checks, and provenance. ClinVar assertions are
   not copied directly into classification.
 
+The 74 real provider pipeline adds opt-in online ClinVar, gnomAD, Ensembl VEP,
+PubMed, and LitVar adapters. These providers supply records and provenance
+only. They do not create applied evidence and do not modify the classification
+combiner. Online gnomAD and VEP facts still pass through the existing
+population and computational evaluators; ClinVar and literature remain
+review-note/candidate-only unless a curator later supplies valid
+`reviewed_applied` evidence.
+
 No provider directly changes classification. Providers supply facts, review
 notes, or drafts; applied evidence enters classification only through validated
 generators or explicit manual `reviewed_applied` evidence.
@@ -87,6 +97,16 @@ candidate/suggested evidence
 This pathway is shared by direct reviewed evidence intake, literature
 suggestions, and ClinGen ERepo supporting summaries. Literature and ERepo draft
 generation reduces transcription work for curators; it does not apply evidence.
+
+The General Literature Search and Summary Engine extends the candidate
+literature workflow but does not expand the applied-evidence list.
+`search_and_summarize_literature` supports query planning, local/offline
+caller-supplied literature records, duplicate collapse, criterion-specific
+summaries for `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`, `PM3`, `PP4`,
+`PS1`/`PM5`, `PM1`, and `PVS1` mechanism support, and reviewed-evidence draft
+output. `suggested_strength` is reviewer guidance only; literature-derived
+evidence-like outputs remain `candidate_only=true`, `applied=false`, and
+`strength=none`.
 
 The current applied evidence surface therefore includes automatic generated
 `PVS1`, `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, and `PM5`, plus
@@ -274,6 +294,14 @@ these criteria, but suggestions remain candidate-only unless the manual
 reviewed evidence workflow explicitly supplies applied evidence under strict
 validation.
 
+The General Literature Search and Summary Engine may summarize these criteria
+from caller-supplied or offline/local literature records, but it does not
+automatically infer applied criteria. Duplicate publications, families, and
+cohorts are collapsed before summaries; variant and disease mismatches become
+blocking flags; abstract-only evidence becomes a limitation; low-confidence
+extraction becomes a review flag; reviewed drafts default to
+`needs_more_info`.
+
 The current software can count `PS3`/`BS3`, `PS2`/`PM6`, `PP1`, `PS4`, `PP4`,
 and `PM3` only through explicit manual reviewed evidence. It does not
 automatically infer these criteria from literature, ClinVar notes,
@@ -287,6 +315,8 @@ PM3-like trans observations.
   reviewed.
 - Literature, segregation, de novo, functional, case-count, phenotype, and PM3
   evidence remain suggestion/review workflows rather than applied automation.
+  The general literature engine improves search/summarization and draft
+  preparation, not automatic evidence application.
 - Condition and phenotype matching are conservative and do not yet use a full
   ontology/profile system.
 - Provider provenance and source snapshots remain essential; missing provenance
@@ -301,25 +331,25 @@ PM3-like trans observations.
 
 ## Recommended Next Task
 
-The recommended next task is the Chinese report template.
+The recommended next task is selected real-world case validation.
 
 The applied evidence loop, lightweight VCEP signal/override framework, current
-real provider validation surface, and benchmark Phase C baseline are complete
-enough for controlled internal validation. ClinVar real provider validation,
-gnomAD local snapshot validation, MANE transcript validation, ClinGen ERepo
-validation, and the 100-case offline benchmark now preserve the required
-boundaries: local fixtures/snapshots are the primary validation path, optional
-online behavior is disabled by default, provenance/cache/limitations are
-visible, failures degrade to limitations, candidate/review-note evidence stays
-outside classification, and no provider directly changes classification.
+real provider validation surface, benchmark Phase C baseline, Chinese report
+output, offline variant resolution, and General Literature Search and Summary
+Engine are complete enough for controlled internal validation. Local
+fixtures/snapshots remain the primary validation path, optional online behavior
+is disabled by default, provenance/cache/limitations are visible, failures
+degrade to limitations, candidate/review-note evidence stays outside
+classification, and no provider directly changes classification.
 
 The next priorities are:
 
-- Chinese report template.
 - Selected real-world case validation.
+- Online PubMed/LitVar adapter pilot for the literature engine, behind explicit
+  opt-in and local/offline validation.
 - Selected real VCEP profile pilot.
-- Optional online smoke gates.
+- CNV/SV framework planning as design-only work.
 
-Current known gaps remain real online provider smoke, selected real VCEP
-profile pilot, Chinese report template, larger real-world hospital annotation
-validation, and CNV/SV support.
+Current known gaps remain selected real-world case validation, online
+PubMed/LitVar adapter implementation, selected real VCEP profile pilot, larger
+real-world hospital annotation validation, and CNV/SV support.

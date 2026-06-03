@@ -72,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
     _add_population_arguments(rate)
+    _add_online_provider_arguments(rate)
     _add_vcep_arguments(rate)
     rate.set_defaults(handler=_cmd_rate)
 
@@ -101,6 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
     _add_population_arguments(rate_text)
+    _add_online_provider_arguments(rate_text)
     _add_vcep_arguments(rate_text)
     rate_text.add_argument(
         "--ai-assisted-context",
@@ -142,6 +144,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
     )
     _add_population_arguments(batch)
+    _add_online_provider_arguments(batch)
     _add_vcep_arguments(batch)
     batch.add_argument(
         "--continue-on-error",
@@ -173,6 +176,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include per-record report text when available in the classification result.",
     )
     _add_population_arguments(annotated)
+    _add_online_provider_arguments(annotated)
     annotated.set_defaults(handler=_cmd_annotated_batch)
 
     literature_draft = subparsers.add_parser(
@@ -223,6 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Opt in to LitVar online search. Local implementation records the opt-in and degrades safely.",
     )
+    literature_search.add_argument("--provider-cache-dir", help="Provider cache root directory.")
     literature_search.add_argument("--output", help="Optional output file path.")
     literature_search.add_argument("--output-format", choices=["json", "markdown"], default="json")
     literature_search.set_defaults(handler=_cmd_literature_search)
@@ -286,6 +291,15 @@ def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
         default="en",
         help="Report language for generated report text. Defaults to en.",
     )
+
+
+def _add_online_provider_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--online-clinvar", action="store_true", help="Opt in to online ClinVar.")
+    parser.add_argument("--online-gnomad", action="store_true", help="Opt in to online gnomAD.")
+    parser.add_argument("--online-vep", action="store_true", help="Opt in to online Ensembl VEP.")
+    parser.add_argument("--online-pubmed", action="store_true", help="Opt in to online PubMed.")
+    parser.add_argument("--online-litvar", action="store_true", help="Opt in to online LitVar.")
+    parser.add_argument("--provider-cache-dir", help="Provider cache root directory.")
     parser.add_argument(
         "--report-mode",
         choices=["concise", "detailed", "laboratory", "clinician"],
@@ -512,6 +526,7 @@ def _cmd_literature_search(args: argparse.Namespace) -> int:
             "variant_aliases": args.variant_aliases or [],
             "use_online_pubmed": bool(args.online_pubmed),
             "use_online_litvar": bool(args.online_litvar),
+            "provider_cache_dir": args.provider_cache_dir,
         }
     )
     dumped = json.loads(result.model_dump_json())
@@ -600,9 +615,50 @@ def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
         options["report_language"] = language
     if report_mode:
         options["report_mode"] = report_mode
+    _apply_online_provider_cli_options(args, options, data_source_overrides)
     if data_source_overrides:
         options["data_sources"] = {"sources": data_source_overrides}
     return options
+
+
+def _apply_online_provider_cli_options(
+    args: argparse.Namespace,
+    options: dict[str, Any],
+    data_source_overrides: dict[str, Any],
+) -> None:
+    cache_root = getattr(args, "provider_cache_dir", None)
+    if cache_root:
+        options["provider_cache_dir"] = cache_root
+    for attr, option_key, source_name, cache_name in [
+        ("online_clinvar", "use_online_clinvar", "clinvar", "clinvar"),
+        ("online_gnomad", "use_online_gnomad", "population", "gnomad"),
+        ("online_vep", "use_online_vep", "computational", "vep"),
+    ]:
+        if not getattr(args, attr, False):
+            continue
+        options[option_key] = True
+        override = dict(data_source_overrides.get(source_name) or {})
+        override.update({"mode": "online", "online_enabled": True})
+        if cache_root and not override.get("cache_dir"):
+            override["cache_dir"] = str(Path(cache_root) / cache_name)
+        data_source_overrides[source_name] = override
+    if getattr(args, "online_pubmed", False):
+        options["use_online_pubmed"] = True
+        _apply_online_literature_cli_option(data_source_overrides, cache_root)
+    if getattr(args, "online_litvar", False):
+        options["use_online_litvar"] = True
+        _apply_online_literature_cli_option(data_source_overrides, cache_root)
+
+
+def _apply_online_literature_cli_option(
+    data_source_overrides: dict[str, Any],
+    cache_root: str | None,
+) -> None:
+    override = dict(data_source_overrides.get("literature") or {})
+    override.update({"mode": "online", "online_enabled": True})
+    if cache_root and not override.get("cache_dir"):
+        override["cache_dir"] = str(Path(cache_root) / "literature")
+    data_source_overrides["literature"] = override
 
 
 def _add_chinese_batch_summary_if_requested(result: dict[str, Any], args: argparse.Namespace) -> None:

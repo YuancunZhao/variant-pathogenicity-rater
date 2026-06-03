@@ -13,10 +13,14 @@ classify a variant by itself.
 ## Current Validation Status
 
 Real provider validation is complete for the current internal-beta provider
-surface:
+surface, and the 74 real provider pipeline adds opt-in online adapters that map
+live provider payloads into the same auditable record schemas:
 
 - ClinVar real provider validation.
 - gnomAD local snapshot validation.
+- gnomAD online GraphQL adapter validation with mocked HTTP.
+- Ensembl VEP online REST adapter validation with mocked HTTP.
+- PubMed/LitVar online literature adapter validation with mocked HTTP.
 - MANE transcript validation.
 - ClinGen Evidence Repository validation.
 
@@ -25,6 +29,9 @@ snapshot validation, opt-in online behavior remains disabled by default where
 available, provenance and cache behavior are visible, provider failures degrade
 to limitations, and provider-derived facts do not directly change
 classification.
+
+See `docs/REAL_PROVIDER_PIPELINE.md` and `docs/ONLINE_PROVIDER_SAFETY.md` for
+the current online adapter architecture and safety rules.
 
 This status does not mean the providers are clinical truth sets. It means the
 current provider integrations preserve the project safety model: providers

@@ -101,8 +101,8 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Online ClinVar and ClinGen ERepo behavior is opt-in only and disabled by
   default. Online use requires explicit mode/config gates and must retain cache
   and provenance metadata.
-- Population, transcript, literature, and computational online providers are
-  not default runtime dependencies for v0.2.0-beta.
+- Online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar providers are
+  implemented as opt-in adapters, not default runtime dependencies.
 - Local-file provider quality depends on the supplied local snapshot, genome
   build, parser compatibility, source freshness, and available provenance.
 - Provider cache/provenance should preserve source or snapshot identity, query

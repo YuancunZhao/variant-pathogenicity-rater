@@ -5,6 +5,10 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any
 
+from variant_pathogenicity_rater.data_sources.config import DataSourceConfig, ProviderMode
+from variant_pathogenicity_rater.data_sources.online.literature_online import (
+    fetch_online_literature_records,
+)
 from variant_pathogenicity_rater.literature_agent.assessment import assess_literature_evidence
 from variant_pathogenicity_rater.literature_agent.deduplication import collapse_duplicate_records
 from variant_pathogenicity_rater.literature_agent.query import build_query_plan
@@ -50,16 +54,23 @@ def search_and_summarize_literature(
         limitations.append(
             "PMIDs were provided without literature_records; offline mode cannot retrieve abstracts."
         )
-    if request.use_online_search or request.use_online_pubmed:
-        limitations.append(
-            "Online PubMed search is opt-in; no PubMed network retrieval was performed by this local implementation."
+    online_records = []
+    if request.use_online_search or request.use_online_pubmed or request.use_online_litvar:
+        fetched, online_limitations = fetch_online_literature_records(
+            request,
+            config=DataSourceConfig(
+                name="literature",
+                mode=ProviderMode.ONLINE,
+                online_enabled=True,
+                source_version="PubMed/LitVar live",
+                parser_version="literature-online-parser-v1",
+                cache_dir=request.provider_cache_dir,
+            ),
         )
-    if request.use_online_search or request.use_online_litvar:
-        limitations.append(
-            "Online LitVar search is opt-in; no LitVar network retrieval was performed by this local implementation."
-        )
+        online_records = [record.model_dump(mode="json") for record in fetched]
+        limitations.extend(online_limitations)
 
-    normalized = normalize_literature_records(request.literature_records, request)
+    normalized = normalize_literature_records([*request.literature_records, *online_records], request)
     deduped = collapse_duplicate_records(normalized.records)
     criterion_summaries = summarize_literature_by_criterion(deduped.records, request)
     assessment_records = [record_to_assessment_payload(record) for record in deduped.records]

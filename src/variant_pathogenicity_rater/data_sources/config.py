@@ -30,6 +30,8 @@ class DataSourceConfig(SchemaModel):
     cache_dir: str | None = ".cache/variant_pathogenicity_rater"
     local_file: str | None = None
     timeout_seconds: float = Field(default=10.0, gt=0)
+    retry_count: int = Field(default=0, ge=0)
+    retry_backoff_seconds: float = Field(default=0.25, ge=0)
     user_agent: str | None = None
     email: str | None = None
     limitations: list[str] = Field(default_factory=list)
@@ -139,6 +141,10 @@ def _apply_env_overrides(config: DataSourcesConfig, env: dict[str, str]) -> Data
             source["cache_dir"] = env[f"{prefix}CACHE_DIR"]
         if env.get(f"{prefix}TIMEOUT_SECONDS"):
             source["timeout_seconds"] = float(env[f"{prefix}TIMEOUT_SECONDS"])
+        if env.get(f"{prefix}RETRY_COUNT"):
+            source["retry_count"] = int(env[f"{prefix}RETRY_COUNT"])
+        if env.get(f"{prefix}RETRY_BACKOFF_SECONDS"):
+            source["retry_backoff_seconds"] = float(env[f"{prefix}RETRY_BACKOFF_SECONDS"])
         if env.get(f"{prefix}USER_AGENT"):
             source["user_agent"] = env[f"{prefix}USER_AGENT"]
         if env.get(f"{prefix}EMAIL"):

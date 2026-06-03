@@ -228,6 +228,7 @@ def register_tools(registry: ToolRegistry) -> None:
                     "use_online_pubmed": {"type": "boolean"},
                     "use_online_litvar": {"type": "boolean"},
                     "use_online_search": {"type": "boolean"},
+                    "provider_cache_dir": {"type": ["string", "null"]},
                 },
                 "required": ["gene", "variant"],
                 "additionalProperties": False,

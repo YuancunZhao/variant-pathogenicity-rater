@@ -1462,6 +1462,8 @@ def _data_sources_override_schema() -> dict[str, Any]:
             "ttl_seconds": {"type": ["integer", "null"]},
             "cache_dir": {"type": ["string", "null"]},
             "online_enabled": {"type": "boolean"},
+            "retry_count": {"type": "integer"},
+            "retry_backoff_seconds": {"type": "number"},
         },
         "additionalProperties": False,
     }
@@ -1502,6 +1504,12 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "include_transcript_selection": {"type": "boolean"},
             "include_transcript_validation": {"type": "boolean"},
             "include_mane_transcript_validation": {"type": "boolean"},
+            "use_online_clinvar": {"type": "boolean"},
+            "use_online_gnomad": {"type": "boolean"},
+            "use_online_vep": {"type": "boolean"},
+            "use_online_pubmed": {"type": "boolean"},
+            "use_online_litvar": {"type": "boolean"},
+            "provider_cache_dir": {"type": ["string", "null"]},
             "report_language": {
                 "type": "string",
                 "enum": ["en", "zh"],

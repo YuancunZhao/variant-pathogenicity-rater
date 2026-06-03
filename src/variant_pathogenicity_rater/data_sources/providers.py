@@ -14,6 +14,8 @@ from variant_pathogenicity_rater.data_sources.provenance import (
     attach_provenance_to_source,
     provenance_from_raw_record,
 )
+from variant_pathogenicity_rater.data_sources.online.ensembl_vep_online import EnsemblVEPOnlineProvider
+from variant_pathogenicity_rater.data_sources.online.gnomad_online import GnomADOnlineProvider
 from variant_pathogenicity_rater.evidence.clinvar import (
     ClinVarProvider,
     ClinVarQuery,
@@ -83,6 +85,9 @@ def build_population_provider(
         return LocalFilePopulationFrequencyProvider(config)
     if config.mode == ProviderMode.ONLINE_DISABLED:
         return OnlineDisabledPopulationFrequencyProvider(config)
+    if config.mode == ProviderMode.ONLINE:
+        _require_online_enabled(config)
+        return GnomADOnlineProvider(config)
     return FutureOnlinePopulationFrequencyProvider(config)
 
 
@@ -109,6 +114,9 @@ def build_computational_provider(
         return LocalFileComputationalPredictionProvider(config)
     if config.mode == ProviderMode.ONLINE_DISABLED:
         return OnlineDisabledComputationalPredictionProvider(config)
+    if config.mode == ProviderMode.ONLINE:
+        _require_online_enabled(config)
+        return EnsemblVEPOnlineProvider(config)
     return FutureOnlineComputationalPredictionProvider(config)
 
 
@@ -245,6 +253,11 @@ class ClinVarOnlineProvider(ClinVarProvider):
                     "endpoint": raw.get("endpoint"),
                     "retrieved_at": entry.payload.get("retrieved_at") or entry.created_at,
                     "parser_version": self.config.parser_version,
+                    "provider_mode": str(self.config.mode),
+                    "cache_hit": cache_hit,
+                    "request_method": "GET",
+                    "request_url": raw.get("endpoint") or self.EUTILS_BASE,
+                    "raw_payload_kind": "eutils_json",
                 }
                 records.append(parse_clinvar_record(raw, query=query))
             review_flags = [*condition_review_flags(records, query), *clinvar_review_flags(records)]
@@ -528,7 +541,7 @@ class FutureOnlineClinVarProvider(OnlineDisabledClinVarProvider):
 class FutureOnlinePopulationFrequencyProvider(OnlineDisabledPopulationFrequencyProvider):
     def query(self, variant: Variant) -> PopulationFrequency:
         _require_online_enabled(self.config)
-        raise ProviderDisabledError("Population future_online provider is not implemented.")
+        return GnomADOnlineProvider(self.config).query(variant)
 
 
 class FutureOnlineLiteratureProvider(OnlineDisabledLiteratureProvider):
@@ -540,7 +553,7 @@ class FutureOnlineLiteratureProvider(OnlineDisabledLiteratureProvider):
 class FutureOnlineComputationalPredictionProvider(OnlineDisabledComputationalPredictionProvider):
     def query(self, variant: Variant) -> list[ComputationalPrediction]:
         _require_online_enabled(self.config)
-        raise ProviderDisabledError("Computational future_online provider is not implemented.")
+        return EnsemblVEPOnlineProvider(self.config).query(variant)
 
 
 def _cache(config: DataSourceConfig) -> DiskCache:

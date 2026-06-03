@@ -136,6 +136,14 @@ Optional top-level fields: normalization fields, `gene_disease_context`,
 `include_vcep_signals`, `apply_vcep_overrides`, `vcep_profile_records`,
 `vcep_profile_file`, and `vcep_kb_dir`.
 
+`options` also includes explicit online provider opt-ins:
+`use_online_clinvar`, `use_online_gnomad`, `use_online_vep`,
+`use_online_pubmed`, `use_online_litvar`, and `provider_cache_dir`. All default
+to false or null. Online providers map into the unified data-source layer and
+preserve default offline/mock behavior unless explicitly enabled. Providers
+supply records only; they do not create applied evidence or modify the
+combiner.
+
 VCEP profile signals are review context only. Approved overrides require
 `apply_vcep_overrides=true`, remain limited to existing generator parameters or
 candidate-only downgrades, and do not modify the combiner.
@@ -302,9 +310,12 @@ All literature-derived evidence is candidate-only. Suggested strengths are
 reviewer guidance only. Returned evidence-like items use `strength: none`,
 `candidate_only: true`, `applied: false`, and `requires_review: true`.
 
-Online PubMed and LitVar are disabled by default. If online flags are supplied
-and retrieval is unavailable or fails, the tool degrades to limitations and does
-not create applied evidence.
+Online PubMed and LitVar are disabled by default. If online flags are supplied,
+retrieved records are normalized into `LiteratureRecord` payloads and then pass
+through the same duplicate-collapse, summary, and reviewed-draft workflow. If
+retrieval is unavailable or fails, the tool degrades to limitations and does not
+create applied evidence. `provider_cache_dir` can be supplied to control the
+provider cache root.
 
 Output includes `literature_search_results`, `literature_summary`,
 `criterion_summaries`, `suggested_evidence`, `review_questions`,

@@ -4,6 +4,9 @@ The general literature engine expands the existing ACMG Literature Evidence
 Agent into a citation-preserving search, normalization, deduplication, and
 criterion-summary workflow.
 
+Implementation and integration review are complete. The latest full regression
+run after the integration review was `641 passed, 1 skipped`.
+
 It is decision support only. It does not modify the classification combiner,
 does not create applied literature evidence, and does not change final
 classification. All literature-derived `EvidenceItem`-like outputs are emitted
@@ -57,7 +60,7 @@ whole workflow.
 
 ## Search Strategy
 
-The query builder creates deterministic query plans for:
+`search_and_summarize_literature` uses a deterministic query planner for:
 
 - exact variant aliases
 - gene + disease
@@ -68,9 +71,11 @@ The query builder creates deterministic query plans for:
 - PMID direct lookup
 
 The default runtime is offline and uses only supplied or local records. Online
-PubMed and LitVar are opt-in. The current local implementation records opt-in
-requests and degrades safely to limitations when online retrieval is not
-performed.
+PubMed and LitVar are opt-in. The online adapters retrieve metadata through
+provider APIs when explicitly enabled, normalize results into `LiteratureRecord`
+records, and then run the same duplicate-collapse and candidate-only summary
+workflow. Failures, malformed responses, and unavailable endpoints degrade
+safely to limitations.
 
 ## Criterion Summaries
 
@@ -124,6 +129,14 @@ must be curated before any evidence can be supplied as `reviewed_applied`.
 - AI/Codex extracted claims require manual review.
 - Suggested strengths are reviewer guidance only.
 - No literature output changes classification.
+- Classification changes only if a curator later submits an explicit valid
+  `reviewed_applied` record through the manual reviewed evidence workflow.
+
+Integration review added regression coverage for evidence leakage,
+`suggested_strength` not becoming `EvidenceItem.strength`, duplicate collapse
+by PMID/DOI/family, reviewed drafts defaulting to `needs_more_info`, MCP schema
+compatibility, CLI smoke behavior, report wording, and backward compatibility
+for `assess_literature_evidence`.
 
 ## CLI
 

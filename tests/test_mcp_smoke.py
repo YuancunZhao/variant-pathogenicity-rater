@@ -148,6 +148,27 @@ def test_literature_mcp_tool_schemas_are_codex_compatible() -> None:
     assert search_schema["required"] == ["gene", "variant"]
     assert "use_online_pubmed" in search_schema["properties"]
     assert "use_online_litvar" in search_schema["properties"]
+    assert "provider_cache_dir" in search_schema["properties"]
+
+
+def test_rate_variant_mcp_schema_exposes_online_provider_options() -> None:
+    schema = {
+        tool["name"]: tool["inputSchema"]
+        for tool in _server().list_tools()["tools"]
+    }["rate_variant"]
+
+    assert schema["type"] == "object"
+    assert FORBIDDEN_TOP_LEVEL_SCHEMA_KEYS.isdisjoint(schema)
+    options = schema["properties"]["options"]
+    for field in [
+        "use_online_clinvar",
+        "use_online_gnomad",
+        "use_online_vep",
+        "use_online_pubmed",
+        "use_online_litvar",
+        "provider_cache_dir",
+    ]:
+        assert field in options["properties"]
 
 
 def test_mcp_unknown_extra_field_is_rejected_with_structured_error() -> None:
