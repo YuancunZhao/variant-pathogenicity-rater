@@ -16,6 +16,9 @@ from variant_pathogenicity_rater.schemas import (
 )
 
 
+FORBIDDEN_TOP_LEVEL_SCHEMA_KEYS = {"oneOf", "anyOf", "allOf", "enum", "not"}
+
+
 def _server() -> McpServer:
     config = ServerConfig(
         server_name="variant-pathogenicity-rater-test",
@@ -34,6 +37,7 @@ def test_mcp_registry_lists_ci_smoke_tools() -> None:
     assert {
         "health_check",
         "normalize_variant",
+        "resolve_variant",
         "query_clinvar",
         "query_clingen_erepo",
         "query_population_frequency",
@@ -42,6 +46,8 @@ def test_mcp_registry_lists_ci_smoke_tools() -> None:
         "evaluate_pvs1",
         "search_literature_evidence",
         "generate_report",
+        "parse_variant_text",
+        "rate_variant_from_text",
         "rate_variant_batch",
     }.issubset(tool_names)
 
@@ -64,23 +70,14 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
     schemas = {
         tool["name"]: tool["inputSchema"]
         for tool in _server().list_tools()["tools"]
-        if tool["name"]
-        in {
-            "health_check",
-            "rate_variant",
-            "rate_variant_batch",
-            "normalize_variant",
-            "query_clinvar",
-            "query_clingen_erepo",
-            "query_population_frequency",
-            "evaluate_pvs1",
-            "evaluate_computational_evidence",
-            "search_literature_evidence",
-            "generate_report",
-        }
     }
 
     assert schemas
+    for name, schema in schemas.items():
+        assert schema.get("type") == "object", name
+        assert isinstance(schema.get("properties"), dict), name
+        assert FORBIDDEN_TOP_LEVEL_SCHEMA_KEYS.isdisjoint(schema), name
+
     assert all(schema["additionalProperties"] is False for schema in schemas.values())
     assert schemas["generate_report"]["properties"]["format"]["enum"] == [
         "markdown",
@@ -91,6 +88,20 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
         "additionalProperties"
     ] is False
     assert schemas["rate_variant_batch"]["additionalProperties"] is False
+    assert schemas["parse_variant_text"]["type"] == "object"
+    assert schemas["resolve_variant"]["type"] == "object"
+    assert schemas["resolve_variant"]["additionalProperties"] is False
+    assert schemas["parse_variant_text"]["required"] == ["text"]
+    assert schemas["parse_variant_text"]["additionalProperties"] is False
+    assert schemas["rate_variant_from_text"]["type"] == "object"
+    assert schemas["rate_variant_from_text"]["required"] == ["text"]
+    assert schemas["rate_variant_from_text"]["additionalProperties"] is False
+    assert "ai_assisted_context" in schemas["rate_variant_from_text"]["properties"]["options"][
+        "properties"
+    ]
+    assert "confirmed_context" in schemas["rate_variant_from_text"]["properties"]["options"][
+        "properties"
+    ]
     assert schemas["rate_variant"]["properties"]["options"]["properties"]["report_language"][
         "enum"
     ] == ["en", "zh"]
@@ -146,6 +157,134 @@ def test_mcp_invalid_input_returns_structured_error_not_crash() -> None:
     assert response["id"] == 32
     assert response["error"]["data"]["code"] == "SCHEMA_VALIDATION_ERROR"
     assert "variant" in json.dumps(response["error"]["data"]["details"]["errors"])
+
+
+def test_mcp_resolve_variant_tool_smoke() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 36,
+        "method": "tools/call",
+        "params": {
+            "name": "resolve_variant",
+            "arguments": {
+                "gene": "BRCA1",
+                "hgvs_c": "NM_007294.4:c.68_69delAG",
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert tool_payload["tool"] == "resolve_variant"
+    assert tool_payload["resolved_protein"]["hgvs_p"] == "NP_009225.1:p.Glu23ValfsTer17"
+    assert tool_payload["nmd_context"]["status"] == "NMD_expected"
+
+
+def test_mcp_rate_variant_from_text_tool_smoke() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 34,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant_from_text",
+            "arguments": {
+                "text": "BRCA1 NM_007294.4:c.68_69delAG, HBOC, AD",
+                "options": {
+                    "include_population": False,
+                    "include_computational": False,
+                    "include_clinvar": False,
+                    "include_literature": False,
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert tool_payload["status"] == "ok"
+    assert tool_payload["tool"] == "rate_variant_from_text"
+    assert tool_payload["parsed_input"]["gene"] == "BRCA1"
+    assert tool_payload["rate_variant_result"]["tool"] == "rate_variant"
+
+
+def test_mcp_parse_variant_text_tool_smoke() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 36,
+        "method": "tools/call",
+        "params": {
+            "name": "parse_variant_text",
+            "arguments": {
+                "text": "BRCA1 NM_007294.4:c.68_69delAG\nHBOC\nAD",
+                "options": {"ai_assisted_context": True},
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert tool_payload["status"] == "parsed"
+    assert tool_payload["tool"] == "parse_variant_text"
+    assert "rate_variant_result" not in tool_payload
+    assert tool_payload["parsed_input"]["disease"] == (
+        "Hereditary breast and ovarian cancer syndrome"
+    )
+
+
+def test_mcp_rate_variant_from_text_confirmed_context_smoke() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 37,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant_from_text",
+            "arguments": {
+                "text": "PTPN11 NM_002834.4:c.922A>G\nshort stature phenotype",
+                "options": {
+                    "include_population": False,
+                    "include_computational": False,
+                    "include_clinvar": False,
+                    "include_literature": False,
+                    "confirmed_context": {
+                        "disease_name": "Noonan syndrome",
+                        "inheritance": "autosomal_dominant",
+                        "hpo_terms": [{"label": "Short stature", "hpo_id": "HP:0004322"}],
+                    },
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    tool_payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert tool_payload["status"] == "ok"
+    assert tool_payload["context_used_for_rating"] == "confirmed_context"
+    assert tool_payload["parsed_input"]["disease"] == "Noonan syndrome"
+    assert tool_payload["parsed_input"]["phenotype_terms"] == ["HP:0004322"]
+
+
+def test_mcp_rate_variant_from_text_rejects_unknown_top_level_field() -> None:
+    request = {
+        "jsonrpc": "2.0",
+        "id": 35,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant_from_text",
+            "arguments": {
+                "text": "BRCA1 NM_007294.4:c.68_69delAG, HBOC, AD",
+                "unexpected_extra": True,
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+
+    assert response["error"]["data"]["code"] == "SCHEMA_VALIDATION_ERROR"
+    assert any("unexpected_extra" in item for item in response["error"]["data"]["details"]["errors"])
 
 
 def test_mcp_designated_flexible_mock_options_are_accepted() -> None:

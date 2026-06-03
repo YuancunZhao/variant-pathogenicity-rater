@@ -40,6 +40,20 @@ Normalization failures are captured by callers as limitations and human-review r
 
 The normalizer never performs unsafe automatic liftover. If genome build, transcript mapping, chromosome, or position cannot be resolved locally, those fields remain unresolved and are reported through warnings, limitations, review flags, and `VariantIdentity.unresolved_fields`.
 
+## Variant Resolution Layer
+
+After normalization, `resolve_variant` may enrich HGVS c. inputs with local
+fixture-backed transcript, protein, coordinate, exon, and NMD context. This is a
+separate descriptive layer: `normalized_variant` remains the local normalization
+result, while `resolved_variant` is the enriched downstream copy when resolution
+is available.
+
+Resolution is offline-first and uses local records such as
+`data/transcript_resolution/brca1_resolution.jsonl`. It does not perform
+automatic liftover, does not call external canonicalization services by
+default, and does not create ACMG evidence. Conflicts with explicit user
+coordinates or alleles are review flags rather than silent overrides.
+
 ## Online Normalizer
 
 `OnlineVariantNormalizer` integration is optional and disabled by default. When enabled by an explicit resolver or request option, results are cached by the existing online resolver framework and included in provenance.
@@ -64,4 +78,3 @@ The following cases are surfaced for review:
 - Gene symbol conflicts with transcript metadata
 - Protein HGVS is missing or incomplete
 - Online normalizer candidate is low confidence or conflicts with local identity
-

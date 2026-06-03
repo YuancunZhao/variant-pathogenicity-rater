@@ -15,9 +15,12 @@ Phase 1 tools:
 
 - `health_check`
 - `rate_variant`
+- `parse_variant_text`
+- `rate_variant_from_text`
 - `rate_variant_batch`
 - `rate_annotated_variants`
 - `normalize_variant`
+- `resolve_variant`
 - `query_clinvar`
 - `query_population_frequency`
 - `evaluate_population_rules`
@@ -73,6 +76,31 @@ source-specific payloads:
 Other option containers are strict. For example, `population_thresholds`,
 `computational_thresholds`, and `data_sources` reject unknown fields.
 
+## resolve_variant
+
+`resolve_variant` resolves descriptive transcript, protein, coordinate, exon,
+and NMD context from offline fixtures. It is not an ACMG evidence tool.
+
+Input accepts the same flat or wrapped HGVS/VCF-like variant fields as
+`normalize_variant`, plus optional `options.transcript_resolution_records`.
+
+Example:
+
+```json
+{
+  "gene": "BRCA1",
+  "hgvs_c": "NM_007294.4:c.68_69delAG"
+}
+```
+
+Output includes `resolved_transcript`, `resolved_protein`,
+`resolved_coordinate`, `exon_context`, `nmd_context`, `limitations`,
+`review_flags`, `resolution_steps`, `provenance`, `resolved_variant`, and
+`variant_resolution`.
+
+Safety boundary: resolution is descriptive context only. It does not generate
+ACMG evidence, does not apply PVS1, and does not modify classification.
+
 ## health_check
 
 Input: empty object only.
@@ -122,6 +150,140 @@ per-step results.
 Invalid schema input is rejected before pipeline execution. Normalization or
 downstream module failures are preserved as structured limitations inside the
 pipeline result when the input schema itself is valid.
+
+## parse_variant_text
+
+Required input: `text`.
+
+Optional input:
+
+- `output`: `json`, `markdown`, or `markdown-zh`.
+- `language`: `en` or `zh`.
+- `report_mode`: `concise`, `detailed`, `laboratory`, or `clinician`.
+- `options`: parser and report options, including optional
+  `ai_assisted_context`, `require_context_confirmation`,
+  `confirmed_context`, and `reviewed_context`.
+
+This parser-only tool extracts structured variant input and clinical-context
+review fields without running `rate_variant`. Use it for explicit two-step
+workflows where Codex should show disease/HPO candidates to the user before a
+rating rerun.
+
+The top-level schema is Codex-compatible: `type: object`,
+`additionalProperties: false`, required `text`, and no top-level `oneOf`,
+`anyOf`, `enum`, or `not`.
+
+## rate_variant_from_text
+
+Required input: `text`.
+
+Optional input:
+
+- `output`: `json`, `markdown`, or `markdown-zh`.
+- `language`: `en` or `zh`.
+- `report_mode`: `concise`, `detailed`, `laboratory`, or `clinician`.
+- `options`: the same strict options object used by `rate_variant`, plus
+  natural-language context options:
+  - `ai_assisted_context`: opt-in parser-only AI-assisted clinical-context
+    candidate extraction.
+  - `require_context_confirmation`: require confirmation before AI-derived
+    context can be used. Defaults to true.
+  - `confirmed_context`: user- or curator-confirmed context to map into the
+    existing rating path.
+  - `reviewed_context`: synonym for confirmed reviewed context.
+
+The tool parses a short natural-language or HGVS-like string into structured
+variant input and then calls the existing `rate_variant` workflow. The default
+parser is regex/rule-based only. Optional AI-assisted disease/HPO parsing is
+opt-in, provider-backed, and candidate-only. The wrapper does not generate ACMG
+evidence, does not apply reviewed evidence, and does not modify the
+classification combiner.
+
+Output includes `parsed_input`, `missing_fields`, `ambiguity_warnings`,
+`normalization_warnings`, `alias_candidates`, optional `ai_assisted_context`,
+`context_candidates`, `confirmed_context`, `context_confirmation_required`,
+nested `rate_variant_result`, `report`, and the mandatory human-review notice.
+Invalid text that does not contain a supported HGVS-like or genomic-coordinate
+variant shape returns `status: error` as a normal structured tool result and
+does not call `rate_variant`.
+
+Short aliases such as `185delAG` are returned as `alias_candidates` and are not
+silently normalized to HGVS or genomic coordinates.
+
+Codex tool-selection rule: natural-language, multi-line, or
+HGVS+disease+inheritance mixed user text must call `rate_variant_from_text`.
+Direct `rate_variant` is for already structured fields such as `gene`,
+`transcript`, `hgvs_c`, `disease`, and `inheritance`. Do not pass a whole text
+block containing disease or inheritance to `rate_variant.value`.
+`input_type=hgvs` is only for pure HGVS variant strings, not natural-language
+paragraphs.
+
+Bad call:
+
+```json
+{
+  "name": "rate_variant",
+  "arguments": {
+    "value": "BRCA1 NM_007294.4:c.68_69delAG\nHereditary breast and ovarian cancer syndrome\nAD",
+    "input_type": "hgvs"
+  }
+}
+```
+
+Correct call:
+
+```json
+{
+  "name": "rate_variant_from_text",
+  "arguments": {
+    "text": "BRCA1 NM_007294.4:c.68_69delAG\nHereditary breast and ovarian cancer syndrome\nAD",
+    "options": {
+      "report_language": "zh",
+      "report_mode": "laboratory"
+    }
+  }
+}
+```
+
+AI-assisted candidate call:
+
+```json
+{
+  "name": "rate_variant_from_text",
+  "arguments": {
+    "text": "BRCA1 NM_007294.4:c.68_69delAG\nbreast and ovarian cancer phenotype\nAD",
+    "options": {
+      "ai_assisted_context": true,
+      "report_language": "zh",
+      "report_mode": "laboratory"
+    }
+  }
+}
+```
+
+Confirmed-context rerun:
+
+```json
+{
+  "name": "rate_variant_from_text",
+  "arguments": {
+    "text": "BRCA1 NM_007294.4:c.68_69delAG\nbreast and ovarian cancer phenotype\nAD",
+    "options": {
+      "confirmed_context": {
+        "disease_name": "hereditary breast and ovarian cancer syndrome",
+        "inheritance": "autosomal_dominant"
+      },
+      "report_language": "zh",
+      "report_mode": "laboratory"
+    }
+  }
+}
+```
+
+Unconfirmed AI candidates must be shown to the user and must not be passed as
+top-level applied disease context. They cannot raise confidence for PVS1,
+PM2/population, PS1, PM5, or other context-sensitive evidence. AI-derived
+candidate fields are returned with `requires_user_confirmation: true`.
 
 ## create_reviewed_evidence_draft
 

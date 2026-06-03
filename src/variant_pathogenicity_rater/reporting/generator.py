@@ -169,6 +169,7 @@ def _summary(result: ClassificationResult) -> VariantReportSummary:
         review_flags=result.review_flags,
         transcript_selection=result.transcript_selection,
         transcript_validation=result.transcript_validation,
+        variant_resolution=result.variant_resolution,
         context_consistency=result.context_consistency,
         vcep_profile_context=result.vcep_profile_context,
     )
@@ -279,6 +280,11 @@ def _json_content(
         if summary.transcript_validation
         else None
     )
+    variant_resolution = (
+        summary.variant_resolution.model_dump(mode="json")
+        if summary.variant_resolution
+        else None
+    )
     return {
         "mode": mode,
         "language": language,
@@ -359,6 +365,14 @@ def _json_content(
             ),
             "summary": transcript_validation,
         },
+        "variant_resolution": {
+            "note": _localized_text(
+                language,
+                "Variant resolution is descriptive context only; it is not ACMG evidence and does not change the classification.",
+                "变异解析仅为描述性上下文，不是 ACMG 证据，也不会改变分类。",
+            ),
+            "summary": variant_resolution,
+        },
         "data_sources": {
             "note": _localized_text(
                 language,
@@ -430,6 +444,7 @@ def _text_content(
         lines.append("- Applied benign evidence summary: " + "; ".join(summary.benign_evidence_summary))
 
     lines.extend(_caution_lines(result, summary, language))
+    lines.extend(_variant_resolution_lines(summary))
     lines.extend(_transcript_selection_lines(summary))
     lines.extend(_transcript_validation_lines(summary))
     lines.extend(_context_consistency_lines(summary))
@@ -534,6 +549,7 @@ def _zh_text_content(
     lines.extend(_zh_candidate_evidence_lines(summary, include_details=template.include_evidence_table))
     lines.extend(_zh_manual_reviewed_evidence_section(summary))
     lines.extend(_zh_external_evidence_section(summary))
+    lines.extend(_zh_variant_resolution_section(summary))
     lines.extend(_zh_transcript_and_mane_section(summary))
     lines.extend(_zh_vcep_section(summary))
 
@@ -778,6 +794,49 @@ def _zh_external_evidence_section(summary: VariantReportSummary) -> list[str]:
             lines.append("  - ClinGen ERepo record: " + _json_fragment(entry.clingen_erepo_record))
         if entry.clingen_erepo_match:
             lines.append("  - ClinGen ERepo match: " + _json_fragment(entry.clingen_erepo_match))
+    return lines
+
+
+def _zh_variant_resolution_section(summary: VariantReportSummary) -> list[str]:
+    lines = [
+        "",
+        "## 变异解析摘要",
+        "- 变异解析仅为描述性上下文，不是 ACMG 证据，不会改变分类组合器输出。",
+    ]
+    resolution = summary.variant_resolution
+    if resolution is None:
+        lines.append("- 未提供变异解析摘要。")
+        return lines
+    transcript = resolution.resolved_transcript
+    protein = resolution.resolved_hgvs_p
+    coordinate = resolution.resolved_coordinate
+    exon = resolution.exon_context
+    nmd = resolution.nmd_context
+    lines.extend(
+        [
+            f"- 状态: {resolution.status}",
+            f"- 置信度: {resolution.confidence:.2f}",
+            f"- Transcript: {(transcript.transcript if transcript else None) or '未解析'}",
+            f"- Protein consequence: {(protein.hgvs_p if protein else None) or '未解析'}",
+            "- Coordinate: "
+            + (
+                f"{coordinate.genome_build}:{coordinate.chrom}:{coordinate.pos}:{coordinate.ref}>{coordinate.alt}"
+                if coordinate and coordinate.chrom and coordinate.pos
+                else "未解析"
+            ),
+            "- Exon: "
+            + (
+                f"{exon.exon_number}/{exon.total_exons}"
+                if exon and exon.exon_number and exon.total_exons
+                else "未解析"
+            ),
+            f"- NMD: {(nmd.status if nmd else 'unknown')}",
+        ]
+    )
+    if resolution.limitations:
+        lines.append("- 局限性: " + "; ".join(resolution.limitations))
+    if resolution.review_flags:
+        lines.append("- Review flags: " + ", ".join(flag.code for flag in resolution.review_flags))
     return lines
 
 
@@ -1113,6 +1172,50 @@ def _manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str
             lines.append(f"  - Source candidate evidence ID: {entry.source_candidate_evidence_id}")
         if entry.override_reason:
             lines.append(f"  - Override reason: {entry.override_reason}")
+    return lines
+
+
+def _variant_resolution_lines(summary: VariantReportSummary) -> list[str]:
+    lines = [
+        "",
+        "## Variant Resolution Summary",
+        "- Variant resolution is descriptive context only; it is not ACMG evidence and was not counted by the classification combiner.",
+    ]
+    resolution = summary.variant_resolution
+    if resolution is None:
+        lines.append("- No variant resolution summary was supplied.")
+        return lines
+    transcript = resolution.resolved_transcript
+    protein = resolution.resolved_hgvs_p
+    coordinate = resolution.resolved_coordinate
+    exon = resolution.exon_context
+    nmd = resolution.nmd_context
+    lines.extend(
+        [
+            f"- Status: {resolution.status}",
+            f"- Confidence: {resolution.confidence:.2f}",
+            f"- Transcript: {(transcript.transcript if transcript else None) or 'unresolved'}",
+            f"- Transcript source: {(transcript.transcript_source if transcript else None) or 'unknown'}",
+            f"- Protein consequence: {(protein.hgvs_p if protein else None) or 'unresolved'}",
+            "- Coordinate: "
+            + (
+                f"{coordinate.genome_build}:{coordinate.chrom}:{coordinate.pos}:{coordinate.ref}>{coordinate.alt}"
+                if coordinate and coordinate.chrom and coordinate.pos
+                else "unresolved"
+            ),
+            "- Exon: "
+            + (
+                f"{exon.exon_number}/{exon.total_exons}"
+                if exon and exon.exon_number and exon.total_exons
+                else "unresolved"
+            ),
+            f"- NMD: {(nmd.status if nmd else 'unknown')}",
+        ]
+    )
+    if resolution.limitations:
+        lines.append("- Resolution limitations: " + "; ".join(resolution.limitations))
+    if resolution.review_flags:
+        lines.append("- Review flags: " + ", ".join(flag.code for flag in resolution.review_flags))
     return lines
 
 

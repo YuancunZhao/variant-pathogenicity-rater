@@ -129,6 +129,7 @@ Completed validation includes:
 - ClinVar real provider validation.
 - gnomAD local snapshot validation.
 - MANE transcript validation.
+- Real resolution provider snapshot validation.
 - ClinGen ERepo validation.
 
 This phase confirmed the provider boundary: local fixtures or local snapshots
@@ -140,9 +141,11 @@ ClinVar can provide review notes and comparator facts for PS1/PM5, but not
 direct PP5/BP6 or classification. gnomAD/local population snapshots provide
 frequency facts that must pass through population rules and thresholds. MANE
 and transcript metadata provide transcript/NMD/context review support but do
-not apply PVS1 or other criteria. ERepo provides exact-match review notes,
-gene-level VCEP activity signals, supporting summaries, citations, and
-reviewed-evidence drafts, but not automatic applied evidence.
+not apply PVS1 or other criteria. Resolution provider snapshots provide
+descriptive transcript, protein, coordinate, exon, and NMD facts only. ERepo
+provides exact-match review notes, gene-level VCEP activity signals, supporting
+summaries, citations, and reviewed-evidence drafts, but not automatic applied
+evidence.
 
 ### Phase 10: Benchmark Phase C Expansion
 
@@ -159,16 +162,64 @@ Current benchmark coverage includes `PVS1`, `BA1`, `BS1`, `PM2_Supporting`,
 `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence, literature draft
 workflow boundaries, ClinGen ERepo review notes, VCEP signal/override behavior,
 provider limitation cases, transcript/MANE validation, and strict
-candidate/applied separation.
+candidate/applied separation. The standalone real resolution provider
+validation suite now covers local snapshot-backed transcript, protein,
+coordinate, exon, and NMD resolution boundaries.
 
-The latest full regression baseline after Phase C is `562 passed, 1 skipped`.
+The latest full regression baseline after the v0.3.0 release review is
+`626 passed, 1 skipped`.
 The classification combiner remained unchanged.
+
+### Phase 11: Variant Resolution Framework
+
+The Variant Resolution Framework is implemented as an offline descriptive layer
+between normalization and evidence generation. It resolves local
+fixture-backed transcript, protein consequence, coordinate, exon, and NMD
+context for supported HGVS c. inputs, including the BRCA1
+`NM_007294.4:c.68_69delAG` fixture.
+
+This phase preserves both `normalized_variant` and `resolved_variant` in
+pipeline output and records the full `variant_resolution` payload in
+`step_results["resolve_variant"]`. Existing generators may consume the richer
+variant/context objects, but the resolution layer itself does not create ACMG
+evidence, does not apply PVS1, and does not modify the combiner.
+
+CLI and MCP now expose `resolve_variant` / `vpr resolve` for resolution-only
+workflows. Reports include a Variant Resolution Summary with explicit wording
+that the section is descriptive context only.
+
+### Phase 12: Real Resolution Provider Validation
+
+Real resolution provider validation is complete for the current offline
+resolution surface. The local snapshot at
+`data/transcript_resolution/real_resolution_provider_validation.jsonl` validates
+HGVS c. to transcript, protein consequence, coordinate, exon, and NMD context
+for BRCA1, CFTR, GJB2, DMD, PAH, and TP53, with BRCA2 retained as a
+missing-mapping limitation case.
+
+The validation adds resolution-specific review flags for build, transcript
+accession, and transcript-version mismatches. Provider failures and missing
+mappings remain limitations, resolution does not create evidence items, and the
+classification combiner remains unchanged.
+
+### Phase 13: Natural Language Input
+
+Natural Language Input is implemented as a wrapper around the existing
+normalization, resolution, rating, and reporting workflows. The parser supports
+explicit natural-language/HGVS-like text extraction through `parse_variant_text`,
+`rate_variant_from_text`, MCP tools, and CLI `vpr rate-text`.
+
+This phase did not add ACMG rules or change classification logic. Parsed fields
+remain normal workflow inputs, missing fields and ambiguities remain visible for
+review, optional AI-assisted context is opt-in and candidate-only, and the ACMG
+classification combiner remains unchanged.
 
 ## Current Complete Interpretation Workflow
 
 ```text
 variant input
-  -> normalization / annotation / context consistency
+  -> optional natural-language parsing
+  -> normalization / variant resolution / annotation / context consistency
   -> automatic applied evidence generation
   -> candidate/suggested evidence
   -> manual reviewed evidence
@@ -178,33 +229,7 @@ variant input
 
 ## Highest Priority Current Tasks
 
-### 1. Chinese Report Template
-
-Goal: provide a Chinese-language report template that preserves the same safety
-wording, applied/candidate separation, reviewed-evidence labeling, provenance,
-limitations, and review-required posture as the existing reports.
-
-Why it matters: report usability improves when reviewers can read safety
-language and evidence summaries in the language of their workflow. With the
-100-case benchmark now in place, localization is the most direct product-facing
-gap that does not require changing evidence logic.
-
-Architecture impact: expected changes should be in reporting templates,
-formatting, localization wording, and report tests. It must not change
-classification behavior.
-
-Safety risks: translated wording must not imply clinical sign-out, certainty,
-or automatic evidence application. VUS caution and human review requirements
-must remain explicit.
-
-Expected deliverables: Chinese Markdown/report output, terminology glossary,
-report tests, and documentation showing parity with English safety sections.
-
-Release gate expectations: report wording safety review by a qualified reader,
-pytest pass, smoke report generation, and no changes to evidence logic or the
-combiner.
-
-### 2. Selected Real-World Case Validation
+### 1. Selected Real-World Case Validation
 
 Goal: validate selected real-world SNV/small-indel cases end to end using the
 completed provider-validation posture: local fixtures/snapshots where possible,
@@ -232,7 +257,7 @@ Release gate expectations: no default network dependency, no direct provider
 classification, no combiner change, and explicit limitations for unresolved
 provider or context gaps.
 
-### 3. Selected Real VCEP Profile Pilot
+### 2. Selected Real VCEP Profile Pilot
 
 Goal: pilot one carefully selected real VCEP profile behind explicit selection,
 now that toy profile validation and real provider validation are complete.
@@ -257,7 +282,7 @@ Release gate expectations: design approval, benchmark pass, no default clinical
 profile activation, no combiner change without explicit review, and clear
 profile limitations.
 
-### 4. Optional Online Smoke Gates
+### 3. Optional Online Smoke Gates
 
 Goal: add or standardize optional online smoke gates for provider reachability
 and parser resilience without making network access part of default CI.

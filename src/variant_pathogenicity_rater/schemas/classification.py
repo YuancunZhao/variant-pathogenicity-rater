@@ -12,6 +12,7 @@ from variant_pathogenicity_rater.schemas.evidence import EvidenceItem
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection
 from variant_pathogenicity_rater.schemas.variant import Variant
 from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
+from variant_pathogenicity_rater.variant_resolution.schema import VariantResolutionResult
 
 
 class ACMGClassification(StrEnum):
@@ -38,6 +39,7 @@ class ClassificationResult(SchemaModel):
     review_flags: list[ReviewFlag] = Field(default_factory=list)
     transcript_selection: TranscriptSelection | None = None
     transcript_validation: TranscriptValidationResult | None = None
+    variant_resolution: VariantResolutionResult | None = None
     context_consistency: ContextConsistency | None = None
     vcep_profile_context: dict[str, Any] | None = None
     audit_trail: list[AuditTrail] = Field(default_factory=list)

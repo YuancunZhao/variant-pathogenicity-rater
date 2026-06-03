@@ -116,6 +116,8 @@ def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
     }
     assert result["evidence_items"]
     assert "normalization_identity" in result
+    assert "variant_resolution" in result
+    assert "resolved_variant" in result
     assert "applied_evidence" in result
     assert "review_note_evidence" in result
     assert "review_flags" in result
@@ -127,6 +129,7 @@ def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
     completed_steps = {event["tool_name"] for event in result["audit_trail"]}
     assert {
         "normalize_variant",
+        "resolve_variant",
         "query_population_frequency",
         "evaluate_population_rules",
         "evaluate_computational_evidence",

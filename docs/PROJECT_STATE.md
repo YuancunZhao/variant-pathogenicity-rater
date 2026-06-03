@@ -34,11 +34,14 @@ reviewed evidence, ClinVar review notes, ClinGen ERepo review notes, local
 VCEP gene-level profile signals, approved limited profile overrides, reports,
 CLI/MCP surfaces, batch and annotated-batch VCEP summaries, local
 ClinVar/gnomAD/MANE/ERepo provider validation, a 100-case offline curated
-fixture-backed benchmark, and the unchanged ACMG classification combiner. The
-next project constraint is no longer basic workflow connectivity,
-rule-profile plumbing, real provider safety posture, or first-pass benchmark
-breadth; it is localized reporting, selected real-world case validation, a
-narrow real VCEP profile pilot, and optional online smoke gates.
+fixture-backed benchmark, natural-language input wrappers, offline variant
+resolution, Chinese laboratory reporting, and the unchanged ACMG classification
+combiner. The next project constraint is no longer basic workflow connectivity,
+rule-profile plumbing, real provider safety posture, first-pass benchmark
+breadth, localization, natural-language/HGVS text intake, or HGVS c. resolution
+for key fixture-backed cases; it is selected real-world case validation, a
+narrow real VCEP profile pilot, optional online smoke gates, and larger
+real-world annotation validation.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -52,7 +55,8 @@ The current complete interpretation workflow is:
 
 ```text
 variant input
-  -> normalization / annotation / context consistency
+  -> optional natural-language parsing
+  -> normalization / variant resolution / annotation / context consistency
   -> automatic applied evidence generation
   -> candidate/suggested evidence
   -> manual reviewed evidence
@@ -65,15 +69,25 @@ variant input
 ### Single Variant Workflow
 
 The single variant workflow accepts supported HGVS-like or VCF-like SNV and
-small-indel inputs, normalizes them into an internal representation, gathers
-mock/local evidence, applies conservative evidence-generation layers where
-implemented, runs the existing ACMG classification combiner, and returns a
-structured result with review flags, provenance, limitations, and report-ready
-sections.
+small-indel inputs, normalizes them into an internal representation, enriches
+supported HGVS c. inputs through the offline fixture-backed variant resolution
+layer where available, gathers mock/local evidence, applies conservative
+evidence-generation layers where implemented, runs the existing ACMG
+classification combiner, and returns a structured result with review flags,
+provenance, limitations, and report-ready sections.
 
 Single variant outputs remain machine proposals. They preserve human-review
 requirements and separate applied ACMG evidence from candidate/review-note
 evidence.
+
+### Natural Language Input
+
+Natural-language and mixed HGVS text input is implemented as a wrapper around
+the same rating workflow. `parse_variant_text`, `rate_variant_from_text`, and
+CLI `vpr rate-text` extract explicit variant/context fields, preserve missing
+fields and ambiguity warnings, and can return parser-only or parse-and-rate
+results. The parser does not generate ACMG evidence, does not change
+classification logic, and does not bypass the combiner.
 
 ### Batch Workflow
 
@@ -117,6 +131,11 @@ responsible for making the applied/candidate split visible, surfacing
 provenance and limitations, warning that VUS means uncertainty, and preserving
 human-review-required language.
 
+Reports include a Variant Resolution Summary when available. This section shows
+descriptive transcript, protein consequence, coordinate, exon, NMD, confidence,
+and limitation context. It is not ACMG evidence and is not counted by the
+classification combiner.
+
 ### Literature Workflow
 
 The literature workflow is a review-note and suggestion workflow. It may
@@ -158,6 +177,7 @@ Real provider validation is complete for the current provider surface:
 - ClinVar real provider validation.
 - gnomAD local snapshot validation.
 - MANE transcript validation.
+- Real resolution provider snapshot validation.
 - ClinGen ERepo validation.
 
 ClinVar uses local fixture/local-file validation and optional online behavior
@@ -174,6 +194,19 @@ MANE/RefSeq/Ensembl transcript validation uses local annotation fixtures.
 Transcript metadata supports transcript review, exon/NMD context, and PVS1
 review assumptions, but it cannot apply PVS1, PP3, BP4, or any other
 criterion by itself.
+
+Variant resolution is implemented as a separate offline descriptive layer after
+normalization. Local transcript-resolution fixtures can enrich HGVS c. inputs
+with transcript, protein, coordinate, exon, and NMD facts, preserving both the
+original `normalized_variant` and the enriched `resolved_variant`. Resolution
+does not generate `EvidenceItem` records and does not directly change
+classification.
+
+Real resolution provider validation now covers local snapshot-backed transcript,
+protein consequence, coordinate, exon, and NMD resolution for BRCA1, CFTR,
+GJB2, DMD, PAH, and TP53, plus missing-mapping behavior for BRCA2. Build,
+transcript accession, and transcript-version mismatches are review flags, while
+malformed or missing provider mappings remain limitations only.
 
 ClinGen ERepo validation covers exact variant review notes, gene-level VCEP
 activity signals, supporting summaries, citations, provenance, cache behavior,
@@ -197,7 +230,7 @@ Current benchmark status:
 - Provider fixture-backed through `data/benchmark_provider_fixtures/`.
 - Includes local population, ClinVar, computational, literature, ClinGen
   ERepo, VCEP profile, annotation, and transcript metadata fixtures.
-- Latest full regression status: `573 passed, 1 skipped`.
+- Latest full regression status: `626 passed, 1 skipped`.
 
 The benchmark covers generated and reviewed evidence boundaries for `PVS1`,
 `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed
@@ -402,7 +435,7 @@ override of user-supplied context.
 
 The latest documented full regression run after benchmark Phase C recorded:
 
-- Full pytest: `562 passed, 1 skipped`.
+- Full pytest: `626 passed, 1 skipped`.
 - Benchmark coverage: 100 curated offline SNV/small-indel cases.
 - Benchmark version: `offline-curated-v4-phase-c`.
 - Benchmark provider posture: fixture-backed, including annotation and
@@ -422,9 +455,9 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is the Chinese report template, followed by selected
-real-world case validation, one narrowly scoped real VCEP profile pilot behind
-explicit profile selection, and optional online provider smoke gates.
+The recommended next task is selected real-world case validation, followed by
+one narrowly scoped real VCEP profile pilot behind explicit profile selection
+and optional online provider smoke gates.
 
 Real provider validation for ClinVar, gnomAD, MANE, and ERepo is complete for
 the current provider surface and should now be maintained as a regression
@@ -433,5 +466,6 @@ default, provenance/cache visibility, failure-to-limitation behavior, and no
 direct provider-driven classification.
 
 Current known gaps are real online provider smoke gates, a selected real VCEP
-profile pilot, Chinese report templates, larger real-world hospital annotation
-validation, and CNV/SV support.
+profile pilot, larger real-world hospital annotation validation, broader
+resolution fixture coverage beyond the initial targeted records, and CNV/SV
+support.

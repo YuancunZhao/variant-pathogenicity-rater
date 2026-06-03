@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 - 2026-06-02
+## 0.3.0 - 2026-06-03
 
 Internal release for controlled review of the end-to-end SNV/small-indel
 interpretation assistant.
@@ -9,6 +9,10 @@ interpretation assistant.
 
 - Applied evidence generation coverage for `PVS1`, `BA1`, `BS1`,
   `PM2_Supporting`, `PP3`, `BP4`, `PS1`, and `PM5`.
+- Natural-language/HGVS text input workflow through parser-only and
+  parse-and-rate entry points.
+- Offline Variant Resolution layer for descriptive transcript, protein,
+  coordinate, exon, and NMD context.
 - Manual reviewed evidence workflow requiring explicit `reviewed_applied`
   curator records before non-automatic criteria can enter classification.
 - Literature suggested-evidence to reviewed-draft workflow, with drafts

@@ -61,6 +61,10 @@ from variant_pathogenicity_rater.schemas.evidence import (
 )
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
 from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Variant
+from variant_pathogenicity_rater.variant_resolution import (
+    VariantResolutionResult,
+    resolve_variant,
+)
 from variant_pathogenicity_rater.vcep_profiles import (
     apply_computational_threshold_overrides,
     apply_disabled_criteria,
@@ -98,6 +102,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     step_results: dict[str, Any] = {}
     context_consistency: ContextConsistency | None = None
     transcript_validation: TranscriptValidationResult | None = None
+    variant_resolution: VariantResolutionResult | None = None
     reviewed_evidence_records: list[dict[str, Any]] = []
     reviewed_review_flags: list[ReviewFlag] = []
     vcep_signal_result: VCEPSignalResult | None = None
@@ -114,10 +119,32 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         return _failed_normalization_response(arguments, audit_trail, limitations, step_results)
 
     normalized_variant = normalization_result.normalized_variant
+    original_normalized_variant = normalized_variant
     step_results["normalize_variant"] = json.loads(normalization_result.model_dump_json())
     limitations.extend(normalization_result.normalization_warnings)
 
     context = _gene_disease_context(arguments, normalized_variant, limitations, audit_trail)
+    resolution_options = dict(options)
+    if _manual_nmd_context_supplied(arguments):
+        resolution_options["preserve_manual_nmd_context"] = True
+
+    variant_resolution = _run_step(
+        "resolve_variant",
+        audit_trail,
+        limitations,
+        lambda: resolve_variant(
+            normalized_variant,
+            context=context,
+            options=resolution_options,
+        ),
+    )
+    if variant_resolution is not None:
+        limitations.extend(variant_resolution.limitations)
+        if variant_resolution.resolved_variant is not None:
+            normalized_variant = variant_resolution.resolved_variant
+        if variant_resolution.resolved_context is not None:
+            context = variant_resolution.resolved_context
+        step_results["resolve_variant"] = variant_resolution.model_dump(mode="json")
 
     if _should_resolve_vcep(options):
         vcep_profiles, vcep_load_limitations = load_vcep_profiles(options)
@@ -506,6 +533,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         classification_result = classify_acmg([], normalized_variant, context, _unique(limitations))
     classification_result.transcript_selection = transcript_selection
     classification_result.transcript_validation = transcript_validation
+    classification_result.variant_resolution = variant_resolution
     classification_result.context_consistency = context_consistency
     if transcript_selection is not None:
         classification_result.review_flags = _unique_review_flags(
@@ -521,6 +549,10 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     if transcript_validation is not None:
         classification_result.review_flags = _unique_review_flags(
             [*classification_result.review_flags, *transcript_validation.review_flags]
+        )
+    if variant_resolution is not None:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *variant_resolution.review_flags]
         )
     if reviewed_review_flags:
         classification_result.review_flags = _unique_review_flags(
@@ -590,7 +622,13 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "data_source_modes": {
             name: source.mode for name, source in data_sources_config.sources.items()
         },
-        "normalized_variant": json.loads(normalized_variant.model_dump_json()),
+        "normalized_variant": json.loads(original_normalized_variant.model_dump_json()),
+        "resolved_variant": json.loads(normalized_variant.model_dump_json()),
+        "variant_resolution": (
+            variant_resolution.model_dump(mode="json")
+            if variant_resolution is not None
+            else None
+        ),
         "normalization_identity": normalization_identity,
         "classification_result": json.loads(classification_result.model_dump_json()),
         "evidence_items": [json.loads(item.model_dump_json()) for item in evidence_items],
@@ -633,6 +671,11 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             if transcript_validation is not None
             else None
         ),
+        "variant_resolution_summary": (
+            variant_resolution.model_dump(mode="json")
+            if variant_resolution is not None
+            else None
+        ),
         "context_consistency": (
             json.loads(context_consistency.model_dump_json())
             if context_consistency is not None
@@ -654,6 +697,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             normalization_identity=normalization_identity,
             transcript_selection=transcript_selection,
             transcript_validation=transcript_validation,
+            variant_resolution=variant_resolution,
             context_consistency=context_consistency,
             vcep_override_context=vcep_override_context,
         ),
@@ -845,6 +889,25 @@ def _gene_disease_context(
         )
     )
     return context
+
+
+def _manual_nmd_context_supplied(arguments: dict[str, Any]) -> bool:
+    context_payload = (
+        arguments.get("gene_disease_context")
+        or arguments.get("context")
+        or arguments.get("options", {}).get("gene_disease_context")
+        or {}
+    )
+    if not isinstance(context_payload, dict):
+        return False
+    return any(
+        key in context_payload
+        for key in (
+            "last_exon_information",
+            "nmd_prediction_available",
+            "nmd_predicted",
+        )
+    )
 
 
 def _options(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1196,6 +1259,7 @@ def _provenance_summary(
     normalization_identity: Any,
     transcript_selection: TranscriptSelection | None,
     transcript_validation: TranscriptValidationResult | None,
+    variant_resolution: VariantResolutionResult | None,
     context_consistency: ContextConsistency | None,
     vcep_override_context: VCEPOverrideContext | None = None,
 ) -> dict[str, Any]:
@@ -1219,6 +1283,9 @@ def _provenance_summary(
         ),
         "transcript_validation": (
             transcript_validation.provenance if transcript_validation is not None else None
+        ),
+        "variant_resolution": (
+            variant_resolution.provenance if variant_resolution is not None else None
         ),
         "context_consistency": (
             context_consistency.provenance if context_consistency is not None else None

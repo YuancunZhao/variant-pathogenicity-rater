@@ -10,6 +10,7 @@ from variant_pathogenicity_rater.schemas.classification import ClassificationRes
 from variant_pathogenicity_rater.schemas.common import ReviewFlag, SchemaModel
 from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
 from variant_pathogenicity_rater.transcript_support.schema import TranscriptValidationResult
+from variant_pathogenicity_rater.variant_resolution.schema import VariantResolutionResult
 
 
 class ReportFormat(StrEnum):
@@ -107,6 +108,7 @@ class VariantReportSummary(SchemaModel):
     review_flags: list[ReviewFlag] = Field(default_factory=list)
     transcript_selection: TranscriptSelection | None = None
     transcript_validation: TranscriptValidationResult | None = None
+    variant_resolution: VariantResolutionResult | None = None
     context_consistency: ContextConsistency | None = None
     vcep_profile_context: dict[str, Any] | None = None
 

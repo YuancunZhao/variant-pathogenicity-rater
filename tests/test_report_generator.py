@@ -22,6 +22,13 @@ from variant_pathogenicity_rater.schemas import (
     TranscriptSelection,
     Variant,
 )
+from variant_pathogenicity_rater.variant_resolution.schema import (
+    NMDContext,
+    ResolvedCoordinate,
+    ResolvedProtein,
+    ResolvedTranscript,
+    VariantResolutionResult,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +71,7 @@ def _classification_result(
     evidence_items: list[EvidenceItem] | None = None,
     transcript_selection: TranscriptSelection | None = None,
     context_consistency: ContextConsistency | None = None,
+    variant_resolution: VariantResolutionResult | None = None,
 ) -> ClassificationResult:
     return ClassificationResult(
         result_id="report-test-result",
@@ -87,10 +95,39 @@ def _classification_result(
             )
         ],
         transcript_selection=transcript_selection,
+        variant_resolution=variant_resolution,
         context_consistency=context_consistency,
         audit_trail=[
             AuditTrail(event_id="audit-report-test", event_type="classification_combined")
         ],
+    )
+
+
+def _variant_resolution() -> VariantResolutionResult:
+    return VariantResolutionResult(
+        status="resolved",
+        confidence=0.9,
+        resolved_transcript=ResolvedTranscript(
+            transcript="NM_000059.4",
+            transcript_source="user_supplied",
+            user_transcript_provided=True,
+            confidence=0.9,
+        ),
+        resolved_hgvs_p=ResolvedProtein(
+            hgvs_p="NP_000050.3:p.Ser1982ArgfsTer22",
+            protein_accession="NP_000050.3",
+            consequence="frameshift_variant",
+            confidence=0.9,
+        ),
+        resolved_coordinate=ResolvedCoordinate(
+            genome_build="GRCh38",
+            chrom="13",
+            pos=32316461,
+            ref="AT",
+            alt="A",
+            confidence=0.9,
+        ),
+        nmd_context=NMDContext(status="NMD_expected", nmd_expected=True, nmd_confidence=0.9),
     )
 
 
@@ -247,6 +284,24 @@ def test_markdown_report_contains_required_sections_and_vus_note() -> None:
     assert "Variant of Uncertain Significance" in report.content
     assert "insufficient to support a pathogenic or benign classification" in report.content
     assert "Human Review Note" in report.content
+
+
+def test_report_includes_variant_resolution_summary_without_evidence_promotion() -> None:
+    report = generate_report(
+        _classification_result(variant_resolution=_variant_resolution()),
+        output_format="markdown",
+        mode="detailed",
+    )
+    json_report = generate_report(
+        _classification_result(variant_resolution=_variant_resolution()),
+        output_format="json",
+        mode="detailed",
+    )
+
+    assert "## Variant Resolution Summary" in report.content
+    assert "not ACMG evidence" in report.content
+    assert "NP_000050.3:p.Ser1982ArgfsTer22" in report.content
+    assert json_report.content["variant_resolution"]["summary"]["status"] == "resolved"
 
 
 def test_clinvar_conflict_is_prominently_reported() -> None:

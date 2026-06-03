@@ -19,7 +19,14 @@ from variant_pathogenicity_rater.annotation import (
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
 from variant_pathogenicity_rater.pipeline.real_world import run_annotation_batch_workflow
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
+from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
+from variant_pathogenicity_rater.variant_resolution import resolve_variant
 from variant_pathogenicity_rater.literature_agent import create_reviewed_evidence_drafts
+from variant_pathogenicity_rater.natural_language_input import (
+    rate_variant_from_text,
+    render_clinical_context_review,
+    render_parsed_input_review,
+)
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
 
 
@@ -65,6 +72,51 @@ def build_parser() -> argparse.ArgumentParser:
     _add_population_arguments(rate)
     _add_vcep_arguments(rate)
     rate.set_defaults(handler=_cmd_rate)
+
+    resolve = subparsers.add_parser(
+        "resolve",
+        help="Resolve descriptive transcript/protein/coordinate/exon/NMD context for a variant.",
+    )
+    _add_variant_arguments(resolve)
+    resolve.add_argument("--hgvs", help="HGVS c. input such as NM_007294.4:c.68_69delAG.")
+    resolve.add_argument("--output", choices=["json"], default="json")
+    resolve.set_defaults(handler=_cmd_resolve)
+
+    rate_text = subparsers.add_parser(
+        "rate-text",
+        help="Parse natural-language/HGVS text, then run the existing rate workflow.",
+    )
+    rate_text.add_argument("--text", required=True, help="Natural-language or HGVS variant text.")
+    rate_text.add_argument("--output", choices=["json", "markdown", "markdown-zh"], default="json")
+    _add_report_arguments(rate_text)
+    rate_text.add_argument(
+        "--include-clingen-erepo",
+        action="store_true",
+        help="Include ClinGen Evidence Repository review-note lookup.",
+    )
+    rate_text.add_argument(
+        "--clingen-erepo-local-file",
+        help="ClinGen ERepo local JSON/JSONL/CSV/TSV snapshot path.",
+    )
+    _add_population_arguments(rate_text)
+    _add_vcep_arguments(rate_text)
+    rate_text.add_argument(
+        "--ai-assisted-context",
+        action="store_true",
+        help="Opt in to AI-assisted clinical-context candidate parsing when a provider is available.",
+    )
+    rate_text.add_argument(
+        "--confirmed-context",
+        help="Confirmed clinical context as JSON text or a JSON file path.",
+    )
+    rate_text.add_argument(
+        "--no-require-context-confirmation",
+        dest="require_context_confirmation",
+        action="store_false",
+        default=True,
+        help="Do not require context confirmation when no AI candidate context is present.",
+    )
+    rate_text.set_defaults(handler=_cmd_rate_text)
 
     batch = subparsers.add_parser("batch", help="Rate a batch of variants.")
     batch.add_argument("--input", required=True, help="Input file path.")
@@ -216,6 +268,90 @@ def _cmd_rate(args: argparse.Namespace) -> int:
     if result.get("status") != "ok":
         print(str(result.get("report_text") or "rate_variant failed"), file=sys.stderr)
         return 1
+    return 0
+
+
+def _cmd_rate_text(args: argparse.Namespace) -> int:
+    options = _clingen_erepo_options(args)
+    if getattr(args, "ai_assisted_context", False):
+        options["ai_assisted_context"] = True
+    options["require_context_confirmation"] = getattr(args, "require_context_confirmation", True)
+    if getattr(args, "confirmed_context", None):
+        options["confirmed_context"] = _load_json_argument(
+            args.confirmed_context,
+            label="confirmed context",
+        )
+    result = rate_variant_from_text(
+        args.text,
+        output=args.output,
+        language=args.language,
+        report_mode=args.report_mode,
+        options=options,
+    )
+    if args.output in {"markdown", "markdown-zh"}:
+        print(render_parsed_input_review(result))
+        print()
+        print(render_clinical_context_review(result))
+        print()
+        rate_result = result.get("rate_variant_result") if isinstance(result, dict) else None
+        report_text = (rate_result or {}).get("report_text")
+        error = result.get("error") if isinstance(result.get("error"), dict) else {}
+        error_message = error.get("message")
+        print(str(report_text or error_message or ""))
+    else:
+        print(_json_dumps(result))
+    if result.get("status") != "ok":
+        message = result.get("error", {}).get("message") or "rate_variant_from_text failed"
+        print(str(message), file=sys.stderr)
+        return 1
+    return 0
+
+
+def _cmd_resolve(args: argparse.Namespace) -> int:
+    payload = {
+        key: value
+        for key, value in {
+            "gene": args.gene,
+            "transcript": args.transcript,
+            "hgvs_c": args.hgvs_c,
+            "hgvs_p": args.hgvs_p,
+            "chromosome": args.chromosome,
+            "position": args.position,
+            "ref": args.ref,
+            "alt": args.alt,
+        }.items()
+        if value is not None
+    }
+    if args.hgvs and "hgvs_c" not in payload:
+        payload["hgvs_c"] = args.hgvs
+    if not payload:
+        raise CliError("resolve requires at least one variant field.", exit_code=2)
+    try:
+        normalization = normalize_variant(payload)
+    except NormalizationError as exc:
+        raise CliError(exc.message, exit_code=1) from exc
+    if normalization.normalized_variant is None:
+        raise CliError("resolve requires a normalizable SNV/small-indel variant.", exit_code=1)
+    result = resolve_variant(normalization.normalized_variant)
+    print(
+        _json_dumps(
+            {
+                "status": result.status,
+                "tool": "resolve_variant",
+                "stage": "variant_resolution",
+                "normalized_variant": (
+                    normalization.normalized_variant.model_dump(mode="json")
+                ),
+                "resolved_variant": (
+                    result.resolved_variant.model_dump(mode="json")
+                    if result.resolved_variant is not None
+                    else None
+                ),
+                "variant_resolution": result.model_dump(mode="json"),
+                "human_review_required": True,
+            }
+        )
+    )
     return 0
 
 
@@ -576,6 +712,16 @@ def _load_json_file(path_value: str, *, label: str = "reviewed evidence file") -
         raise CliError(f"cannot read {label} {path}: {exc}", exit_code=2) from exc
     except json.JSONDecodeError as exc:
         raise CliError(f"{label} is not valid JSON: {exc}", exit_code=2) from exc
+
+
+def _load_json_argument(value: str, *, label: str) -> Any:
+    path = Path(value)
+    if path.exists():
+        return _load_json_file(value, label=label)
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise CliError(f"{label} is neither a JSON file path nor valid JSON: {exc}", exit_code=2) from exc
 
 
 def _single_reviewed_evidence_payload(path_value: str) -> Any:

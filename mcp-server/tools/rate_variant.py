@@ -17,6 +17,9 @@ from variant_pathogenicity_rater.normalization import (  # noqa: E402
     NormalizationError,
     normalize_variant as normalize_variant_service,
 )
+from variant_pathogenicity_rater.variant_resolution import (  # noqa: E402
+    resolve_variant as resolve_variant_service,
+)
 from variant_pathogenicity_rater.data_sources.config import load_data_sources_config  # noqa: E402
 from variant_pathogenicity_rater.data_sources.providers import build_population_provider  # noqa: E402
 from variant_pathogenicity_rater.evidence.literature import (  # noqa: E402
@@ -50,6 +53,10 @@ from variant_pathogenicity_rater.pipeline.batch import (  # noqa: E402
 )
 from variant_pathogenicity_rater.pipeline.real_world import (  # noqa: E402
     run_annotation_batch_workflow,
+)
+from variant_pathogenicity_rater.natural_language_input import (  # noqa: E402
+    parse_variant_text as parse_variant_text_service,
+    rate_variant_from_text as rate_variant_from_text_service,
 )
 from variant_pathogenicity_rater.config.thresholds import (  # noqa: E402
     computational_thresholds_from_options,
@@ -146,6 +153,72 @@ async def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
     return rate_variant_batch_pipeline(arguments)
 
 
+async def rate_variant_from_text(arguments: dict[str, Any]) -> dict[str, Any]:
+    text = arguments.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return {
+            "status": "error",
+            "tool": "parse_variant_text",
+            "stage": "natural_language_variant_input_wrapper",
+            "input_text": text or "",
+            "parsed_input": {},
+            "missing_fields": [],
+            "ambiguity_warnings": [],
+            "normalization_warnings": [],
+            "alias_candidates": [],
+            "ai_assisted_context": None,
+            "context_candidates": [],
+            "confirmed_context": None,
+            "context_confirmation_required": True,
+            "context_used_for_rating": None,
+            "rate_variant_result": None,
+            "report": None,
+            "review_required": True,
+            "human_review": {"required": True, "notice": HUMAN_REVIEW_NOTICE},
+            "error": {"code": "EMPTY_TEXT", "message": "Text input is empty."},
+        }
+    return rate_variant_from_text_service(
+        text,
+        output=arguments.get("output"),
+        language=arguments.get("language"),
+        report_mode=arguments.get("report_mode"),
+        options=arguments.get("options") if isinstance(arguments.get("options"), dict) else None,
+    )
+
+
+async def parse_variant_text(arguments: dict[str, Any]) -> dict[str, Any]:
+    text = arguments.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return {
+            "status": "error",
+            "tool": "rate_variant_from_text",
+            "stage": "natural_language_variant_input_wrapper",
+            "input_text": text or "",
+            "parsed_input": {},
+            "missing_fields": [],
+            "ambiguity_warnings": [],
+            "normalization_warnings": [],
+            "alias_candidates": [],
+            "ai_assisted_context": None,
+            "context_candidates": [],
+            "confirmed_context": None,
+            "context_confirmation_required": True,
+            "context_used_for_rating": None,
+            "review_required": True,
+            "human_review": {"required": True, "notice": HUMAN_REVIEW_NOTICE},
+            "error": {"code": "EMPTY_TEXT", "message": "Text input is empty."},
+        }
+    result = parse_variant_text_service(
+        text,
+        output=arguments.get("output"),
+        language=arguments.get("language"),
+        report_mode=arguments.get("report_mode"),
+        options=arguments.get("options") if isinstance(arguments.get("options"), dict) else None,
+    )
+    result["tool"] = "parse_variant_text"
+    return result
+
+
 async def rate_annotated_variants(arguments: dict[str, Any]) -> dict[str, Any]:
     has_records = isinstance(arguments.get("records"), list)
     has_text = any(isinstance(arguments.get(key), str) for key in ("input_text", "text", "data"))
@@ -201,6 +274,71 @@ async def normalize_variant(arguments: dict[str, Any]) -> dict[str, Any]:
                 *dumped["limitations"],
             ],
         },
+    }
+
+
+async def resolve_variant(arguments: dict[str, Any]) -> dict[str, Any]:
+    try:
+        normalization = normalize_variant_service(arguments)
+    except NormalizationError as exc:
+        raise McpToolError(
+            exc.code,
+            exc.message,
+            details={
+                "normalization_warnings": exc.warnings,
+                "unresolved_fields": exc.unresolved_fields,
+                "human_review_required": True,
+            },
+        ) from exc
+    if normalization.normalized_variant is None:
+        raise McpToolError(
+            "SCHEMA_VALIDATION_ERROR",
+            "resolve_variant requires a normalizable SNV/small-indel variant.",
+            details={"human_review_required": True},
+        )
+    options = arguments.get("options") if isinstance(arguments.get("options"), dict) else {}
+    result = resolve_variant_service(normalization.normalized_variant, options=options)
+    return {
+        "status": result.status,
+        "tool": "resolve_variant",
+        "stage": "variant_resolution",
+        "resolved_transcript": (
+            result.resolved_transcript.model_dump(mode="json")
+            if result.resolved_transcript is not None
+            else {}
+        ),
+        "resolved_protein": (
+            result.resolved_hgvs_p.model_dump(mode="json")
+            if result.resolved_hgvs_p is not None
+            else {}
+        ),
+        "resolved_coordinate": (
+            result.resolved_coordinate.model_dump(mode="json")
+            if result.resolved_coordinate is not None
+            else {}
+        ),
+        "exon_context": (
+            result.exon_context.model_dump(mode="json")
+            if result.exon_context is not None
+            else {}
+        ),
+        "nmd_context": (
+            result.nmd_context.model_dump(mode="json")
+            if result.nmd_context is not None
+            else {}
+        ),
+        "limitations": result.limitations,
+        "review_flags": [flag.model_dump(mode="json") for flag in result.review_flags],
+        "resolution_steps": [step.model_dump(mode="json") for step in result.resolution_steps],
+        "provenance": result.provenance,
+        "resolved_variant": (
+            result.resolved_variant.model_dump(mode="json")
+            if result.resolved_variant is not None
+            else None
+        ),
+        "variant_resolution": result.model_dump(mode="json"),
+        "human_review_required": True,
+        "human_review": {"required": True, "notice": HUMAN_REVIEW_NOTICE},
     }
 
 
@@ -1282,6 +1420,12 @@ def _classification_result_schema(description: str | None = None) -> dict[str, A
             "review_flags": {"type": "array", "items": _review_flag_schema()},
             "transcript_selection": {"oneOf": [_transcript_selection_schema(), {"type": "null"}]},
             "transcript_validation": {"oneOf": [_transcript_validation_schema(), {"type": "null"}]},
+            "variant_resolution": {
+                "oneOf": [
+                    _open_object_schema("Variant resolution summary payload."),
+                    {"type": "null"},
+                ]
+            },
             "context_consistency": {"oneOf": [_context_consistency_schema(), {"type": "null"}]},
             "vcep_profile_context": {
                 "oneOf": [
@@ -1368,6 +1512,20 @@ def _pipeline_options_schema() -> dict[str, Any]:
                 "enum": ["concise", "detailed", "laboratory", "clinician"],
                 "description": "Report rendering mode only; does not affect evidence generation or classification.",
             },
+            "ai_assisted_context": {
+                "type": "boolean",
+                "description": "Opt-in parser-only AI-assisted clinical-context candidate extraction.",
+            },
+            "require_context_confirmation": {
+                "type": "boolean",
+                "description": "Require user confirmation before AI-derived context can be used.",
+            },
+            "confirmed_context": _open_object_schema(
+                "User-confirmed disease, inheritance, disease_id, and hpo_terms."
+            ),
+            "reviewed_context": _open_object_schema(
+                "Curator-reviewed disease, inheritance, disease_id, and hpo_terms."
+            ),
             "data_sources": _data_sources_override_schema(),
             "annotations": {
                 "type": "array",
@@ -1382,6 +1540,11 @@ def _pipeline_options_schema() -> dict[str, Any]:
             "transcript_metadata_records": {
                 "type": "array",
                 "items": _open_object_schema("Local MANE/RefSeq/Ensembl transcript metadata record."),
+            },
+            "transcript_resolution_records": {
+                "type": "array",
+                "items": _open_object_schema("Local transcript resolution record."),
+                "description": "Offline fixture records for transcript/protein/coordinate/exon/NMD resolution.",
             },
             "transcript_metadata": {
                 "oneOf": [
@@ -1458,14 +1621,6 @@ def _pipeline_options_schema() -> dict[str, Any]:
 def _variant_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
-        "anyOf": [
-            {"required": ["variant"]},
-            {"required": ["hgvs_c"]},
-            {"required": ["hgvs"]},
-            {"required": ["value"]},
-            {"required": ["chrom", "pos", "ref", "alt"]},
-            {"required": ["chromosome", "position", "ref", "alt"]},
-        ],
         "properties": {
             **_normalization_properties(),
             "variant": _normalization_payload_schema(
@@ -1527,12 +1682,48 @@ def _batch_options_schema() -> dict[str, Any]:
             "options": _pipeline_options_schema(),
             "reviewed_evidence": _reviewed_evidence_batch_map_schema(),
         },
-        "anyOf": [
-            {"required": ["records"]},
-            {"required": ["input_text"]},
-            {"required": ["text"]},
-            {"required": ["data"]},
-        ],
+        "additionalProperties": False,
+    }
+
+
+def _rate_variant_from_text_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "text": {
+                "type": "string",
+                "description": (
+                    "Natural-language or HGVS-like variant text to parse before calling "
+                    "rate_variant."
+                ),
+            },
+            "output": {
+                "type": "string",
+                "enum": ["json", "markdown", "markdown-zh"],
+                "description": (
+                    "Requested presentation format; markdown-zh maps to Chinese "
+                    "laboratory report options."
+                ),
+            },
+            "language": {
+                "type": "string",
+                "enum": ["en", "zh"],
+                "description": (
+                    "Report rendering language only; does not affect evidence generation "
+                    "or classification."
+                ),
+            },
+            "report_mode": {
+                "type": "string",
+                "enum": ["concise", "detailed", "laboratory", "clinician"],
+                "description": (
+                    "Report rendering mode only; does not affect evidence generation or "
+                    "classification."
+                ),
+            },
+            "options": _pipeline_options_schema(),
+        },
+        "required": ["text"],
         "additionalProperties": False,
     }
 
@@ -1568,12 +1759,6 @@ def _annotated_variants_input_schema() -> dict[str, Any]:
             "options": _pipeline_options_schema(),
             "reviewed_evidence": _reviewed_evidence_batch_map_schema(),
         },
-        "anyOf": [
-            {"required": ["records"]},
-            {"required": ["input_text"]},
-            {"required": ["text"]},
-            {"required": ["data"]},
-        ],
         "additionalProperties": False,
     }
 
@@ -1624,11 +1809,6 @@ def _query_clingen_erepo_input_schema() -> dict[str, Any]:
             },
             **query_properties,
         },
-        "anyOf": [
-            {"required": ["variant"]},
-            {"required": ["normalized_variant"]},
-            {"required": ["query", "variant_for_matching", "gene_disease_context"]},
-        ],
         "additionalProperties": False,
     }
 
@@ -1742,11 +1922,6 @@ def _generate_report_input_schema() -> dict[str, Any]:
                 "description": "Report language. Chinese output is intended for laboratory internal review and keeps evidence safety boundaries.",
             },
         },
-        "anyOf": [
-            {"required": ["classification_result"]},
-            {"required": ["result"]},
-            {"required": ["classification"]},
-        ],
         "additionalProperties": False,
     }
 
@@ -1754,21 +1929,36 @@ def _generate_report_input_schema() -> dict[str, Any]:
 def _normalize_variant_input_schema() -> dict[str, Any]:
     return {
         "type": "object",
-        "anyOf": [
-            {"required": ["variant"]},
-            {"required": ["hgvs_c"]},
-            {"required": ["hgvs"]},
-            {"required": ["value"]},
-            {"required": ["chrom", "pos", "ref", "alt"]},
-            {"required": ["chromosome", "position", "ref", "alt"]},
-            {"required": ["vcf"]},
-        ],
         "properties": {
             "variant": _normalization_payload_schema(
                 "Optional wrapper for HGVS-like or VCF-like variant input."
             ),
             **_normalization_properties(),
             "vcf": _normalization_payload_schema("VCF-like variant object."),
+        },
+        "additionalProperties": False,
+    }
+
+
+def _resolve_variant_input_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {
+            "variant": _normalization_payload_schema(
+                "Optional wrapper for HGVS-like or VCF-like variant input."
+            ),
+            **_normalization_properties(),
+            "vcf": _normalization_payload_schema("VCF-like variant object."),
+            "options": {
+                "type": "object",
+                "properties": {
+                    "transcript_resolution_records": {
+                        "type": "array",
+                        "items": _open_object_schema("Local transcript resolution record."),
+                    }
+                },
+                "additionalProperties": False,
+            },
         },
         "additionalProperties": False,
     }
@@ -1801,6 +1991,29 @@ def register_tools(registry: ToolRegistry) -> None:
     )
     registry.register(
         ToolDefinition(
+            name="rate_variant_from_text",
+            description=(
+                "Parse natural-language or HGVS-like text into structured variant input, "
+                "then call the existing rate_variant workflow without generating evidence "
+                "in the parsing layer."
+            ),
+            input_schema=_rate_variant_from_text_input_schema(),
+            handler=rate_variant_from_text,
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="parse_variant_text",
+            description=(
+                "Parse natural-language or HGVS-like text into structured variant input "
+                "and review-only clinical-context candidates without running rate_variant."
+            ),
+            input_schema=_rate_variant_from_text_input_schema(),
+            handler=parse_variant_text,
+        )
+    )
+    registry.register(
+        ToolDefinition(
             name="rate_annotated_variants",
             description=(
                 "Parse real-world VEP, ANNOVAR, bcftools csq, or generic annotation "
@@ -1818,6 +2031,17 @@ def register_tools(registry: ToolRegistry) -> None:
             description="Normalize phase-1 SNV/small indel HGVS-like or VCF-like input into the standard Variant schema.",
             input_schema=_normalize_variant_input_schema(),
             handler=normalize_variant,
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="resolve_variant",
+            description=(
+                "Resolve descriptive transcript, protein, coordinate, exon, and NMD "
+                "context from offline fixture-backed data without generating ACMG evidence."
+            ),
+            input_schema=_resolve_variant_input_schema(),
+            handler=resolve_variant,
         )
     )
     registry.register(

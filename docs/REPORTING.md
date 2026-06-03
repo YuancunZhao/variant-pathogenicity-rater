@@ -13,6 +13,9 @@ same safety-oriented section model:
   requirement.
 - `Variant Summary`: normalized variant identity and submitted transcript/HGVS
   context.
+- `Variant Resolution Summary`: descriptive transcript, protein, coordinate,
+  exon, NMD, confidence, and limitation context. This is not ACMG evidence and
+  is not counted by the classification combiner.
 - `Final Classification`: the supplied machine proposal and combination rule.
 - `Why This Classification`: a short explanation of the supplied classifier
   output, without recomputation.
@@ -44,8 +47,9 @@ same safety-oriented section model:
 - `json`: stable top-level keys for downstream tools:
   `executive_summary`, `variant`, `final_classification`,
   `why_this_classification`, `applied_evidence`, `review_note_evidence`,
-  `context_consistency`, `transcript_selection`, `data_sources`, `limitations`,
-  `missing_data`, `safety_notes`, `review_flags`, and `human_review_required`.
+  `context_consistency`, `transcript_selection`, `transcript_validation`,
+  `variant_resolution`, `data_sources`, `limitations`, `missing_data`,
+  `safety_notes`, `review_flags`, and `human_review_required`.
 
 The legacy JSON keys `evidence`, `data_source_summary`, `cautions`,
 `clinvar_conflict_detected`, and `human_review_note` remain present for
@@ -85,6 +89,9 @@ terminology table, and fixed safety wording.
   evidence.
 - Transcript selection and context consistency are review context, not ACMG
   evidence.
+- Variant resolution is descriptive context only. It may show resolved HGVS p.,
+  coordinate, exon, or NMD facts, but it does not apply criteria or change the
+  classification.
 - A context conflict is review-required context and is not a classification
   change.
 - Every report states that qualified human review is required before clinical or

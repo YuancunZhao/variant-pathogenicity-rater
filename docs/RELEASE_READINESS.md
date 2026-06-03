@@ -2,13 +2,13 @@
 
 ## v0.3.0 Readiness
 
-Review date: 2026-06-02
+Review date: 2026-06-03
 Target release: v0.3.0
 Scope: internal release readiness review for the current `develop` branch,
 covering applied evidence generation, reviewed evidence, literature drafts,
-ClinGen ERepo, VCEP signal/override behavior, real provider validation,
-benchmark regression, Chinese reports, CLI, MCP, batch, annotated-batch, and
-report workflows.
+ClinGen ERepo, natural-language input, variant resolution, VCEP signal/override
+behavior, real provider validation, benchmark regression, Chinese reports, CLI,
+MCP, batch, annotated-batch, and report workflows.
 
 ### Summary
 
@@ -21,7 +21,7 @@ Release gate record:
 
 - Test command:
   `PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest`
-- Test result: `573 passed, 1 skipped`
+- Test result: `626 passed, 1 skipped`
 - Benchmark gate: 100 offline curated SNV/small-indel cases passed through
   `tests/test_benchmark_dataset.py`
 - Provider/network posture: offline default; no network used in release review
@@ -58,6 +58,10 @@ Resolved release-blocking metadata/documentation issues:
   `reviewed_applied` records are converted into counted evidence.
 - Literature suggested evidence to reviewed-draft workflow is present; drafts
   default to non-applied review status.
+- Natural-language input is present through parser-only and parse-and-rate
+  workflows; it does not generate evidence or change classification logic.
+- Variant Resolution is present as an offline descriptive transcript, protein,
+  coordinate, exon, and NMD context layer; it is not ACMG evidence.
 - ClinGen ERepo integration is present for review notes, VCEP signals,
   supporting summaries, provenance, and reviewed-evidence drafts.
 - VCEP signal/override framework is present for signal-only context, approved
@@ -88,7 +92,7 @@ Resolved release-blocking metadata/documentation issues:
 
 ### Test Gate
 
-- Full pytest: `573 passed, 1 skipped`.
+- Full pytest: `626 passed, 1 skipped`.
 - Benchmark: `112 passed`.
 - CLI/MCP smoke: covered by `tests/test_cli.py` and `tests/test_mcp_smoke.py`.
 - Reviewed evidence: covered by `tests/test_manual_reviewed_evidence.py` and
@@ -111,6 +115,9 @@ Reviewed and updated documentation:
 - `docs/APPLIED_EVIDENCE_STATUS.md`
 - `docs/BENCHMARK.md`
 - `docs/CHINESE_REPORT_TEMPLATE.md`
+- `docs/NATURAL_LANGUAGE_INPUT.md`
+- `docs/VARIANT_RESOLUTION_FRAMEWORK.md`
+- `docs/REAL_RESOLUTION_PROVIDER_VALIDATION.md`
 - `docs/RELEASE_READINESS.md`
 - `docs/V0_3_0_RELEASE_NOTES.md`
 

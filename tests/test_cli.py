@@ -50,6 +50,25 @@ def test_single_rate_json(capsys) -> None:
     assert payload["classification_result"]["human_review_required"] is True
 
 
+def test_resolve_json_smoke(capsys) -> None:
+    exit_code = main(
+        [
+            "resolve",
+            "--hgvs",
+            "NM_007294.4:c.68_69delAG",
+            "--gene",
+            "BRCA1",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["tool"] == "resolve_variant"
+    assert payload["variant_resolution"]["resolved_hgvs_p"]["hgvs_p"] == "NP_009225.1:p.Glu23ValfsTer17"
+    assert payload["variant_resolution"]["nmd_context"]["status"] == "NMD_expected"
+
+
 def test_single_rate_markdown_shows_pvs1_decision_path(capsys) -> None:
     exit_code = main(
         [
@@ -119,6 +138,74 @@ def test_single_rate_markdown_zh_alias_outputs_chinese_laboratory_report(capsys)
     assert "# 变异致病性机器辅助判读报告" in captured.out
     assert "## 报告摘要" in captured.out
     assert "不是最终临床结论" in captured.out
+
+
+def test_rate_text_json_smoke(capsys) -> None:
+    exit_code = main(
+        [
+            "rate-text",
+            "--text",
+            "BRCA1 NM_007294.4:c.68_69delAG, HBOC, AD",
+            "--output",
+            "json",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["status"] == "ok"
+    assert payload["tool"] == "rate_variant_from_text"
+    assert payload["parsed_input"]["gene"] == "BRCA1"
+    assert payload["parsed_input"]["disease"] == "Hereditary breast and ovarian cancer syndrome"
+    assert payload["rate_variant_result"]["status"] == "ok"
+
+
+def test_rate_text_markdown_zh_maps_report_options(capsys) -> None:
+    exit_code = main(
+        [
+            "rate-text",
+            "--text",
+            "BRCA1 NM_007294.4:c.68_69delAG, HBOC, AD",
+            "--output",
+            "markdown-zh",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "## Parsed Input Review" in captured.out
+    assert "## Parsed Clinical Context Review" in captured.out
+    assert "## 报告摘要" in captured.out
+    assert "report_language: zh" in captured.out or "不是最终临床结论" in captured.out
+
+
+def test_rate_text_confirmed_context_json_argument(capsys) -> None:
+    confirmed = json.dumps(
+        {
+            "disease_name": "Noonan syndrome",
+            "inheritance": "autosomal_dominant",
+            "hpo_terms": [{"label": "Short stature", "hpo_id": "HP:0004322"}],
+        }
+    )
+    exit_code = main(
+        [
+            "rate-text",
+            "--text",
+            "PTPN11 NM_002834.4:c.922A>G\nshort stature phenotype",
+            "--confirmed-context",
+            confirmed,
+            "--output",
+            "json",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["context_used_for_rating"] == "confirmed_context"
+    assert payload["parsed_input"]["disease"] == "Noonan syndrome"
+    assert payload["parsed_input"]["phenotype_terms"] == ["HP:0004322"]
 
 
 def test_single_rate_explicit_chinese_markdown_report_options(capsys) -> None:

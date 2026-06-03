@@ -15,11 +15,27 @@ Install the project in editable mode first:
 
 ```bash
 vpr rate
+vpr resolve
+vpr rate-text
 vpr batch
 vpr annotated-batch
 vpr literature-draft-reviewed
 vpr check-env
 ```
+
+## Variant Resolution
+
+`vpr resolve` runs offline fixture-backed variant resolution only. It does not
+generate ACMG evidence, does not run the combiner, and does not change safety
+rules.
+
+```bash
+vpr resolve --gene BRCA1 --hgvs "NM_007294.4:c.68_69delAG"
+```
+
+JSON output includes `normalized_variant`, `resolved_variant`, and
+`variant_resolution` with transcript, protein, coordinate, exon, NMD,
+limitations, review flags, and provenance.
 
 ## Single Variant
 
@@ -76,6 +92,45 @@ vpr rate --gene BRCA1 --transcript NM_007294.4 --hgvs-c NM_007294.4:c.68_69delAG
 VCEP signals are review context only. Overrides require an approved,
 non-conflicting profile and `--apply-vcep-overrides`; they do not modify the
 combiner.
+
+## Natural-Language Variant Text
+
+`rate-text` parses a short natural-language or HGVS-like string into structured
+variant input, then calls the same existing `rate_variant` workflow. The default
+parser is regex/rule-based only: it does not call an LLM, does not use the
+network, does not generate evidence, and does not modify the classification
+combiner.
+
+```bash
+vpr rate-text --text "BRCA1 NM_007294.4:c.68_69delAG, HBOC, AD"
+vpr rate-text --text "评估 BRCA1 185delAG，遗传性乳腺卵巢癌综合征，常染色体显性遗传"
+vpr rate-text --text "GRCh38 chr17:43124027 CA>C BRCA1" --output markdown-zh
+vpr rate-text --text "BRCA1 NM_007294.4:c.68_69delAG, breast and ovarian cancer phenotype" \
+  --ai-assisted-context
+```
+
+JSON output includes `parsed_input`, `missing_fields`, `ambiguity_warnings`,
+`normalization_warnings`, `alias_candidates`, context-candidate fields, and
+nested `rate_variant_result`. Markdown output prepends parsed-input and
+clinical-context review blocks so the user can verify the parser result before
+reading the report.
+
+`--ai-assisted-context` is opt-in and only returns candidate disease/HPO
+context when an AI context parser provider is available. Candidates remain
+review-only and are not used as applied context. To use a reviewed candidate,
+rerun with `--confirmed-context` pointing to a JSON file or inline JSON object:
+
+```bash
+vpr rate-text --text "BRCA1 NM_007294.4:c.68_69delAG, breast and ovarian cancer phenotype" \
+  --confirmed-context '{"disease_name":"hereditary breast and ovarian cancer syndrome","inheritance":"autosomal_dominant"}'
+```
+
+Short aliases such as `185delAG` are retained as `alias_candidates` unless an
+explicit dictionary entry exists. They are not silently normalized to HGVS.
+
+See [NATURAL_LANGUAGE_INPUT.md](NATURAL_LANGUAGE_INPUT.md).
+See [AI_ASSISTED_CONTEXT_PARSING.md](AI_ASSISTED_CONTEXT_PARSING.md) for the
+optional candidate-context workflow.
 
 ## Batch Variants
 

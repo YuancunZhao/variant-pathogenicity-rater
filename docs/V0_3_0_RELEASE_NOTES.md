@@ -1,7 +1,7 @@
 # v0.3.0 Release Notes
 
 Target release: v0.3.0
-Review date: 2026-06-02
+Review date: 2026-06-03
 Scope: internal release for controlled review of the current
 SNV/small-indel interpretation assistant on `develop`.
 
@@ -9,8 +9,9 @@ SNV/small-indel interpretation assistant on `develop`.
 
 v0.3.0 connects the controlled internal workflow across applied evidence
 generation, reviewed evidence, literature drafts, ClinGen ERepo review notes,
-VCEP profile signals, local provider validation, benchmark regression, reports,
-CLI, MCP, batch, annotated-batch, and Chinese laboratory-internal reporting.
+natural-language input, variant resolution, VCEP profile signals, local
+provider validation, benchmark regression, reports, CLI, MCP, batch,
+annotated-batch, and Chinese laboratory-internal reporting.
 
 This is not a clinical validation statement. All outputs remain machine
 proposals requiring qualified human review.
@@ -19,7 +20,7 @@ proposals requiring qualified human review.
 
 - Final command:
   `PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest`
-- Result: `573 passed, 1 skipped`
+- Result: `626 passed, 1 skipped`
 - Benchmark: `tests/test_benchmark_dataset.py` passed with 100 offline curated
   SNV/small-indel cases.
 - Network: no network used in release review.
@@ -33,6 +34,10 @@ proposals requiring qualified human review.
   records can enter classification.
 - Literature workflow: suggested evidence can become reviewed-evidence drafts;
   drafts default to non-applied review status.
+- Natural-language input: parser-only and parse-and-rate wrappers around the
+  existing workflow, without evidence generation or combiner changes.
+- Variant Resolution: offline descriptive transcript, protein, coordinate,
+  exon, and NMD context for supported fixture-backed HGVS c. inputs.
 - ClinGen ERepo: exact-match review notes, VCEP signal context, supporting
   summaries, provenance, and reviewed-evidence drafts.
 - VCEP framework: signal-only review context, approved limited overrides,

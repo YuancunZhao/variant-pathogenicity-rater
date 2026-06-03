@@ -5,8 +5,9 @@ Current version: v0.3.0 internal release.
 Codex Plugin plus MCP server framework for SNV/small indel ACMG variant interpretation tools.
 Variant Pathogenicity Rater is a semi-automated ACMG interpretation assistant,
 not a clinical sign-out system. The current v0.3.0 workflow supports
-an offline, mock-backed end-to-end `rate_variant` loop: normalization,
-annotation/context consistency, automatic applied evidence generation,
+an offline, mock-backed end-to-end `rate_variant` loop: natural-language input
+wrappers, normalization, variant resolution, annotation/context consistency,
+automatic applied evidence generation,
 candidate/suggested evidence, manual reviewed evidence, ACMG classification
 combining, and report generation.
 
@@ -16,9 +17,10 @@ records can also supply applied evidence such as PS3, BS3, PS2, PM6, PP1, PS4,
 PP4, and PM3. Literature and ClinVar suggestions do not apply evidence by
 themselves. v0.3.0 adds comparator-based PS1/PM5 generation, manual reviewed
 evidence intake, literature-to-reviewed draft workflow, ClinGen ERepo
-review-note integration, VCEP signal/override review context, real provider
-validation, a 100-case offline benchmark, and Chinese laboratory-internal
-reports around the existing safety boundaries.
+review-note integration, natural-language input, offline variant resolution,
+VCEP signal/override review context, real provider validation, a 100-case
+offline benchmark, and Chinese laboratory-internal reports around the existing
+safety boundaries.
 
 All conclusions are machine proposals and always require qualified human review. The default workflow does not use the network.
 
@@ -77,6 +79,8 @@ Implemented tools:
 
 - `health_check`
 - `rate_variant`
+- `parse_variant_text`
+- `rate_variant_from_text`
 - `rate_variant_batch`
 - `rate_annotated_variants`
 - `normalize_variant`
@@ -91,6 +95,17 @@ Implemented tools:
 - `generate_report`
 
 Evidence tools return structured evidence or review-note payloads and a mandatory human-review notice. Literature evidence is candidate-only and never auto-applies PS3, BS3, PS2, PM6, PP1, PS4, or PP4.
+
+`parse_variant_text`, `rate_variant_from_text`, and CLI `vpr rate-text` provide
+a natural-language/HGVS text wrapper around the existing `rate_variant`
+workflow. The default parser is regex/rule-based. It extracts explicit
+structured fields, surfaces missing fields and ambiguity warnings, keeps short
+aliases such as `185delAG` as review-only `alias_candidates`, and never
+generates evidence or changes classification logic. Optional AI-assisted
+disease/HPO parsing is opt-in, candidate-only, and requires confirmation before
+context is used for rating. See
+[docs/NATURAL_LANGUAGE_INPUT.md](docs/NATURAL_LANGUAGE_INPUT.md) and
+[docs/AI_ASSISTED_CONTEXT_PARSING.md](docs/AI_ASSISTED_CONTEXT_PARSING.md).
 
 `assess_literature_evidence` is an optional ACMG literature evidence agent. It is offline by default, produces `suggested_evidence` only, never writes to applied evidence, and never changes final classification. See [docs/ACMG_LITERATURE_AGENT.md](docs/ACMG_LITERATURE_AGENT.md).
 
