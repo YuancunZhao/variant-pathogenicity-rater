@@ -7,3 +7,19 @@ data/.DS_Store
 .DS_Store
 data/.DS_Store
 .cache/
+
+# Python
+
+__pycache__/
+
+*.py[cod]
+
+*.pyo
+
+# pytest
+
+.pytest_cache/
+
+# macOS
+
+.DS_Store
