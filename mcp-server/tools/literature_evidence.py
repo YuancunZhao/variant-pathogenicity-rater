@@ -14,8 +14,10 @@ if str(SRC_DIR) not in sys.path:
 
 from variant_pathogenicity_rater.literature_agent import (  # noqa: E402
     LiteratureAgentInput,
+    LiteratureSearchInput,
     assess_literature_evidence as assess_literature_evidence_service,
     create_reviewed_evidence_drafts as create_reviewed_evidence_drafts_service,
+    search_and_summarize_literature as search_and_summarize_literature_service,
 )
 
 
@@ -82,6 +84,54 @@ async def create_reviewed_evidence_draft(arguments: dict[str, Any]) -> dict[str,
     }
 
 
+async def search_and_summarize_literature(arguments: dict[str, Any]) -> dict[str, Any]:
+    try:
+        request = LiteratureSearchInput.model_validate(arguments)
+    except ValidationError as exc:
+        raise McpToolError(
+            "SCHEMA_VALIDATION_ERROR",
+            "Invalid payload for search_and_summarize_literature.",
+            details={"errors": exc.errors()},
+        ) from exc
+
+    try:
+        result = search_and_summarize_literature_service(request)
+    except Exception as exc:
+        return {
+            "status": "degraded",
+            "tool": "search_and_summarize_literature",
+            "stage": "general_literature_search_and_summary",
+            "literature_search_results": [],
+            "literature_summary": "Literature search failed safely.",
+            "criterion_summaries": [],
+            "suggested_evidence": [],
+            "evidence_items": [],
+            "review_questions": [
+                "Could the literature records be manually reviewed outside the tool?"
+            ],
+            "blocking_flags": [],
+            "duplicate_groups": [],
+            "limitations": [
+                f"Literature search failed safely: {exc.__class__.__name__}: {exc}",
+                "No literature evidence was applied or used for classification.",
+            ],
+            "reviewed_evidence_drafts": [],
+            "applied_evidence": [],
+            "final_classification_changed": False,
+            "human_review": {
+                "required": True,
+                "notice": "Literature search output is suggested evidence only.",
+            },
+        }
+    dumped = json.loads(result.model_dump_json())
+    return {
+        **dumped,
+        "tool": "search_and_summarize_literature",
+        "applied_evidence": [],
+        "final_classification_changed": False,
+    }
+
+
 def register_tools(registry: ToolRegistry) -> None:
     registry.register(
         ToolDefinition(
@@ -142,5 +192,47 @@ def register_tools(registry: ToolRegistry) -> None:
             },
             handler=create_reviewed_evidence_draft,
             metadata={"stage": "literature_suggested_to_reviewed_draft"},
+        )
+    )
+    registry.register(
+        ToolDefinition(
+            name="search_and_summarize_literature",
+            description=(
+                "Search, deduplicate, and summarize literature records into candidate-only "
+                "ACMG suggested evidence and reviewed draft templates. Offline by default; "
+                "never applies evidence or changes classification."
+            ),
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "gene": {"type": "string"},
+                    "variant": {"type": "string"},
+                    "transcript": {"type": ["string", "null"]},
+                    "disease": {"type": ["string", "null"]},
+                    "inheritance": {"type": ["string", "null"]},
+                    "phenotype": {
+                        "oneOf": [
+                            {"type": "string"},
+                            {"type": "array", "items": {"type": "string"}},
+                            {"type": "null"},
+                        ]
+                    },
+                    "criteria": {"type": "array", "items": {"type": "string"}},
+                    "literature_records": {
+                        "type": "array",
+                        "items": {"type": "object", "additionalProperties": True},
+                    },
+                    "pmids": {"type": "array", "items": {"type": "string"}},
+                    "search_query": {"type": ["string", "null"]},
+                    "variant_aliases": {"type": "array", "items": {"type": "string"}},
+                    "use_online_pubmed": {"type": "boolean"},
+                    "use_online_litvar": {"type": "boolean"},
+                    "use_online_search": {"type": "boolean"},
+                },
+                "required": ["gene", "variant"],
+                "additionalProperties": False,
+            },
+            handler=search_and_summarize_literature,
+            metadata={"stage": "general_literature_search_and_summary"},
         )
     )

@@ -27,6 +27,7 @@ Phase 1 tools:
 - `evaluate_pvs1`
 - `evaluate_computational_evidence`
 - `search_literature_evidence`
+- `search_and_summarize_literature`
 - `assess_literature_evidence`
 - `create_reviewed_evidence_draft`
 - `generate_report`
@@ -284,6 +285,34 @@ Unconfirmed AI candidates must be shown to the user and must not be passed as
 top-level applied disease context. They cannot raise confidence for PVS1,
 PM2/population, PS1, PM5, or other context-sensitive evidence. AI-derived
 candidate fields are returned with `requires_user_confirmation: true`.
+
+## search_and_summarize_literature
+
+Input: gene and variant are required. Optional fields include transcript,
+disease, inheritance, phenotype, criteria, `literature_records`, PMIDs, a
+caller search query, variant aliases, and explicit online opt-in flags for
+PubMed and LitVar.
+
+The tool builds a deterministic search plan, normalizes caller-supplied records,
+collapses duplicate publications or families, summarizes criterion-specific
+candidate support, emits `suggested_evidence`, and returns
+`reviewed_evidence_drafts`.
+
+All literature-derived evidence is candidate-only. Suggested strengths are
+reviewer guidance only. Returned evidence-like items use `strength: none`,
+`candidate_only: true`, `applied: false`, and `requires_review: true`.
+
+Online PubMed and LitVar are disabled by default. If online flags are supplied
+and retrieval is unavailable or fails, the tool degrades to limitations and does
+not create applied evidence.
+
+Output includes `literature_search_results`, `literature_summary`,
+`criterion_summaries`, `suggested_evidence`, `review_questions`,
+`blocking_flags`, `review_flags`, `duplicate_groups`, `limitations`,
+`reviewed_evidence_drafts`, `query_plan`, `citations`, and provenance.
+
+Safety boundary: this tool never calls the combiner and returns
+`final_classification_changed: false`.
 
 ## create_reviewed_evidence_draft
 

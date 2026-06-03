@@ -45,6 +45,7 @@ def test_mcp_registry_lists_ci_smoke_tools() -> None:
         "evaluate_computational_evidence",
         "evaluate_pvs1",
         "search_literature_evidence",
+        "search_and_summarize_literature",
         "generate_report",
         "parse_variant_text",
         "rate_variant_from_text",

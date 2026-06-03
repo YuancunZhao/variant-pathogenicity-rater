@@ -132,6 +132,60 @@ def render_literature_evidence_section(
     return "\n".join(lines)
 
 
+def render_literature_search_summary_section(
+    literature_result: dict[str, Any],
+) -> str:
+    """Render general literature-search output without recalculating criteria."""
+
+    lines = [
+        "## Literature Search and Evidence Summary",
+        "- Not automatically applied to ACMG classification.",
+        "- Suggested strengths are reviewer guidance only; literature evidence remains separate from Applied ACMG Evidence.",
+    ]
+    summary = literature_result.get("literature_summary")
+    if summary:
+        lines.append(f"- Summary: {summary}")
+    records = literature_result.get("literature_search_results") or []
+    lines.append(f"- Deduplicated literature records: {len(records)}")
+    criterion_summaries = literature_result.get("criterion_summaries") or []
+    if criterion_summaries:
+        lines.extend(["", "### Criterion Summaries"])
+    for item in criterion_summaries:
+        code = item.get("criterion") or item.get("suggested_code") or "ACMG"
+        strength = item.get("suggested_strength") or "none"
+        lines.append(
+            f"- {code} / suggested_strength: {strength}; "
+            f"records: {len(item.get('supporting_records') or [])}; "
+            f"confidence: {float(item.get('confidence') or 0):.2f}"
+        )
+        if item.get("summary"):
+            lines.append(f"  - {item['summary']}")
+        for limitation in item.get("limitations") or []:
+            lines.append(f"  - Limitation: {limitation}")
+    duplicate_groups = literature_result.get("duplicate_groups") or []
+    if duplicate_groups:
+        lines.extend(["", "### Duplicate Groups"])
+        for group in duplicate_groups:
+            lines.append(
+                f"- {group.get('group_id')}: kept {group.get('kept_record_id')}; "
+                f"duplicates: {', '.join(group.get('duplicate_record_ids') or [])}"
+            )
+    blocking_flags = literature_result.get("blocking_flags") or []
+    if blocking_flags:
+        lines.extend(["", "### Blocking Flags"])
+        lines.extend(f"- {flag.get('code')}: {flag.get('message')}" for flag in blocking_flags)
+    if literature_result.get("review_questions"):
+        lines.extend(["", "### Human Review Checklist"])
+        lines.extend(f"- {question}" for question in literature_result["review_questions"])
+    if literature_result.get("citations"):
+        lines.extend(["", "### Citations"])
+        lines.extend(f"- {citation}" for citation in literature_result["citations"])
+    if literature_result.get("limitations"):
+        lines.extend(["", "### Limitations"])
+        lines.extend(f"- {limitation}" for limitation in literature_result["limitations"])
+    return "\n".join(lines)
+
+
 def _summary(result: ClassificationResult) -> VariantReportSummary:
     variant = result.variant
     applied_entries = [

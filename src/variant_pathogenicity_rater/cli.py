@@ -22,11 +22,13 @@ from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.variant_resolution import resolve_variant
 from variant_pathogenicity_rater.literature_agent import create_reviewed_evidence_drafts
+from variant_pathogenicity_rater.literature_agent import search_and_summarize_literature
 from variant_pathogenicity_rater.natural_language_input import (
     rate_variant_from_text,
     render_clinical_context_review,
     render_parsed_input_review,
 )
+from variant_pathogenicity_rater.reporting import render_literature_search_summary_section
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
 
 
@@ -188,6 +190,42 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output reviewed draft JSON path.",
     )
     literature_draft.set_defaults(handler=_cmd_literature_draft_reviewed)
+
+    literature_search = subparsers.add_parser(
+        "literature-search",
+        help="Search and summarize literature records into candidate-only ACMG review suggestions.",
+    )
+    literature_search.add_argument("--gene", required=True)
+    literature_search.add_argument("--variant", required=True)
+    literature_search.add_argument("--transcript")
+    literature_search.add_argument("--disease")
+    literature_search.add_argument("--inheritance")
+    literature_search.add_argument("--phenotype", action="append")
+    literature_search.add_argument(
+        "--criteria",
+        action="append",
+        help="Criterion or criterion group to summarize. May be repeated.",
+    )
+    literature_search.add_argument(
+        "--literature-records",
+        help="JSON file path or JSON text containing an array of literature records.",
+    )
+    literature_search.add_argument("--pmid", dest="pmids", action="append")
+    literature_search.add_argument("--search-query")
+    literature_search.add_argument("--variant-alias", dest="variant_aliases", action="append")
+    literature_search.add_argument(
+        "--online-pubmed",
+        action="store_true",
+        help="Opt in to PubMed online search. Local implementation records the opt-in and degrades safely.",
+    )
+    literature_search.add_argument(
+        "--online-litvar",
+        action="store_true",
+        help="Opt in to LitVar online search. Local implementation records the opt-in and degrades safely.",
+    )
+    literature_search.add_argument("--output", help="Optional output file path.")
+    literature_search.add_argument("--output-format", choices=["json", "markdown"], default="json")
+    literature_search.set_defaults(handler=_cmd_literature_search)
 
     check_env = subparsers.add_parser("check-env", help="Print local environment diagnostics.")
     check_env.set_defaults(handler=_cmd_check_env)
@@ -449,6 +487,42 @@ def _cmd_literature_draft_reviewed(args: argparse.Namespace) -> int:
     _write_result(result, args.output, "json")
     if result.get("status") != "ok":
         return 1
+    return 0
+
+
+def _cmd_literature_search(args: argparse.Namespace) -> int:
+    records = []
+    if args.literature_records:
+        records_payload = _load_json_argument(args.literature_records, label="literature records")
+        if not isinstance(records_payload, list):
+            raise CliError("literature records must be a JSON array.", exit_code=2)
+        records = records_payload
+    result = search_and_summarize_literature(
+        {
+            "gene": args.gene,
+            "variant": args.variant,
+            "transcript": args.transcript,
+            "disease": args.disease,
+            "inheritance": args.inheritance,
+            "phenotype": args.phenotype,
+            "criteria": args.criteria or [],
+            "literature_records": records,
+            "pmids": args.pmids or [],
+            "search_query": args.search_query,
+            "variant_aliases": args.variant_aliases or [],
+            "use_online_pubmed": bool(args.online_pubmed),
+            "use_online_litvar": bool(args.online_litvar),
+        }
+    )
+    dumped = json.loads(result.model_dump_json())
+    if args.output_format == "markdown":
+        text = render_literature_search_summary_section(dumped)
+        if args.output:
+            Path(args.output).write_text(text + "\n", encoding="utf-8")
+        else:
+            print(text)
+        return 0
+    _write_result(dumped, args.output, "json")
     return 0
 
 

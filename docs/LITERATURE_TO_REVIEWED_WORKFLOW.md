@@ -22,9 +22,12 @@ record and supplies it through the manual reviewed evidence workflow.
 
 ## Flow
 
-1. Life Science Research gathers literature context.
-2. `assess_literature_evidence` evaluates caller-supplied literature records
-   and emits `suggested_evidence` only.
+1. Life Science Research, Codex, local fixtures, or a curator gathers
+   literature context.
+2. `search_and_summarize_literature` can build search templates, normalize
+   caller-supplied records, collapse duplicates, summarize criterion-specific
+   claims, and emit `suggested_evidence` only. `assess_literature_evidence`
+   remains the compatibility path for already structured literature records.
 3. `create_reviewed_evidence_draft` or `vpr literature-draft-reviewed` converts
    the assessment JSON into `reviewed_evidence` draft templates.
 4. A curator edits each draft, answers the `review_questions`, confirms the
@@ -39,6 +42,8 @@ record and supplies it through the manual reviewed evidence workflow.
 - Literature suggestions are never automatically applied.
 - Drafts default to `evidence_status: needs_more_info`,
   `curator_decision: pending`, and `requires_manual_review: true`.
+- General literature search output is also non-applied. Its
+  `suggested_strength` values are reviewer guidance only.
 - `source_candidate_evidence_id`, PMID, DOI, citation, extracted claim,
   review questions, and provenance are retained for traceability.
 - Drafts include blank curator fields and are not ready for application.
@@ -55,12 +60,21 @@ record and supplies it through the manual reviewed evidence workflow.
 ## CLI
 
 ```bash
+vpr literature-search \
+  --gene GENE1 \
+  --variant NM_000001.1:c.76A\>G \
+  --disease "GENE1 disorder" \
+  --literature-records records.json
+
 vpr literature-draft-reviewed \
   --literature-assessment-json examples/literature_agent_output.json \
   --output reviewed_draft.json
 ```
 
 ## MCP
+
+Use `search_and_summarize_literature` for general search, deduplication,
+criterion summaries, blocking flags, and reviewed draft output.
 
 Use `create_reviewed_evidence_draft` with the full JSON output from
 `assess_literature_evidence`:

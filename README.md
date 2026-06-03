@@ -89,12 +89,20 @@ Implemented tools:
 - `evaluate_population_rules`
 - `evaluate_computational_evidence`
 - `search_literature_evidence`
+- `search_and_summarize_literature`
 - `assess_literature_evidence`
 - `create_reviewed_evidence_draft`
 - `evaluate_pvs1`
 - `generate_report`
 
 Evidence tools return structured evidence or review-note payloads and a mandatory human-review notice. Literature evidence is candidate-only and never auto-applies PS3, BS3, PS2, PM6, PP1, PS4, or PP4.
+
+`search_and_summarize_literature` provides the broader literature workflow for
+caller-supplied records from local fixtures, Codex, or Life Science Research.
+It preserves PMID/DOI/title/abstract/source/provenance, collapses duplicates,
+summarizes PS3/BS3, PS2/PM6, PP1, PS4, PM3, PP4, PS1/PM5, PM1, and PVS1
+mechanism support, and returns candidate-only `suggested_evidence` plus
+`reviewed_evidence_drafts`.
 
 `parse_variant_text`, `rate_variant_from_text`, and CLI `vpr rate-text` provide
 a natural-language/HGVS text wrapper around the existing `rate_variant`
@@ -106,6 +114,14 @@ disease/HPO parsing is opt-in, candidate-only, and requires confirmation before
 context is used for rating. See
 [docs/NATURAL_LANGUAGE_INPUT.md](docs/NATURAL_LANGUAGE_INPUT.md) and
 [docs/AI_ASSISTED_CONTEXT_PARSING.md](docs/AI_ASSISTED_CONTEXT_PARSING.md).
+
+`search_and_summarize_literature` is the general literature search and summary
+engine. It accepts caller-supplied records from local fixtures, Codex, or Life
+Science Research workflows; builds query templates; collapses duplicates;
+summarizes criterion-specific candidate support; and returns
+`suggested_evidence` plus non-applied reviewed draft templates. It is offline
+by default and never changes final classification. See
+[docs/GENERAL_LITERATURE_ENGINE.md](docs/GENERAL_LITERATURE_ENGINE.md).
 
 `assess_literature_evidence` is an optional ACMG literature evidence agent. It is offline by default, produces `suggested_evidence` only, never writes to applied evidence, and never changes final classification. See [docs/ACMG_LITERATURE_AGENT.md](docs/ACMG_LITERATURE_AGENT.md).
 
@@ -372,6 +388,13 @@ Example files:
 ## Mock Literature Evidence
 
 The first literature phase is offline-only. `search_literature_evidence` uses `MockLiteratureProvider` and returns citation-preserving literature records, extracted claims, candidate evidence items, review flags, and limitations.
+
+The general literature workflow is available through
+`search_and_summarize_literature` and CLI `vpr literature-search`. It accepts
+caller-supplied literature records, preserves citation/provenance fields,
+deduplicates publications or families, summarizes all literature-dependent ACMG
+criteria for manual review, and emits only candidate suggestions and
+non-applied draft templates.
 
 Supported candidate evidence hints:
 

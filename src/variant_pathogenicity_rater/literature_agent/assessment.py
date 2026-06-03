@@ -288,7 +288,7 @@ def _suggested_item(item: LiteratureEvidenceAssessment) -> dict[str, Any]:
         "source_candidate_evidence_id": _suggested_evidence_id(item),
         "code": item.candidate_code,
         "strength": item.suggested_strength,
-        "candidate_only": item.is_candidate_only,
+        "candidate_only": True,
         "applied": False,
         "requires_manual_review": True,
         "reason_not_applied": item.reason_not_applied,

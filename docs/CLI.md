@@ -19,6 +19,7 @@ vpr resolve
 vpr rate-text
 vpr batch
 vpr annotated-batch
+vpr literature-search
 vpr literature-draft-reviewed
 vpr check-env
 ```
@@ -189,6 +190,24 @@ successful per-record result preserves `normalization_identity`,
 generate ACMG evidence.
 
 ## Literature Draft Reviewed
+
+`literature-search` normalizes caller-supplied literature records, builds
+offline query templates, collapses duplicate studies/families, summarizes
+criterion-specific candidate support, and emits `suggested_evidence` plus
+`reviewed_evidence_drafts`. It does not apply evidence and does not call the
+classification combiner.
+
+```bash
+vpr literature-search \
+  --gene GENE1 \
+  --variant NM_000001.1:c.76A\>G \
+  --disease "GENE1 disorder" \
+  --literature-records records.json
+```
+
+Online PubMed and LitVar are disabled by default. `--online-pubmed` and
+`--online-litvar` are explicit opt-ins; failures or unavailable online
+retrieval are returned as limitations.
 
 `literature-draft-reviewed` converts `assess_literature_evidence` JSON output
 into manual reviewed-evidence draft templates. The command does not apply
