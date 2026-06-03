@@ -31,6 +31,22 @@ records remain auditable facts or review notes. Providers do not create applied
 evidence and do not modify the ACMG combiner. See
 `docs/REAL_PROVIDER_PIPELINE.md` and `docs/ONLINE_PROVIDER_SAFETY.md`.
 
+Optional live provider smoke validation is available for reachability,
+payload-compatibility, cache/provenance, and failure-to-limitation checks. It
+is skipped by default and requires an explicit environment gate:
+
+```bash
+VPR_RUN_LIVE_PROVIDER_SMOKE=1 \
+VPR_LIVE_PROVIDER_CACHE_DIR=/tmp/vpr_live_provider_cache \
+VPR_LIVE_PROVIDER_TIMEOUT=10 \
+PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache \
+.venv/bin/python -m pytest tests/test_live_provider_smoke.py -m "online_clinvar_smoke or online_gnomad_smoke or online_vep_smoke or online_literature_smoke"
+```
+
+LitVar live smoke is optional/experimental and additionally requires
+`VPR_RUN_LIVE_LITVAR_SMOKE=1`. See
+`docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
+
 ## Directory Structure
 
 ```text

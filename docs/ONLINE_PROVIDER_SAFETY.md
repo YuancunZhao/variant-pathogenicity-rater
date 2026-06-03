@@ -4,15 +4,24 @@ Online provider support is an opt-in retrieval layer. It does not change the
 ACMG combiner, does not relax evidence safety rules, and does not authorize
 autonomous clinical interpretation.
 
+The 74 real provider pipeline is implemented and has passed offline integration
+review with `655 passed, 2 skipped`. Live provider smoke validation is
+implemented, env-gated by `VPR_RUN_LIVE_PROVIDER_SMOKE=1`, and skipped by
+default. See `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
+
 ## Default-Off Rules
 
 - Online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar are disabled by
   default.
 - Default pytest must not require network access.
-- Optional live smoke tests require provider-specific environment gates and
-  are skipped by default.
+- Optional live smoke tests require `VPR_RUN_LIVE_PROVIDER_SMOKE=1` and are
+  skipped by default. LitVar additionally requires
+  `VPR_RUN_LIVE_LITVAR_SMOKE=1` because that endpoint is treated as
+  optional/experimental.
 - CLI and MCP online flags set `online_enabled=true` only for the requested
   provider.
+- Provider cache directories are explicit configuration, not a signal to enable
+  online retrieval by themselves.
 
 ## Evidence Boundaries
 
@@ -21,6 +30,9 @@ autonomous clinical interpretation.
 - Literature records are candidate-only and reviewed-draft inputs only.
 - gnomAD and VEP facts may only flow through existing population and
   computational evaluators.
+- A no-record gnomAD result is limitation-only and must not trigger PM2.
+- VEP missing predictors become limitations and must not directly generate
+  PP3/BP4.
 - Candidate evidence must not silently enter the combiner.
 
 ## Failure Handling

@@ -44,10 +44,10 @@ addopts = [
     "--strict-markers",
 ]
 markers = [
-    "online_clinvar_smoke: opt-in live ClinVar smoke tests; skipped unless explicit ClinVar online env gates are set",
-    "online_gnomad_smoke: opt-in live gnomAD smoke tests; skipped unless explicit gnomAD online env gates are set",
-    "online_vep_smoke: opt-in live Ensembl VEP smoke tests; skipped unless explicit VEP online env gates are set",
-    "online_literature_smoke: opt-in live PubMed/LitVar smoke tests; skipped unless explicit literature online env gates are set",
+    "online_clinvar_smoke: opt-in live ClinVar smoke tests; skipped unless VPR_RUN_LIVE_PROVIDER_SMOKE=1 is set",
+    "online_gnomad_smoke: opt-in live gnomAD smoke tests; skipped unless VPR_RUN_LIVE_PROVIDER_SMOKE=1 is set",
+    "online_vep_smoke: opt-in live Ensembl VEP smoke tests; skipped unless VPR_RUN_LIVE_PROVIDER_SMOKE=1 is set",
+    "online_literature_smoke: opt-in live PubMed/LitVar smoke tests; skipped unless VPR_RUN_LIVE_PROVIDER_SMOKE=1 is set",
 ]
 
 [tool.coverage.run]

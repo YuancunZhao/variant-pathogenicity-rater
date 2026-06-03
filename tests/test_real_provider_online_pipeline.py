@@ -482,7 +482,11 @@ def test_cli_online_pubmed_reports_literature_data_source_mode(monkeypatch, caps
 
 @pytest.mark.online_gnomad_smoke
 def test_optional_live_gnomad_smoke_is_env_gated(tmp_path: Path) -> None:
-    if os.environ.get("VPR_GNOMAD_MODE") != "online" or os.environ.get("VPR_GNOMAD_ONLINE_ENABLED") != "true":
+    if (
+        os.environ.get("VPR_RUN_LIVE_PROVIDER_SMOKE") != "1"
+        or os.environ.get("VPR_GNOMAD_MODE") != "online"
+        or os.environ.get("VPR_GNOMAD_ONLINE_ENABLED") != "true"
+    ):
         pytest.skip("gnomAD online smoke is opt-in and requires explicit env gates.")
     provider = GnomADOnlineProvider(_online_config(tmp_path, "population"))
     assert provider.query(_variant()).source is not None

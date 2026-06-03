@@ -599,6 +599,7 @@ def test_online_provider_malformed_response_is_limitation_with_mocked_http(tmp_p
 @pytest.mark.online_clinvar_smoke
 def test_optional_live_clinvar_online_smoke_requires_explicit_env_gates(tmp_path: Path) -> None:
     required = {
+        "VPR_RUN_LIVE_PROVIDER_SMOKE": "1",
         "VPR_CLINVAR_ONLINE_SMOKE": "true",
         "VPR_CLINVAR_MODE": "online",
         "VPR_CLINVAR_ONLINE_ENABLED": "true",

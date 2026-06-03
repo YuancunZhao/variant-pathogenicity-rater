@@ -7,6 +7,11 @@ records into the existing Variant Pathogenicity Rater data-source layer.
 Online providers are disabled by default. Default test and CLI behavior remains
 offline/mock/local and does not require network access.
 
+Status: implemented and integration-reviewed. The latest offline integration
+review completed with `655 passed, 2 skipped`; optional live smoke validation is
+implemented in `tests/test_live_provider_smoke.py`, remains env-gated, and is
+skipped by default. See `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
+
 ## Architecture
 
 Online providers are fact providers, not ACMG classifiers:
@@ -90,3 +95,25 @@ Provider failures, timeouts, malformed responses, empty results, low-quality
 population data, build mismatch, ancestry mismatch, stale source metadata, and
 unsupported predictor fields degrade to limitations instead of aborting the
 main workflow.
+
+## Integration Review Boundary
+
+The completed pipeline preserves these reviewed safety outcomes:
+
+- default `rate`, `rate-text`, batch, annotated-batch, and MCP workflows do not
+  send HTTP requests;
+- live provider smoke tests require `VPR_RUN_LIVE_PROVIDER_SMOKE=1` and remain
+  outside default pytest/CI;
+- provider online modes require explicit CLI flags or MCP options;
+- cache hits avoid repeated provider requests and mark `cache_hit=true` in
+  provenance where available;
+- ClinVar online remains review-note/comparator context and never triggers
+  PP5/BP6;
+- PubMed/LitVar online surfaces feed literature suggestions and reviewed
+  drafts only, never applied evidence;
+- gnomAD online facts reach classification only through the existing
+  population evaluator;
+- Ensembl VEP facts reach classification only through the existing
+  computational evaluator;
+- a no-record gnomAD result is a limitation and does not trigger PM2;
+- candidate/review-note evidence does not silently enter the combiner.

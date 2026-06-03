@@ -10,17 +10,11 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 The recommended next task is `63_selected_real_world_case_validation`.
 
-It is the best next step because benchmark Phase C, Chinese report output, the
-offline Variant Resolution Framework, real resolution provider validation, and
-the General Literature Search and Summary Engine are implemented and have
-passed integration review. The current interpretation loop now preserves
-normalization, resolution, evidence, literature search/summarization,
-classification, and reporting boundaries, so the highest-value next work is
-selected real-world case validation using local fixtures/snapshots and explicit
-provenance.
-
-The next constraint is real-world review confidence rather than adding another
-automatic evidence rule. Selected cases should exercise transcript resolution,
+It is the best next step because the 74 real provider pipeline is implemented
+and the 75 live-provider smoke validation layer is now available behind
+explicit environment gates. Default workflows remain no-network, and online
+ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar surfaces are opt-in only.
+Selected real-world case validation should now exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
 summary/draft behavior, duplicate literature/case handling, and report wording
 without changing evidence logic or the combiner.
@@ -29,11 +23,13 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `75_live_provider_smoke_validation` | Done | Added explicitly env-gated live smoke validation for completed online providers, checking reachability, cache/provenance, parser resilience, failure-to-limitation behavior, CLI smoke, and MCP online-option schema compatibility without default network dependency. | High | Smoke docs, optional smoke fixtures, provider cache/provenance review | Yes |
 | `63_selected_real_world_case_validation` | P0 | Validate selected real-world SNV/small-indel cases with completed provider boundaries, provenance review, and no direct provider classification. | High | Case fixtures, validation docs, report examples | Yes |
-| `74_real_provider_pipeline` | Done | Added opt-in online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar provider adapters with shared HTTP/cache/provenance handling and mocked offline validation. | High | Online providers, CLI/MCP, provenance/cache docs, tests | Yes |
+| `74_real_provider_pipeline` | Done | Added opt-in online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar provider adapters with shared HTTP/cache/provenance handling, CLI/MCP online options, default-off safety, and mocked offline validation. Integration review passed with `655 passed, 2 skipped`. | High | Online providers, CLI/MCP, provenance/cache docs, tests | Yes |
 | `72_online_pubmed_litvar_adapter_pilot` | Done | Implemented opt-in PubMed/LitVar adapters for the completed literature engine while keeping offline/local fixtures as default validation. | High | Literature providers, provenance/cache docs, optional smoke tests | Yes |
 | `61_selected_real_vcep_profile_pilot` | P1 | Pilot one selected real VCEP profile only after toy profile, real provider validation, and benchmark Phase C pass. | High | Profile config, provenance docs, reports, benchmark cases | Yes |
-| `64_optional_online_smoke_gates` | P2 | Add explicitly gated online smoke checks for provider reachability, cache/provenance, parser resilience, and failure-to-limitation behavior. | Medium | Provider smoke tests, docs, optional CI docs | Yes |
+| `76_provider_cache_reproducibility_hardening` | P1 | Harden provider cache reproducibility expectations after live smoke review: cache key review, raw-hash audit, source-version freshness checks, and replay documentation. | Medium | Provider cache docs, provenance audit docs, optional fixtures | Yes |
+| `64_optional_online_smoke_gates` | Superseded by `75_live_provider_smoke_validation` | Standardize explicitly gated online smoke checks for provider reachability, cache/provenance, parser resilience, and failure-to-limitation behavior. | Medium | Provider smoke tests, docs, optional CI docs | Yes |
 | `73_cnv_sv_framework_planning` | P2 | Plan future CNV/SV support as a design-only framework with separate variant models, validation, and safety boundaries. | High | Design docs, schema sketches, validation plan | Yes |
 | `71_general_literature_search_and_summary_engine` | Done | Implemented and integration-reviewed general literature query planning, local/offline records, duplicate collapse, criterion summaries, blocking/review flags, CLI/MCP, report section, and reviewed drafts. | High | Literature agent, CLI/MCP, reports, docs, tests | Yes |
 | `69_real_resolution_provider_validation` | Done | Validated offline real-resolution provider snapshots for HGVS c. to transcript, protein consequence, coordinate, exon, and NMD context, with mismatch flags and no evidence generation. | High | Resolution fixtures, safety flags, validation docs, tests | Yes |
@@ -62,15 +58,18 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after benchmark Phase C:
+Current known gaps after 75 live provider smoke validation:
 
+- Live provider smoke validation is implemented and remains outside default
+  pytest/CI; current live endpoint results still depend on explicit local
+  execution under `VPR_RUN_LIVE_PROVIDER_SMOKE=1`.
 - Real-world case validation has not yet exercised the full completed
   literature-engine plus provider stack on selected cases.
 - PubMed/LitVar online adapters are implemented but remain opt-in and
   candidate-only.
-- Real online provider smoke gates are optional, env-gated, and not part of
-  default CI.
 - A selected real VCEP profile pilot has not been implemented.
+- Provider cache/reproducibility hardening remains a follow-up after live
+  smoke validation.
 - Larger real-world hospital annotation validation has not been completed.
 - CNV/SV interpretation is not supported; only framework planning is currently
   appropriate.
