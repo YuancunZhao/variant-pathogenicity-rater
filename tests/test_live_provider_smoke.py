@@ -300,6 +300,7 @@ def test_mocked_gnomad_cache_no_record_and_failure_are_limitations(tmp_path: Pat
     ).query(_alpl_variant())
     assert failed.limitations
     assert any("query failed" in item for item in failed.limitations)
+    _assert_provenance(failed.source.provenance, expected_source="population", expected_cache_hit=False)
 
 
 def test_mocked_vep_cache_missing_predictors_and_failure_are_limitations(tmp_path: Path) -> None:
@@ -345,11 +346,22 @@ def test_mocked_vep_cache_missing_predictors_and_failure_are_limitations(tmp_pat
             parser_version="vep-live-smoke-parser",
             source_version="Ensembl REST VEP live",
         ),
-        http_client=CountingVEPClient(ProviderHTTPError("VEP timeout")),
+        http_client=CountingVEPClient(
+            ProviderHTTPError(
+                "Provider HTTP error 400",
+                url="https://rest.ensembl.org/vep/homo_sapiens/region/1:21563117-21563117:1/A/C",
+                status=400,
+            )
+        ),
     ).query(_alpl_variant())
     assert failed
     assert failed[0].candidate_only is True
     assert any("query failed" in item for item in failed[0].limitations)
+    _assert_provenance(
+        failed[0].source.provenance,
+        expected_source="computational",
+        expected_cache_hit=False,
+    )
 
 
 def test_mocked_pubmed_litvar_cache_and_failure_are_candidate_only(tmp_path: Path) -> None:

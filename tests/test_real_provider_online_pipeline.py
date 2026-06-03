@@ -307,13 +307,16 @@ def test_vep_mocked_rest_maps_predictors_and_transcript_context(tmp_path: Path) 
 def test_vep_timeout_failure_becomes_limitation(tmp_path: Path) -> None:
     provider = EnsemblVEPOnlineProvider(
         _online_config(tmp_path, "computational"),
-        http_client=MockVEPClient(ProviderHTTPError("timeout", url="https://rest.ensembl.org")),
+        http_client=MockVEPClient(
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", status=400)
+        ),
     )
     predictions = provider.query(_variant())
 
     assert predictions
     assert predictions[0].candidate_only is True
     assert any("query failed" in item for item in predictions[0].limitations)
+    assert predictions[0].source.provenance.cache_hit is False
 
 
 def test_pubmed_litvar_mocked_eutils_maps_literature_records(tmp_path: Path) -> None:
