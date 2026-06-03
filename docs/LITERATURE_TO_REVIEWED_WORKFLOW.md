@@ -4,6 +4,12 @@ This workflow converts ACMG Literature Evidence Agent suggestions into a
 manual curation draft. It does not apply evidence and does not change the
 classification combiner.
 
+The General Literature Search and Summary Engine is now the broader front end
+for this workflow. It has passed integration review and can produce
+criterion-specific literature summaries, candidate suggestions, review
+questions, blocking/review flags, duplicate groups, and reviewed-evidence
+drafts while preserving the same non-applied boundary.
+
 It is part of the current semi-automated interpretation loop:
 
 ```text
@@ -44,6 +50,13 @@ record and supplies it through the manual reviewed evidence workflow.
   `curator_decision: pending`, and `requires_manual_review: true`.
 - General literature search output is also non-applied. Its
   `suggested_strength` values are reviewer guidance only.
+- `search_and_summarize_literature` can summarize PS3/BS3, PS2/PM6, PP1, PS4,
+  PM3, PP4, PS1/PM5, PM1, and PVS1 mechanism-support literature, but every
+  output remains candidate/review material.
+- Duplicate publications, families, and cohorts are collapsed before summaries.
+- Variant and disease mismatches become blocking flags.
+- Abstract-only records become limitations and low-confidence extraction
+  becomes a review flag.
 - `source_candidate_evidence_id`, PMID, DOI, citation, extracted claim,
   review questions, and provenance are retained for traceability.
 - Drafts include blank curator fields and are not ready for application.

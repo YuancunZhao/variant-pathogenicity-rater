@@ -214,6 +214,31 @@ remain normal workflow inputs, missing fields and ambiguities remain visible for
 review, optional AI-assisted context is opt-in and candidate-only, and the ACMG
 classification combiner remains unchanged.
 
+### Phase 14: General Literature Search and Summary Engine
+
+The General Literature Search and Summary Engine is implemented and has passed
+integration review. It adds `search_and_summarize_literature` as the general
+candidate-only literature workflow for query planning, local/offline
+caller-supplied literature records, duplicate publication/family/cohort
+collapse, criterion-specific summaries, and reviewed-evidence draft output.
+
+The engine summarizes review-only candidate support for `PS3`/`BS3`
+functional assays, `PS2`/`PM6` de novo reports, `PP1` segregation, `PS4`
+case-control/enrichment evidence, `PM3` trans observations, `PP4` phenotype
+specificity, `PS1`/`PM5` same amino acid or same-residue support, `PM1`
+hotspot/domain support, and `PVS1` LoF/NMD/disease-mechanism support.
+
+This phase did not add automatic applied literature evidence. `suggested_strength`
+is reviewer guidance only, literature-derived evidence-like outputs remain
+`candidate_only=true`, `applied=false`, and `strength=none`, and reviewed
+drafts default to `needs_more_info`. Variant and disease mismatches are
+blocking flags, abstract-only records are limitations, low-confidence
+extractions are review flags, duplicate publications/families/cohorts are
+collapsed before summaries, and the classification combiner remains unchanged.
+
+The latest full regression baseline after integration review is
+`641 passed, 1 skipped`.
+
 ## Current Complete Interpretation Workflow
 
 ```text
@@ -257,7 +282,35 @@ Release gate expectations: no default network dependency, no direct provider
 classification, no combiner change, and explicit limitations for unresolved
 provider or context gaps.
 
-### 2. Selected Real VCEP Profile Pilot
+### 2. Online PubMed/LitVar Adapter Pilot
+
+Goal: pilot real PubMed and LitVar adapters behind explicit opt-in flags for
+the completed general literature engine, while preserving offline/local records
+as the default validation path.
+
+Why it matters: the literature engine now has stable query planning,
+deduplication, criterion summaries, and safety outputs. A narrow online adapter
+pilot can validate retrieval provenance, cache behavior, parser resilience, and
+failure-to-limitation behavior without making live literature search part of
+default CI.
+
+Architecture impact: should focus on provider adapters, opt-in configuration,
+cache/provenance metadata, raw payload references, parser limitations, and
+online smoke documentation. It should not change evidence application or the
+classification combiner.
+
+Safety risks: treating PubMed/LitVar retrieval as clinical evidence, allowing
+online hits to bypass variant/disease matching, duplicate collapse, or manual
+review, and introducing a default network dependency.
+
+Expected deliverables: explicitly gated PubMed/LitVar adapter pilot, local
+fixtures for normal validation, optional online smoke checks, provenance and
+limitations in outputs, and integration tests proving no classification change.
+
+Release gate expectations: offline by default, opt-in only, failures degrade to
+limitations, no automatic applied literature evidence, and no combiner change.
+
+### 3. Selected Real VCEP Profile Pilot
 
 Goal: pilot one carefully selected real VCEP profile behind explicit selection,
 now that toy profile validation and real provider validation are complete.
@@ -282,7 +335,31 @@ Release gate expectations: design approval, benchmark pass, no default clinical
 profile activation, no combiner change without explicit review, and clear
 profile limitations.
 
-### 3. Optional Online Smoke Gates
+### 4. CNV/SV Framework Planning
+
+Goal: plan the future CNV/SV interpretation framework without implementing
+clinical CNV/SV classification in the current SNV/small-indel engine.
+
+Why it matters: CNV/SV support requires different variant models,
+normalization, interval/breakpoint semantics, dosage or mechanism evidence, and
+separate validation. Planning should define scope and safety boundaries before
+any implementation.
+
+Architecture impact: design documentation, schema proposals, validation data
+requirements, reporting boundaries, and migration strategy. Business logic and
+the current SNV/small-indel combiner should remain unchanged.
+
+Safety risks: broadening variant scope without validation, reusing SNV evidence
+logic incorrectly, and presenting design-only CNV/SV support as implemented.
+
+Expected deliverables: design document, non-goals, candidate schema sketches,
+provider/data requirements, validation plan, and explicit statement that CNV/SV
+is not supported yet.
+
+Release gate expectations: design-only unless separately approved, no combiner
+change, no clinical sign-out, and no impact on current SNV/small-indel outputs.
+
+### 5. Optional Online Smoke Gates
 
 Goal: add or standardize optional online smoke gates for provider reachability
 and parser resilience without making network access part of default CI.

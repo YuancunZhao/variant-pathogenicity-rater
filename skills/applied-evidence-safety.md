@@ -47,9 +47,23 @@ Literature evidence must remain review-required. Literature extraction can
 surface candidate suggestions, citations, extracted claims, limitations, and
 review questions. It must not by itself create applied ACMG evidence.
 
+The General Literature Search and Summary Engine is implemented and
+integration-reviewed as a candidate-only workflow. It can build literature
+query plans, normalize local/offline caller-supplied records, collapse
+duplicate publications/families/cohorts, summarize PS3/BS3, PS2/PM6, PP1, PS4,
+PM3, PP4, PS1/PM5, PM1, and PVS1 mechanism-support literature, and generate
+reviewed-evidence drafts. These outputs remain non-applied.
+
+`suggested_strength` is reviewer guidance only. Literature-derived
+EvidenceItem-like outputs must remain `candidate_only=true`, `applied=false`,
+and `strength=none`. Reviewed drafts must default to `needs_more_info` until a
+curator explicitly supplies a valid `reviewed_applied` record.
+
 Ambiguous paper language should become a limitation or review question.
 Duplicate families, overlapping cohorts, unmatched disease context, unmatched
 transcripts, and unclear assay validity must block automatic promotion.
+Abstract-only records and low-confidence extraction should remain limitations
+or review flags.
 
 ## External Curated Source Safety
 
@@ -128,6 +142,8 @@ For any future task touching evidence behavior, verify:
 
 - Candidate-only evidence stays out of the combiner.
 - Applied evidence remains review-required.
+- Literature `suggested_strength` never becomes applied `EvidenceItem.strength`.
+- Literature reviewed drafts default to non-applied `needs_more_info`.
 - Reports keep applied and candidate evidence separate.
 - CLI, MCP, batch, and annotated-batch outputs are consistent.
 - Provenance is preserved.

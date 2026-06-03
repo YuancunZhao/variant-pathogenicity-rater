@@ -169,6 +169,11 @@ def parse_clinvar_record(
         raw_record=raw_record,
         source_url=source.url,
         endpoint=source_payload.get("endpoint"),
+        provider_mode=source_payload.get("provider_mode"),
+        cache_hit=source_payload.get("cache_hit"),
+        request_method=source_payload.get("request_method"),
+        request_url=source_payload.get("request_url"),
+        raw_payload_kind=source_payload.get("raw_payload_kind"),
         retrieved_at=source_payload.get("retrieved_at"),
         review_status=raw_record.get("review_status"),
         last_evaluated=str(raw_record.get("last_evaluated"))

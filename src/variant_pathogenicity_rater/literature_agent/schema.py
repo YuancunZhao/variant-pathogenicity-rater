@@ -89,6 +89,7 @@ class LiteratureSearchInput(SchemaModel):
     use_online_pubmed: bool = False
     use_online_litvar: bool = False
     use_online_search: bool = False
+    provider_cache_dir: str | None = None
 
 
 class LiteratureSearchQuery(SchemaModel):

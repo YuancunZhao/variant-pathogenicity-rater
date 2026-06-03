@@ -23,6 +23,7 @@ If the task touches release readiness, also read:
 If the task touches literature evidence, also read:
 
 - `docs/ACMG_LITERATURE_AGENT.md`
+- `docs/GENERAL_LITERATURE_ENGINE.md`
 - `docs/LITERATURE_AGENT_SAFETY.md`
 - `skills/acmg-literature-evidence.md`
 
@@ -74,10 +75,15 @@ disease/gene-specific guidance, also read:
     mismatches must degrade to limitations, review flags, failed records, or
     candidate-only output.
 23. No provider directly changes classification.
-24. Benchmark Phase C is the current regression baseline: 100 offline curated
-    SNV/small-indel cases, version `offline-curated-v4-phase-c`,
-    fixture-backed providers including annotation/transcript metadata, and
-    latest full regression status `562 passed, 1 skipped`.
+24. Benchmark Phase C plus General Literature Engine integration review is the
+    current regression baseline: 100 offline curated SNV/small-indel cases,
+    version `offline-curated-v4-phase-c`, fixture-backed providers including
+    annotation/transcript metadata, and latest full regression status
+    `641 passed, 1 skipped`.
+25. `search_and_summarize_literature` is implemented as a candidate-only
+    literature workflow with query planning, local/offline records, duplicate
+    collapse, criterion summaries, blocking/review flags, CLI/MCP/report
+    surfaces, and reviewed drafts.
 
 ## Evidence Governance
 
@@ -97,8 +103,8 @@ When adding or modifying evidence behavior:
 - Keep benchmark and smoke expectations conservative. Benchmark expectations
   are safety regression expectations, not clinical truth labels.
 - Keep ERepo exact matches, gene-level VCEP signals, literature suggestions,
-  and unsupported criterion suggestions outside the combiner unless explicitly
-  converted through reviewed evidence.
+  general literature summaries, and unsupported criterion suggestions outside
+  the combiner unless explicitly converted through reviewed evidence.
 - Keep VCEP profile overrides limited to approved, explicitly enabled,
   non-conflicting profiles and the documented safe override surface.
 - Preserve `vcep_profile_summary` in batch and annotated-batch records when
@@ -123,17 +129,17 @@ Before implementation, identify:
 Do not implement a new ACMG evidence criterion or broaden variant scope unless
 the task explicitly asks for it and the roadmap supports it.
 
-The current recommended next task is the Chinese report template. Real provider
-validation is complete for the current ClinVar, gnomAD local snapshot, MANE
-transcript, and ClinGen ERepo surfaces and should now be treated as a
-regression boundary. Benchmark Phase C is also complete and should be treated
-as the current safety regression baseline. After the Chinese report template,
-prioritize selected real-world case validation, a selected real VCEP profile
-pilot, and optional online smoke gates.
+The current recommended next task is selected real-world case validation. Real
+provider validation is complete for the current ClinVar, gnomAD local snapshot,
+MANE transcript, and ClinGen ERepo surfaces and should now be treated as a
+regression boundary. Benchmark Phase C, Chinese report output, offline variant
+resolution, and the General Literature Search and Summary Engine are complete
+and should be treated as the current safety regression baseline.
 
-Current known gaps after benchmark Phase C are real online provider smoke
-standardization, selected real VCEP profile pilot, Chinese report template,
-larger real-world hospital annotation validation, and unsupported CNV/SV
+Current next priorities are selected real-world case validation, an opt-in
+online PubMed/LitVar adapter pilot for the literature engine, a selected real
+VCEP profile pilot, and CNV/SV framework planning. Current known gaps include
+larger real-world hospital annotation validation and unsupported CNV/SV
 interpretation.
 
 ## Completion Report
