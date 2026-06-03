@@ -6,8 +6,12 @@ import json
 from config import ServerConfig
 from server import McpServer, build_registry
 from variant_pathogenicity_rater.cli import main
-from variant_pathogenicity_rater.literature_agent import search_and_summarize_literature
+from variant_pathogenicity_rater.literature_agent import (
+    assess_literature_evidence,
+    search_and_summarize_literature,
+)
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
+from variant_pathogenicity_rater.reporting import render_literature_search_summary_section
 
 
 def _server() -> McpServer:
@@ -204,6 +208,40 @@ def test_duplicate_publications_and_families_collapse() -> None:
     assert result["duplicate_groups"][0]["duplicate_record_ids"] == ["second"]
 
 
+def test_duplicate_records_from_same_pmid_doi_and_family_collapse() -> None:
+    pmid_result = search_and_summarize_literature(
+        _payload(
+            [
+                _record(record_id="pmid-a", pmid="410001"),
+                _record(record_id="pmid-b", pmid="410001"),
+            ]
+        )
+    ).model_dump(mode="json")
+    doi_result = search_and_summarize_literature(
+        _payload(
+            [
+                _record(record_id="doi-a", pmid=None, doi="10.1234/shared"),
+                _record(record_id="doi-b", pmid=None, doi="10.1234/shared"),
+            ]
+        )
+    ).model_dump(mode="json")
+    family_result = search_and_summarize_literature(
+        _payload(
+            [
+                _record(record_id="family-a", pmid="410002", duplicate_study_group="family-z"),
+                _record(record_id="family-b", pmid="410003", duplicate_study_group="family-z"),
+            ]
+        )
+    ).model_dump(mode="json")
+
+    assert len(pmid_result["literature_search_results"]) == 1
+    assert pmid_result["duplicate_groups"][0]["reason"] == "pmid"
+    assert len(doi_result["literature_search_results"]) == 1
+    assert doi_result["duplicate_groups"][0]["reason"] == "doi"
+    assert len(family_result["literature_search_results"]) == 1
+    assert family_result["duplicate_groups"][0]["reason"] == "duplicate_study_group"
+
+
 def test_variant_and_disease_mismatch_blocking_flags() -> None:
     result = search_and_summarize_literature(
         _payload(
@@ -266,6 +304,68 @@ def test_candidate_literature_does_not_alter_classification_and_drafts_are_non_a
     assert with_drafts["applied_evidence"] == []
 
 
+def test_engine_evidence_items_fed_into_rate_variant_do_not_alter_classification() -> None:
+    base_payload = {
+        "gene": "GENE1",
+        "transcript": "NM_000001.1",
+        "hgvs_c": "NM_000001.1:c.76A>G",
+        "chromosome": "1",
+        "position": 123,
+        "ref": "A",
+        "alt": "G",
+        "disease": "GENE1 disorder",
+        "options": {
+            "include_population": False,
+            "include_computational": False,
+            "include_clinvar": False,
+            "include_literature": False,
+        },
+    }
+    baseline = rate_variant(base_payload)
+    literature = search_and_summarize_literature(_payload([_record()])).model_dump(mode="json")
+    with_candidate_items = rate_variant(
+        {
+            **base_payload,
+            "options": {
+                **base_payload["options"],
+                "supplemental_evidence_items": literature["evidence_items"],
+            },
+        }
+    )
+
+    assert all(item["strength"] == "none" for item in literature["evidence_items"])
+    assert all(item["suggested_strength"] != item["strength"] for item in literature["evidence_items"])
+    assert with_candidate_items["final_classification"] == baseline["final_classification"]
+    assert with_candidate_items["applied_evidence"] == []
+
+
+def test_report_section_wording_says_literature_is_not_applied() -> None:
+    result = search_and_summarize_literature(_payload([_record()])).model_dump(mode="json")
+
+    section = render_literature_search_summary_section(result)
+
+    assert "Literature Search and Evidence Summary" in section
+    assert "Not automatically applied to ACMG classification" in section
+    assert "Suggested strengths are reviewer guidance only" in section
+    assert "Applied ACMG Evidence" in section
+
+
+def test_assess_literature_evidence_backward_compatibility() -> None:
+    result = assess_literature_evidence(
+        {
+            "gene": "GENE1",
+            "variant": "NM_000001.1:c.76A>G",
+            "disease": "GENE1 disorder",
+            "literature_records": [_record(source="caller_supplied_literature_record")],
+        }
+    ).model_dump(mode="json")
+
+    assert result["literature_evidence_assessments"][0]["candidate_code"] == "PS3"
+    assert result["suggested_evidence"][0]["candidate_only"] is True
+    assert result["suggested_evidence"][0]["applied"] is False
+    assert result["provenance"]["offline_by_default"] is True
+
+
 def test_mcp_search_and_summarize_literature_smoke() -> None:
     request = {
         "jsonrpc": "2.0",
@@ -309,3 +409,5 @@ def test_cli_literature_search_smoke(tmp_path, capsys) -> None:
     assert exit_code == 0
     assert payload["tool"] == "search_and_summarize_literature"
     assert payload["final_classification_changed"] is False
+    assert payload["applied_evidence"] == []
+    assert all(item["candidate_only"] is True for item in payload["suggested_evidence"])

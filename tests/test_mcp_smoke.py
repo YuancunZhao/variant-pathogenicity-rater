@@ -119,6 +119,37 @@ def test_mcp_tool_input_schemas_are_hardened_for_ci_smoke_tools() -> None:
     )
 
 
+def test_literature_mcp_tool_schemas_are_codex_compatible() -> None:
+    schemas = {
+        tool["name"]: tool["inputSchema"]
+        for tool in _server().list_tools()["tools"]
+        if tool["name"]
+        in {
+            "search_literature_evidence",
+            "assess_literature_evidence",
+            "search_and_summarize_literature",
+            "create_reviewed_evidence_draft",
+        }
+    }
+
+    assert set(schemas) == {
+        "search_literature_evidence",
+        "assess_literature_evidence",
+        "search_and_summarize_literature",
+        "create_reviewed_evidence_draft",
+    }
+    for name, schema in schemas.items():
+        assert schema["type"] == "object", name
+        assert FORBIDDEN_TOP_LEVEL_SCHEMA_KEYS.isdisjoint(schema), name
+        assert schema["additionalProperties"] is False, name
+        assert isinstance(schema["properties"], dict), name
+
+    search_schema = schemas["search_and_summarize_literature"]
+    assert search_schema["required"] == ["gene", "variant"]
+    assert "use_online_pubmed" in search_schema["properties"]
+    assert "use_online_litvar" in search_schema["properties"]
+
+
 def test_mcp_unknown_extra_field_is_rejected_with_structured_error() -> None:
     request = {
         "jsonrpc": "2.0",
