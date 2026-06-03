@@ -166,8 +166,8 @@ candidate/applied separation. The standalone real resolution provider
 validation suite now covers local snapshot-backed transcript, protein,
 coordinate, exon, and NMD resolution boundaries.
 
-The latest full regression baseline after the v0.3.0 release review is
-`626 passed, 1 skipped`.
+The latest full regression baseline after the v0.3.0 release review and later
+provider/literature integration work is `655 passed, 2 skipped`.
 The classification combiner remained unchanged.
 
 ### Phase 11: Variant Resolution Framework
@@ -236,8 +236,33 @@ blocking flags, abstract-only records are limitations, low-confidence
 extractions are review flags, duplicate publications/families/cohorts are
 collapsed before summaries, and the classification combiner remains unchanged.
 
-The latest full regression baseline after integration review is
-`641 passed, 1 skipped`.
+The latest full regression baseline after the subsequent 74 real provider
+pipeline integration review is `655 passed, 2 skipped`.
+
+### Phase 15: Real Provider Pipeline
+
+The 74 Real Provider Pipeline is implemented and has passed integration review.
+It adds opt-in online provider surfaces for ClinVar, gnomAD, Ensembl VEP,
+PubMed, and LitVar through the unified data-source layer while preserving the
+default offline runtime posture.
+
+Completed scope includes shared stdlib HTTP utilities, provider cache helpers,
+provenance envelopes, CLI opt-in flags, MCP online options, and mocked offline
+tests for ClinVar EUtils, gnomAD GraphQL, Ensembl VEP REST, and PubMed/LitVar
+literature retrieval surfaces.
+
+This phase did not change the ACMG classification combiner and did not relax
+safety rules. Online providers remain disabled by default. Provider failures,
+timeouts, malformed responses, empty results, and no-record outcomes become
+limitations or review flags. ClinVar online records do not trigger PP5/BP6,
+PubMed/LitVar records remain literature candidate/reviewed-draft inputs only,
+gnomAD facts flow only through existing population evaluators, VEP facts flow
+only through existing computational evaluators, no gnomAD record triggers PM2
+by itself, and candidate evidence does not silently enter the combiner.
+
+The integration-review regression baseline is `655 passed, 2 skipped`. Live
+provider smoke validation remains an env-gated follow-up and is not part of
+default pytest.
 
 ## Current Complete Interpretation Workflow
 
@@ -254,7 +279,37 @@ variant input
 
 ## Highest Priority Current Tasks
 
-### 1. Selected Real-World Case Validation
+### 1. Live Provider Smoke Validation
+
+Goal: run a narrow, explicitly env-gated live smoke validation pass for the
+completed online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar providers
+without making network access part of default pytest or CI.
+
+Why it matters: the 74 pipeline has been validated with mocked HTTP and has
+passed offline integration review. Live provider endpoints can still drift, so
+the next provider-specific check should verify reachability, parser resilience,
+cache/provenance visibility, source-version/live-source labels, raw payload
+hashes, and failure-to-limitation behavior.
+
+Architecture impact: should focus on optional smoke commands, cache/provenance
+audit documentation, provider replay expectations, and limitations. It should
+not change evidence application, safety gates, default offline behavior, or the
+classification combiner.
+
+Safety risks: live smoke must not become default CI, must not be treated as
+clinical validation, and must not let live provider assertions bypass existing
+population, computational, ClinVar comparator, literature, or reviewed-evidence
+gates.
+
+Expected deliverables: env-gated smoke instructions, cache-hit/miss
+provenance checks, failure-to-limitation examples, and documentation that
+default pytest remains offline.
+
+Release gate expectations: skipped by default, opt-in only, no combiner
+change, no direct provider-driven classification, and no network dependency in
+routine validation.
+
+### 2. Selected Real-World Case Validation
 
 Goal: validate selected real-world SNV/small-indel cases end to end using the
 completed provider-validation posture: local fixtures/snapshots where possible,
@@ -282,38 +337,11 @@ Release gate expectations: no default network dependency, no direct provider
 classification, no combiner change, and explicit limitations for unresolved
 provider or context gaps.
 
-### 2. Online PubMed/LitVar Adapter Pilot
-
-Goal: pilot real PubMed and LitVar adapters behind explicit opt-in flags for
-the completed general literature engine, while preserving offline/local records
-as the default validation path.
-
-Why it matters: the literature engine now has stable query planning,
-deduplication, criterion summaries, and safety outputs. A narrow online adapter
-pilot can validate retrieval provenance, cache behavior, parser resilience, and
-failure-to-limitation behavior without making live literature search part of
-default CI.
-
-Architecture impact: should focus on provider adapters, opt-in configuration,
-cache/provenance metadata, raw payload references, parser limitations, and
-online smoke documentation. It should not change evidence application or the
-classification combiner.
-
-Safety risks: treating PubMed/LitVar retrieval as clinical evidence, allowing
-online hits to bypass variant/disease matching, duplicate collapse, or manual
-review, and introducing a default network dependency.
-
-Expected deliverables: explicitly gated PubMed/LitVar adapter pilot, local
-fixtures for normal validation, optional online smoke checks, provenance and
-limitations in outputs, and integration tests proving no classification change.
-
-Release gate expectations: offline by default, opt-in only, failures degrade to
-limitations, no automatic applied literature evidence, and no combiner change.
-
 ### 3. Selected Real VCEP Profile Pilot
 
 Goal: pilot one carefully selected real VCEP profile behind explicit selection,
-now that toy profile validation and real provider validation are complete.
+now that toy profile validation, real provider validation, benchmark Phase C,
+and the 74 real provider pipeline integration review are complete.
 
 Why it matters: disease-specific profiles are the path from generic ACMG
 support toward realistic internal interpretation workflows, but they require
@@ -335,7 +363,31 @@ Release gate expectations: design approval, benchmark pass, no default clinical
 profile activation, no combiner change without explicit review, and clear
 profile limitations.
 
-### 4. CNV/SV Framework Planning
+### 4. Provider Cache / Reproducibility Hardening
+
+Goal: harden provider cache and replay expectations after live smoke
+validation, including cache-key review, raw payload hash audit, source-version
+freshness review, and documentation for deterministic re-analysis.
+
+Why it matters: online provider payloads can drift even when safety gates hold.
+Reproducibility needs visible cache-hit state, source version/live-source
+labels, retrieval timestamp, query, parser version, endpoint/source URL, and
+raw snapshot hashes.
+
+Architecture impact: should focus on provider cache/provenance documentation
+and optional replay fixtures. It should not change evidence application or the
+classification combiner.
+
+Safety risks: stale cache reuse without visible provenance, cache collisions,
+and treating cached/live payloads as clinical truth sets.
+
+Expected deliverables: cache/replay checklist, provenance audit examples, and
+clear warnings for stale or incomplete provider metadata.
+
+Release gate expectations: no default network dependency, failure-to-limitation
+behavior preserved, and no direct provider-driven classification.
+
+### 5. CNV/SV Framework Planning
 
 Goal: plan the future CNV/SV interpretation framework without implementing
 clinical CNV/SV classification in the current SNV/small-indel engine.
@@ -358,29 +410,6 @@ is not supported yet.
 
 Release gate expectations: design-only unless separately approved, no combiner
 change, no clinical sign-out, and no impact on current SNV/small-indel outputs.
-
-### 5. Optional Online Smoke Gates
-
-Goal: add or standardize optional online smoke gates for provider reachability
-and parser resilience without making network access part of default CI.
-
-Why it matters: real online providers can drift. Optional smoke gates can catch
-breaking endpoint or parser changes while preserving the current offline
-validation baseline.
-
-Architecture impact: should focus on gated smoke tests, provider provenance,
-cache behavior, timeout/failure-to-limitation behavior, and documentation.
-
-Safety risks: online smoke must not be treated as clinical validation, must not
-introduce default network dependencies, and must not allow live provider
-assertions to bypass local safety gates.
-
-Expected deliverables: explicitly gated smoke command(s), cache/provenance
-assertions, failure-to-limitation checks, and documentation that default CI
-remains offline.
-
-Release gate expectations: skipped by default, opt-in only, no combiner change,
-and no direct provider-driven classification.
 
 ## Tasks Not Appropriate For The Current Stage
 

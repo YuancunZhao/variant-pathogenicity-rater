@@ -99,6 +99,7 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
                     "gnomAD online failure was captured as a limitation; interpretation continued.",
                     "Provider failure is not evidence of population absence and cannot trigger PM2_Supporting.",
                 ],
+                cache_hit=False,
             )
 
     def _load_payload(self, query: dict[str, Any]) -> dict[str, Any]:

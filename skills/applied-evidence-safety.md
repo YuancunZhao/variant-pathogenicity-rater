@@ -136,6 +136,25 @@ Provider records cannot automatically override user-provided context. Mismatched
 gene, transcript, condition, ancestry, genome build, consequence, or inheritance
 must be surfaced as review flags or limitations.
 
+The 74 Real Provider Pipeline is implemented and integration-reviewed with
+`655 passed, 2 skipped`. The current provider safety contract is:
+
+- ClinVar online records are review-note/comparator context only and must not
+  trigger PP5/BP6.
+- PubMed/LitVar online records feed literature suggestions and reviewed drafts
+  only; they must not create applied evidence.
+- gnomAD online facts may affect classification only through the existing
+  population evaluator, and a no-record result must not trigger PM2.
+- Ensembl VEP online facts may affect classification only through the existing
+  computational evaluator; missing predictors are limitations, not PP3/BP4.
+- Provider cache/provenance must preserve source version or live-source label,
+  retrieval timestamp, query, endpoint/source URL, parser version, raw snapshot
+  hash, and cache-hit state where applicable.
+- Candidate/review-note evidence must not silently enter the combiner.
+
+Live provider smoke validation remains env-gated and skipped by default. It is
+reachability/parser/cache validation, not clinical validation.
+
 ## Future Task Checklist
 
 For any future task touching evidence behavior, verify:
@@ -152,6 +171,9 @@ For any future task touching evidence behavior, verify:
   conflicts do not alter classification.
 - Failures become limitations or structured failed records.
 - Online behavior remains opt-in.
+- Default pytest remains no-network.
+- Provider failure, timeout, malformed response, and no-record results become
+  limitations or review flags.
 - Tests cover leakage and safety boundaries.
 
 If a proposed change weakens any of these rules, stop and redesign the change

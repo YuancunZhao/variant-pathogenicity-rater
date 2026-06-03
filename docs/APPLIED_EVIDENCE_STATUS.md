@@ -20,8 +20,8 @@ baseline:
 - Provider fixture-backed, including population, ClinVar, computational,
   literature, ClinGen ERepo, VCEP profile, annotation, and transcript metadata
   fixtures.
-- Latest full regression status after General Literature Engine integration
-  review: `641 passed, 1 skipped`.
+- Latest full regression status after 74 real provider pipeline integration
+  review: `655 passed, 2 skipped`.
 
 The benchmark covers applied and candidate boundaries for `PVS1`, `BA1`,
 `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence,
@@ -72,7 +72,9 @@ only. They do not create applied evidence and do not modify the classification
 combiner. Online gnomAD and VEP facts still pass through the existing
 population and computational evaluators; ClinVar and literature remain
 review-note/candidate-only unless a curator later supplies valid
-`reviewed_applied` evidence.
+`reviewed_applied` evidence. ClinVar online records do not trigger PP5/BP6,
+PubMed/LitVar records remain suggested/reviewed-draft inputs only, and a
+gnomAD no-record result is limitation-only rather than PM2 support.
 
 No provider directly changes classification. Providers supply facts, review
 notes, or drafts; applied evidence enters classification only through validated
@@ -331,25 +333,28 @@ PM3-like trans observations.
 
 ## Recommended Next Task
 
-The recommended next task is selected real-world case validation.
+The recommended next task is env-gated live provider smoke validation, followed
+by selected real-world case validation.
 
 The applied evidence loop, lightweight VCEP signal/override framework, current
 real provider validation surface, benchmark Phase C baseline, Chinese report
-output, offline variant resolution, and General Literature Search and Summary
-Engine are complete enough for controlled internal validation. Local
-fixtures/snapshots remain the primary validation path, optional online behavior
-is disabled by default, provenance/cache/limitations are visible, failures
-degrade to limitations, candidate/review-note evidence stays outside
-classification, and no provider directly changes classification.
+output, offline variant resolution, General Literature Search and Summary
+Engine, and 74 real provider pipeline are complete enough for controlled
+internal validation. Local fixtures/snapshots remain the primary validation
+path, optional online behavior is disabled by default,
+provenance/cache/limitations are visible, failures degrade to limitations,
+candidate/review-note evidence stays outside classification, and no provider
+directly changes classification.
 
 The next priorities are:
 
 - Selected real-world case validation.
-- Online PubMed/LitVar adapter pilot for the literature engine, behind explicit
-  opt-in and local/offline validation.
+- Env-gated live provider smoke validation.
 - Selected real VCEP profile pilot.
+- Provider cache/reproducibility hardening.
 - CNV/SV framework planning as design-only work.
 
-Current known gaps remain selected real-world case validation, online
-PubMed/LitVar adapter implementation, selected real VCEP profile pilot, larger
-real-world hospital annotation validation, and CNV/SV support.
+Current known gaps remain live provider smoke validation, selected real-world
+case validation, selected real VCEP profile pilot, provider
+cache/reproducibility hardening, larger real-world hospital annotation
+validation, and CNV/SV support.

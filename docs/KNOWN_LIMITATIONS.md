@@ -102,7 +102,8 @@ replace qualified clinical, laboratory, or genetics professional review.
   default. Online use requires explicit mode/config gates and must retain cache
   and provenance metadata.
 - Online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar providers are
-  implemented as opt-in adapters, not default runtime dependencies.
+  implemented and integration-reviewed as opt-in adapters, not default runtime
+  dependencies.
 - Local-file provider quality depends on the supplied local snapshot, genome
   build, parser compatibility, source freshness, and available provenance.
 - Provider cache/provenance should preserve source or snapshot identity, query
@@ -122,12 +123,21 @@ replace qualified clinical, laboratory, or genetics professional review.
   provenance gates pass.
 - gnomAD/local population facts may support BA1/BS1/PM2_Supporting only through
   `population_rules` and configured thresholds. A provider miss or no local
-  record is not population absence.
+  record is not population absence and must not trigger PM2 by itself.
+- Ensembl VEP online facts may support PP3/BP4 only through the existing
+  computational evaluator. Missing predictors are limitations, not direct
+  PP3/BP4 evidence.
+- PubMed/LitVar online records feed the General Literature Search and Summary
+  Engine only as candidate/reviewed-draft literature inputs. They do not create
+  applied evidence.
 - MANE/RefSeq/Ensembl transcript metadata may support transcript, NMD, and PVS1
   context review, but cannot apply PVS1 or any other ACMG criterion by itself.
 - ClinGen ERepo exact matches, VCEP activity signals, and supporting summaries
   remain review notes or reviewed-evidence drafts unless explicitly converted
   through valid curator-supplied `reviewed_applied` evidence.
+- The latest documented full pytest result after 74 real provider pipeline
+  integration review is `655 passed, 2 skipped`; live provider smoke tests are
+  env-gated and skipped by default.
 
 ## Release Use
 

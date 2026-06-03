@@ -37,14 +37,18 @@ approved limited profile overrides, reports, CLI/MCP surfaces, batch and
 annotated-batch VCEP summaries, local ClinVar/gnomAD/MANE/ERepo provider
 validation, a 100-case offline curated fixture-backed benchmark,
 natural-language input wrappers, offline variant resolution, opt-in online
-ClinVar/gnomAD/Ensembl VEP/PubMed/LitVar provider adapters, Chinese laboratory
-reporting, and the unchanged ACMG classification combiner. The next project
+ClinVar/gnomAD/Ensembl VEP/PubMed/LitVar provider adapters, shared provider
+cache/provenance handling, CLI opt-in flags, MCP online options, Chinese
+laboratory reporting, and the unchanged ACMG classification combiner. The 74
+real provider pipeline has passed offline integration review with the default
+no-network safety boundary intact. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
 cases, or general literature search/summarization; it is selected real-world
-case validation, optional online smoke review for the provider adapters, a
-narrow real VCEP profile pilot, and CNV/SV framework planning.
+case validation, env-gated live provider smoke validation, a narrow real VCEP
+profile pilot, provider cache/reproducibility hardening, and CNV/SV framework
+planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -191,6 +195,10 @@ Real provider validation is complete for the current provider surface:
 
 - ClinVar real provider validation.
 - gnomAD local snapshot validation.
+- ClinVar online provider adapter validation with mocked HTTP.
+- gnomAD online GraphQL adapter validation with mocked HTTP.
+- Ensembl VEP online REST adapter validation with mocked HTTP.
+- PubMed/LitVar online literature surface validation with mocked HTTP.
 - MANE transcript validation.
 - Real resolution provider snapshot validation.
 - ClinGen ERepo validation.
@@ -233,6 +241,10 @@ Across all validated providers, local fixtures or local snapshots are the
 primary validation path, optional online behavior is explicitly gated and
 disabled by default, cache/provenance/limitations are visible, failures degrade
 to structured limitations, and no provider directly changes classification.
+ClinVar online records do not trigger PP5/BP6, PubMed/LitVar records remain
+candidate-only literature inputs, gnomAD and VEP online facts flow only through
+the existing population and computational evaluators, no gnomAD record triggers
+PM2 by itself, and candidate evidence remains outside the combiner.
 
 ### Benchmark Validation
 
@@ -245,8 +257,8 @@ Current benchmark status:
 - Provider fixture-backed through `data/benchmark_provider_fixtures/`.
 - Includes local population, ClinVar, computational, literature, ClinGen
   ERepo, VCEP profile, annotation, and transcript metadata fixtures.
-- Latest full regression status after General Literature Engine integration
-  review: `641 passed, 1 skipped`.
+- Latest full regression status after 74 real provider pipeline integration
+  review: `655 passed, 2 skipped`.
 
 The benchmark covers generated and reviewed evidence boundaries for `PVS1`,
 `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed
@@ -449,13 +461,15 @@ override of user-supplied context.
 
 ## Current Test Status
 
-The latest documented full regression run after benchmark Phase C recorded:
+The latest documented full regression run after 74 real provider pipeline
+integration review recorded:
 
-- Full pytest: `626 passed, 1 skipped`.
+- Full pytest: `655 passed, 2 skipped`.
 - Benchmark coverage: 100 curated offline SNV/small-indel cases.
 - Benchmark version: `offline-curated-v4-phase-c`.
 - Benchmark provider posture: fixture-backed, including annotation and
-  transcript metadata fixtures.
+  transcript metadata fixtures, with online provider tests mocked and live
+  smoke tests env-gated.
 
 The benchmark is safety-oriented rather than a clinical truth set. It checks
 classification behavior, applied/candidate evidence separation, conservative
@@ -471,17 +485,18 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is selected real-world case validation, followed by
-one narrowly scoped real VCEP profile pilot behind explicit profile selection
-and optional online provider smoke gates.
+The recommended next task is env-gated live provider smoke validation, followed
+by selected real-world case validation and one narrowly scoped real VCEP
+profile pilot behind explicit profile selection.
 
-Real provider validation for ClinVar, gnomAD, MANE, and ERepo is complete for
-the current provider surface and should now be maintained as a regression
-boundary: local fixture/snapshot validation, optional online disabled by
-default, provenance/cache visibility, failure-to-limitation behavior, and no
-direct provider-driven classification.
+Real provider validation for ClinVar, gnomAD, Ensembl VEP, PubMed/LitVar,
+MANE, and ERepo is complete for the current provider surface and should now be
+maintained as a regression boundary: local fixture/snapshot validation,
+optional online disabled by default, provenance/cache visibility,
+failure-to-limitation behavior, and no direct provider-driven classification.
 
-Current known gaps are real online provider smoke gates, a selected real VCEP
-profile pilot, larger real-world hospital annotation validation, broader
-resolution fixture coverage beyond the initial targeted records, and CNV/SV
-support.
+Current known gaps are env-gated live provider smoke validation, selected
+real-world case validation, a selected real VCEP profile pilot, larger
+real-world hospital annotation validation, broader resolution fixture coverage
+beyond the initial targeted records, provider cache/reproducibility hardening,
+and CNV/SV support.

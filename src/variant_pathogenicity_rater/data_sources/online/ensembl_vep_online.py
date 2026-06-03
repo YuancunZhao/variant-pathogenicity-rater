@@ -68,7 +68,7 @@ class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
                 source_version=self._source_version(),
                 query=query,
                 raw_payload={"query": query, "error": f"{exc.__class__.__name__}: {exc}"},
-                cache_hit=None,
+                cache_hit=False,
                 limitations=[
                     f"Ensembl VEP online query failed: {exc.__class__.__name__}: {exc}",
                     "VEP online failure was captured as a limitation; interpretation continued.",

@@ -51,7 +51,8 @@ integration baseline:
   warning, genome-build mismatch, missing thresholds, ClinVar conflict,
   condition mismatch, ERepo review-note behavior, VCEP signal/override
   boundaries, and transcript/MANE validation.
-- Latest full regression status: `562 passed, 1 skipped`.
+- Latest full regression status after 74 real provider pipeline integration
+  review: `655 passed, 2 skipped`.
 
 ## Core Validation Rules
 
@@ -143,16 +144,17 @@ Current acceptance checks:
 - ClinVar provider misses are visible as limitations when relevant and do not
   imply absence from ClinVar.
 
-### gnomAD Population Snapshot
+### gnomAD Population Snapshot And Online Adapter
 
-gnomAD local snapshot validation is complete for the current population
-provider surface.
+gnomAD local snapshot validation and the opt-in online GraphQL adapter are
+complete for the current population provider surface.
 
 Current capability:
 
 - Local JSONL/local snapshot validation maps population facts into the existing
   population-frequency schema.
-- Online gnomAD remains future/optional behavior and disabled by default.
+- Online gnomAD uses explicit opt-in configuration, is disabled by default, and
+  has mocked HTTP parser/cache/provenance validation.
 - Cache/provenance expectations include snapshot identity, dataset/source
   version, genome build, query key, parser version, retrieval or snapshot time,
   raw-record hash where available, and limitations.
@@ -210,10 +212,9 @@ Current acceptance checks:
   genome-build mismatch block or downgrade evidence.
 - Provider provenance is visible in outputs and reports.
 
-Future online gnomAD behavior should be an opt-in mapper into the same
-population-frequency schema. It should preserve dataset/build/version details,
-cache raw payloads, and continue to delegate all evidence decisions to
-`population_rules`.
+Online gnomAD behavior is an opt-in mapper into the same population-frequency
+schema. It preserves dataset/build/version details, cache/raw payload hashes,
+and continues to delegate all evidence decisions to `population_rules`.
 
 ### MANE / RefSeq / Ensembl Transcript Metadata
 
@@ -398,9 +399,9 @@ Online smoke acceptance:
 - Online provider output does not bypass local generator safety gates.
 - Online provider output does not introduce CI nondeterminism.
 
-Current gap: optional online smoke gates remain the main provider-validation
-area not yet standardized as a current roadmap deliverable. They should remain
-opt-in only and must not become default CI requirements.
+Current gap: live online smoke validation has not yet been run against the
+completed providers. It remains a current roadmap deliverable, must be
+env-gated, and must not become a default CI requirement.
 
 ## Safety Gates
 
@@ -454,18 +455,22 @@ Provider validation must preserve these safety gates:
 - Optional provider online smoke tests gated by explicit environment variables.
 - Documentation of cache behavior, stale source behavior, malformed response
   behavior, and failure-to-limitation behavior.
+- 74 real provider pipeline integration review with default offline/no-network
+  safety preserved: `655 passed, 2 skipped`.
 
 ## Recommended Next Tasks
 
 Real provider validation is no longer the next implementation task. The
 recommended next validation and product-readiness tasks are:
 
-- Chinese report template.
+- Env-gated live provider smoke validation.
 - Selected real-world case validation.
 - Selected real VCEP profile pilot.
-- Optional online smoke gates.
+- Provider cache/reproducibility hardening.
 
-Benchmark expansion through Phase C is complete. Remaining gaps outside this
-provider-validation baseline include real online provider smoke standardization,
-larger real-world hospital annotation validation, a selected real VCEP profile
-pilot, Chinese report templates, and unsupported CNV/SV interpretation.
+Benchmark expansion through Phase C, Chinese report output, General Literature
+Engine integration, and the 74 real provider pipeline are complete. Remaining
+gaps outside this provider-validation baseline include live provider smoke
+validation, selected real-world case validation, larger real-world hospital
+annotation validation, a selected real VCEP profile pilot, provider
+cache/reproducibility hardening, and unsupported CNV/SV interpretation.
