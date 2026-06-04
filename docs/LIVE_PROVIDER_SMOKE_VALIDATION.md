@@ -64,6 +64,10 @@ must normalize to `ClinVarRecord` with clinical significance, review status or
 review confidence, and provenance. A miss or retrieval failure must become a
 limitation. ClinVar records may produce candidate review notes with
 `strength=none` and `applied=false`, but must not create applied PP5/BP6.
+ClinVar `last_evaluated` values may use provider-specific formats such as
+`2025/08/29`; smoke validation expects these to normalize without
+`Invalid isoformat` failures while preserving the raw date and precision in
+provenance.
 
 gnomAD GraphQL smoke queries GRCh38 `1-21563117-A-C`. A successful response may
 include AC, AN, AF, population, FAF, or homozygote/hemizygote fields. A
@@ -100,6 +104,14 @@ Smoke validation checks that online provider results preserve:
 - provider mode;
 - cache hit state;
 - limitations where applicable.
+
+For ALPL online flow review, the expected safety behavior is: ClinVar records
+enter `query_clinvar` step results and candidate/review-note output only;
+gnomAD uses variant ID `1-21563117-A-C` and no-record responses remain
+limitation-only; VEP uses the region allele representation for
+`1:21563117 A>C` and unsupported/missing predictors remain visible in
+computational step results; PubMed records feed literature summaries and drafts
+only.
 
 Cache smoke performs an initial request with `cache_hit=false`, then repeats the
 same query and expects `cache_hit=true` without a second HTTP request when the

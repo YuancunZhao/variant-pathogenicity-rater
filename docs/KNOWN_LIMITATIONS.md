@@ -112,6 +112,14 @@ replace qualified clinical, laboratory, or genetics professional review.
 - Provider failure, timeout, malformed payload, missing source version, stale
   source, missing provenance, provider miss, or context mismatch must become a
   structured limitation, review flag, failed record, or candidate-only output.
+- `mock_mode` is a backward-compatible legacy field. `data_source_modes`
+  reports configured/requested modes, not actual retrieval outcomes. Use
+  `provider_mode_summary` to review success, no-record, failure, skipped, or
+  cache-hit states and associated provenance.
+- ClinVar date fields are normalized only for parser stability and audit
+  display. Year-only dates are tracked with year precision, and unknown or
+  malformed dates are limitations; date parsing does not make ClinVar evidence
+  applied.
 - Provider genome build is checked against input genome build when available.
   Mismatches are retained as context conflicts instead of being silently ignored.
 - No provider directly changes classification. ClinVar/ERepo assertions,
