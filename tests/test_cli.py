@@ -52,6 +52,8 @@ def test_single_rate_json(capsys) -> None:
     assert payload["classification"]["final_classification"] == payload["final_classification"]
     assert payload["evidence"]["applied"] == payload["applied_evidence"]
     assert payload["providers"]["summary"] == payload["provider_mode_summary"]
+    assert "provider_runtime" in payload["step_results"]
+    assert payload["step_results"]["provider_runtime"]["population"]["outcome"] == payload["provider_mode_summary"]["population"]["outcome"]
 
 
 def test_resolve_json_smoke(capsys) -> None:

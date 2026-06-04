@@ -15,9 +15,11 @@ the 75 live-provider smoke validation layer is available behind explicit
 environment gates, the 76 mock/fixture interface audit activation makes
 provider outcomes and unresolved placeholders visible, and the 77A output
 schema unification gives Python, CLI, MCP, batch, and annotated-batch clients a
-canonical additive output view while preserving legacy fields. Default
-workflows remain no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed,
-and LitVar surfaces are opt-in only.
+canonical additive output view while preserving legacy fields. The 77B provider
+interface consolidation now backs provider summaries with a normalized runtime
+contract while preserving raw provider step payloads. Default workflows remain
+no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
+surfaces are opt-in only.
 Selected real-world case validation should now exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
 summary/draft behavior, duplicate literature/case handling, and report wording
@@ -27,6 +29,7 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `77B_provider_interface_consolidation` | Done | Added a normalized provider runtime result contract and adapter-backed provider summaries without changing provider internals, evidence generation, or classification. | Medium | Provider runtime contract, pipeline summary adapter, canonical provider output, CLI/MCP output tests, docs | Yes |
 | `77A_output_schema_unification` | Done | Added additive canonical output sections for single, text, batch, annotated-batch, CLI JSON, and MCP outputs while preserving legacy fields and leaving combiner/evidence logic unchanged. | Medium | Pipeline output view, batch summaries, CLI/MCP output tests, docs | Yes |
 | `76_mock_fixture_interface_audit_and_activation` | Done | Added explicit provider outcome summaries, clarified `mock_mode`/`data_source_modes` semantics, preserved structured coordinates in variant resolution, bridged VEP descriptive protein/consequence facts into resolution only, and kept provider facts behind existing evaluator/review boundaries. | High | Pipeline outputs, provider provenance summaries, variant resolution, online-provider tests, docs | Yes |
 | `75_live_provider_smoke_validation` | Done | Added explicitly env-gated live smoke validation for completed online providers, checking reachability, cache/provenance, parser resilience, failure-to-limitation behavior, CLI smoke, and MCP online-option schema compatibility without default network dependency. | High | Smoke docs, optional smoke fixtures, provider cache/provenance review | Yes |
@@ -64,7 +67,7 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 77A output schema unification:
+Current known gaps after 77B provider interface consolidation:
 
 - Live provider smoke validation is implemented and remains outside default
   pytest/CI; current live endpoint results still depend on explicit local
@@ -75,7 +78,7 @@ Current known gaps after 77A output schema unification:
   candidate-only.
 - A selected real VCEP profile pilot has not been implemented.
 - Provider cache/reproducibility hardening remains a follow-up now that
-  provider outcomes and raw-hash/cache-hit fields are visible.
+  provider runtime outcomes and raw-hash/cache-hit fields are visible.
 - Raw `step_results` are still a legacy compatibility/debug payload; migration
   into a canonical step-state model remains future work.
 - Larger real-world hospital annotation validation has not been completed.

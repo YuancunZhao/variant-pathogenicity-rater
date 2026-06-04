@@ -8,6 +8,8 @@ __all__ = [
     "DataSourcesConfig",
     "DiskCache",
     "ProviderMode",
+    "ProviderOutcome",
+    "ProviderRuntimeResult",
     "ProvenanceMetadata",
     "attach_provenance_to_source",
     "load_data_sources_config",
@@ -54,5 +56,15 @@ def __getattr__(name: str) -> Any:
             "ProvenanceMetadata": ProvenanceMetadata,
             "attach_provenance_to_source": attach_provenance_to_source,
             "provenance_from_raw_record": provenance_from_raw_record,
+        }[name]
+    if name in {"ProviderOutcome", "ProviderRuntimeResult"}:
+        from variant_pathogenicity_rater.data_sources.provider_result import (
+            ProviderOutcome,
+            ProviderRuntimeResult,
+        )
+
+        return {
+            "ProviderOutcome": ProviderOutcome,
+            "ProviderRuntimeResult": ProviderRuntimeResult,
         }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

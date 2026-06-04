@@ -27,6 +27,9 @@ default. See `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
 - `data_source_modes` reports configured/requested modes. Actual provider
   success, no-record, failure, skipped, and cache-hit outcomes are reported in
   `provider_mode_summary`.
+- 77B additionally emits the normalized provider runtime contract under
+  `step_results.provider_runtime`; it is an audit/summary surface and not an
+  evidence-generation surface.
 - Online provider requests use live source-version labels by default unless a
   caller explicitly overrides the source version.
 
@@ -89,3 +92,8 @@ includes requested mode, configured mode, actual outcome, source version,
 endpoint, query, raw hash, cache-hit state, provider mode, record count, and
 limitations for ClinVar, population/gnomAD, computational/VEP,
 literature/PubMed-LitVar, and ClinGen ERepo when included.
+
+`step_results.provider_runtime` is the normalized 77B source for provider
+outcome summaries. It adds attempted state, standardized outcome labels,
+warnings, error summary fields, raw record hash, retrieval timestamp, and
+structured provenance while preserving all raw provider step payloads.

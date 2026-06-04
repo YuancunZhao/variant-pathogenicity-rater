@@ -33,10 +33,12 @@ from variant_pathogenicity_rater.clingen_erepo.provider import (
 )
 from variant_pathogenicity_rater.clingen_erepo.schema import ClinGenERepoMatchLevel
 from variant_pathogenicity_rater.data_sources.config import (
-    DataSourceConfig,
     DataSourcesConfig,
-    ProviderMode,
     load_data_sources_config,
+)
+from variant_pathogenicity_rater.data_sources.provider_result import (
+    build_provider_summary,
+    provider_runtime_results_json,
 )
 from variant_pathogenicity_rater.data_sources.providers import (
     build_clinvar_provider,
@@ -658,6 +660,13 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     step_results["generate_report"] = serialized_report
     combined_audit = audit_trail + classification_result.audit_trail
 
+    provider_mode_summary = build_provider_summary(data_sources_config, step_results, options)
+    step_results["provider_runtime"] = provider_runtime_results_json(
+        data_sources_config,
+        step_results,
+        options,
+    )
+
     output = {
         "status": "ok",
         "tool": "rate_variant",
@@ -671,11 +680,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             "Configured/requested provider modes after runtime options are applied; "
             "actual provider outcomes are reported in provider_mode_summary."
         ),
-        "provider_mode_summary": _provider_mode_summary(
-            data_sources_config,
-            step_results,
-            options,
-        ),
+        "provider_mode_summary": provider_mode_summary,
         "unresolved_placeholder_mode": _unresolved_placeholder_mode(step_results),
         "normalized_variant": json.loads(original_normalized_variant.model_dump_json()),
         "resolved_variant": json.loads(
@@ -1518,164 +1523,6 @@ def _vep_resolution_prediction(
     return None
 
 
-def _provider_mode_summary(
-    data_sources_config: DataSourcesConfig,
-    step_results: dict[str, Any],
-    options: dict[str, Any],
-) -> dict[str, Any]:
-    providers = {
-        "clinvar": {
-            "source_name": "clinvar",
-            "step_name": "query_clinvar",
-            "requested": _requested_provider_mode(options, "use_online_clinvar", "clinvar"),
-        },
-        "population": {
-            "source_name": "population",
-            "step_name": "query_population_frequency",
-            "requested": _requested_provider_mode(options, "use_online_gnomad", "population"),
-        },
-        "computational": {
-            "source_name": "computational",
-            "step_name": "evaluate_computational_evidence",
-            "requested": _requested_provider_mode(options, "use_online_vep", "computational"),
-        },
-        "literature": {
-            "source_name": "literature",
-            "step_name": (
-                "search_and_summarize_literature"
-                if "search_and_summarize_literature" in step_results
-                else "search_literature_evidence"
-            ),
-            "requested": (
-                "online"
-                if options.get("use_online_pubmed") or options.get("use_online_litvar")
-                else _requested_provider_mode(options, "use_online_pubmed", "literature")
-            ),
-        },
-        "clingen_erepo": {
-            "source_name": "clingen_erepo",
-            "step_name": "query_clingen_erepo",
-            "requested": "included" if options.get("include_clingen_erepo") else "default",
-        },
-    }
-    return {
-        name: _provider_summary_item(
-            source=data_sources_config.source(config["source_name"]),
-            step_name=config["step_name"],
-            step_payload=step_results.get(config["step_name"]),
-            requested_mode=config["requested"],
-        )
-        for name, config in providers.items()
-    }
-
-
-def _provider_summary_item(
-    *,
-    source: DataSourceConfig,
-    step_name: str,
-    step_payload: Any,
-    requested_mode: str,
-) -> dict[str, Any]:
-    limitations = _provider_limitations(step_payload)
-    source_payload = _provider_source_payload(step_payload)
-    provenance = _provider_provenance(source_payload)
-    records_count = _provider_records_count(step_payload, step_name)
-    outcome = _provider_outcome(
-        configured_mode=str(source.mode),
-        step_payload=step_payload,
-        records_count=records_count,
-        limitations=limitations,
-        provenance=provenance,
-    )
-    return {
-        "requested_mode": requested_mode,
-        "configured_mode": str(source.mode),
-        "actual_outcome": outcome,
-        "source_version": _provider_source_version(source, source_payload, provenance),
-        "endpoint": provenance.get("endpoint") or source_payload.get("endpoint"),
-        "query": provenance.get("query") or source_payload.get("query"),
-        "raw_hash": provenance.get("raw_record_hash") or source_payload.get("raw_snapshot_ref"),
-        "cache_hit": provenance.get("cache_hit"),
-        "provider_mode": provenance.get("provider_mode") or str(source.mode),
-        "records_count": records_count,
-        "limitations_count": len(limitations),
-        "limitations": limitations,
-    }
-
-
-def _provider_outcome(
-    *,
-    configured_mode: str,
-    step_payload: Any,
-    records_count: int,
-    limitations: list[str],
-    provenance: dict[str, Any],
-) -> str:
-    if step_payload is None:
-        return "skipped"
-    if provenance.get("cache_hit") is True:
-        return "cache_hit"
-    lowered = " ".join(limitations).lower()
-    if "failed:" in lowered or " failure " in f" {lowered} " or "query failed" in lowered:
-        return "failure"
-    if records_count == 0 and ("no " in lowered and "record" in lowered):
-        return "no_record"
-    if records_count == 0 and configured_mode in {str(ProviderMode.ONLINE), "online"}:
-        return "no_record"
-    return "success"
-
-
-def _provider_records_count(step_payload: Any, step_name: str) -> int:
-    if not isinstance(step_payload, dict):
-        return 0
-    if isinstance(step_payload.get("records"), list):
-        return len(step_payload["records"])
-    if isinstance(step_payload.get("literature_search_results"), list):
-        return len(step_payload["literature_search_results"])
-    if step_name == "query_population_frequency":
-        if step_payload.get("overall_af") is not None or step_payload.get("max_pop_af") is not None:
-            return 1
-        return 0
-    if step_name == "evaluate_computational_evidence":
-        summary = step_payload.get("summary") if isinstance(step_payload.get("summary"), dict) else {}
-        return len(summary.get("predictor_calls") or [])
-    if isinstance(step_payload.get("matches"), list):
-        return len(step_payload["matches"])
-    return 0
-
-
-def _provider_source_payload(step_payload: Any) -> dict[str, Any]:
-    if not isinstance(step_payload, dict):
-        return {}
-    source = step_payload.get("source")
-    if isinstance(source, dict):
-        return source
-    records = step_payload.get("records")
-    if isinstance(records, list) and records:
-        first = records[0] if isinstance(records[0], dict) else {}
-        source = first.get("source") if isinstance(first, dict) else None
-        if isinstance(source, dict):
-            return source
-    summary = step_payload.get("summary")
-    if isinstance(summary, dict):
-        for call in summary.get("predictor_calls") or []:
-            if isinstance(call, dict) and isinstance(call.get("provenance"), dict):
-                return {"provenance": call["provenance"], "version": call.get("source_version")}
-    provenance = step_payload.get("provenance")
-    if isinstance(provenance, dict):
-        return {"provenance": provenance}
-    return {}
-
-
-def _provider_provenance(source_payload: dict[str, Any]) -> dict[str, Any]:
-    provenance = source_payload.get("provenance")
-    if hasattr(provenance, "model_dump"):
-        return provenance.model_dump(mode="json")
-    if isinstance(provenance, dict):
-        return provenance
-    return {}
-
-
 def _provider_limitations(step_payload: Any) -> list[str]:
     if not isinstance(step_payload, dict):
         return []
@@ -1689,36 +1536,6 @@ def _provider_limitations(step_payload: Any) -> list[str]:
             if isinstance(call, dict):
                 limitations.extend(str(item) for item in call.get("limitations") or [] if item)
     return _unique(limitations)
-
-
-def _provider_source_version(
-    source: DataSourceConfig,
-    source_payload: dict[str, Any],
-    provenance: dict[str, Any],
-) -> str | None:
-    return (
-        provenance.get("source_version")
-        or source_payload.get("version")
-        or source_payload.get("source_version")
-        or source.source_version
-    )
-
-
-def _requested_provider_mode(
-    options: dict[str, Any],
-    online_flag: str,
-    source_name: str,
-) -> str:
-    if options.get(online_flag):
-        return "online"
-    source_override = (
-        (options.get("data_sources") or {}).get("sources", {}).get(source_name)
-        if isinstance(options.get("data_sources"), dict)
-        else None
-    )
-    if isinstance(source_override, dict) and source_override.get("mode"):
-        return str(source_override["mode"])
-    return "default"
 
 
 def _unresolved_placeholder_mode(step_results: dict[str, Any]) -> bool:

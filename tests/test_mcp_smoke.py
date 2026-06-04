@@ -382,6 +382,8 @@ def test_mcp_designated_flexible_mock_options_are_accepted() -> None:
     assert tool_payload["variant"]["normalized"] == tool_payload["normalized_variant"]
     assert tool_payload["classification"]["final_classification"] == tool_payload["final_classification"]
     assert tool_payload["providers"]["summary"] == tool_payload["provider_mode_summary"]
+    assert "provider_runtime" in tool_payload["step_results"]
+    assert tool_payload["step_results"]["provider_runtime"]["clinvar"]["outcome"] == tool_payload["provider_mode_summary"]["clinvar"]["outcome"]
 
 
 def test_mcp_generate_report_tool_smoke(

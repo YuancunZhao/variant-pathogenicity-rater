@@ -28,6 +28,13 @@ of these fields. New clients should read provider state from
 `offline_default_mode`, and `unresolved_placeholder_mode` fields continue to be
 emitted for compatibility. See `docs/OUTPUT_SCHEMA.md`.
 
+The 77B provider interface consolidation adds a shared provider runtime
+contract under `step_results.provider_runtime`. `provider_mode_summary` and
+canonical provider entries are now built from this normalized adapter layer
+rather than directly depending on ad hoc pipeline-side interpretation of
+heterogeneous provider steps. Provider internals and raw step payloads remain
+unchanged.
+
 ## Architecture
 
 Online providers are fact providers, not ACMG classifiers:
@@ -129,6 +136,9 @@ Canonical `providers.summary` mirrors this provider outcome summary, and
 per-provider canonical entries normalize requested/configured mode, attempted
 state, outcome, record count, source version, query, endpoint, cache hit,
 limitations, and provenance.
+77B also exposes additive runtime fields such as `attempted`, `outcome`,
+`warnings`, `error_type`, `error_message_summary`, `raw_record_hash`,
+`retrieval_timestamp`, and raw `provenance`.
 Online provider attempts use live source labels by default; they should not
 surface `offline-fixture-v1` unless the caller explicitly configured a local or
 fixture source.

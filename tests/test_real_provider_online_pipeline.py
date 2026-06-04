@@ -191,6 +191,9 @@ def test_online_flags_false_do_not_enable_network_provider(tmp_path: Path) -> No
     assert result["data_source_modes"]["population"] == "mock"
     assert result["provider_mode_summary"]["population"]["configured_mode"] == "mock"
     assert result["provider_mode_summary"]["population"]["actual_outcome"] == "success"
+    assert result["step_results"]["provider_runtime"]["population"]["outcome"] == "success"
+    assert result["step_results"]["provider_runtime"]["population"]["configured_mode"] == "mock"
+    assert result["providers"]["summary"] == result["provider_mode_summary"]
     assert result["offline_default_mode"] is True
 
 
@@ -225,6 +228,9 @@ def test_explicit_online_gnomad_flag_uses_mocked_provider_path(monkeypatch, tmp_
     assert result["step_results"]["query_population_frequency"]["source"]["provenance"]["cache_hit"] is False
     assert result["step_results"]["query_population_frequency"]["source"]["version"] == "gnomAD gnomad_r4 live GraphQL"
     assert result["provider_mode_summary"]["population"]["actual_outcome"] == "no_record"
+    assert result["provider_mode_summary"]["population"]["outcome"] == "no_record"
+    assert result["step_results"]["provider_runtime"]["population"]["outcome"] == "no_record"
+    assert result["provider_mode_summary"]["population"]["raw_record_hash"] == result["provider_mode_summary"]["population"]["raw_hash"]
     assert result["provider_mode_summary"]["population"]["query"]["variant_id"] == "1-21563117-A-C"
     assert not any(item["code"] == "PM2" for item in result["applied_evidence"])
 
@@ -294,6 +300,9 @@ def test_online_vep_failure_is_provider_summary_failure(monkeypatch, tmp_path: P
     assert computational["requested_mode"] == "online"
     assert computational["configured_mode"] == "online"
     assert computational["actual_outcome"] == "failure"
+    assert computational["outcome"] == "failure"
+    assert computational["error_type"] == "Ensembl_VEP_online_query"
+    assert result["step_results"]["provider_runtime"]["computational"]["outcome"] == "failure"
     assert computational["source_version"] == "Ensembl REST VEP live"
     assert computational["endpoint"] == "https://rest.ensembl.org/vep/homo_sapiens/region"
     assert computational["query"]["variant_id"] == "GRCh38-1-21563117-A-C"
@@ -619,15 +628,25 @@ def test_alpl_online_provider_flow_with_slash_clinvar_date_is_review_gated(
     assert provider_summary["clinvar"]["requested_mode"] == "online"
     assert provider_summary["clinvar"]["configured_mode"] == "online"
     assert provider_summary["clinvar"]["actual_outcome"] == "success"
+    assert provider_summary["clinvar"]["outcome"] == "success"
     assert provider_summary["clinvar"]["source_version"] == "NCBI ClinVar E-utilities live"
     assert provider_summary["population"]["actual_outcome"] == "no_record"
+    assert provider_summary["population"]["outcome"] == "no_record"
     assert provider_summary["population"]["query"]["variant_id"] == "1-21563117-A-C"
     assert provider_summary["population"]["source_version"] == "gnomAD gnomad_r4 live GraphQL"
     assert provider_summary["computational"]["actual_outcome"] == "success"
+    assert provider_summary["computational"]["outcome"] == "success"
     assert provider_summary["computational"]["source_version"] == "Ensembl REST VEP live"
     assert provider_summary["computational"]["query"]["variant_id"] == "GRCh38-1-21563117-A-C"
     assert provider_summary["literature"]["requested_mode"] == "online"
     assert provider_summary["literature"]["actual_outcome"] == "no_record"
+    assert provider_summary["literature"]["outcome"] == "no_record"
+    provider_runtime = result["step_results"]["provider_runtime"]
+    assert provider_runtime["clinvar"]["outcome"] == "success"
+    assert provider_runtime["population"]["outcome"] == "no_record"
+    assert provider_runtime["computational"]["outcome"] == "success"
+    assert provider_runtime["literature"]["outcome"] == "no_record"
+    assert result["providers"]["summary"] == provider_summary
     assert calls["clinvar"] == 2
     assert calls["gnomad_payloads"]
     assert calls["vep_urls"]

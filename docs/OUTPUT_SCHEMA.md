@@ -55,6 +55,15 @@ Each canonical provider entry uses the same field names:
 `provider_mode_summary` field. The legacy field remains emitted unchanged for
 compatibility.
 
+77B adds `step_results.provider_runtime` as the normalized provider runtime
+contract for ClinVar, population/gnomAD, computational/VEP,
+literature/PubMed-LitVar, and ClinGen ERepo. Per-provider canonical entries
+prefer this runtime contract when available. For compatibility,
+`providers.summary` remains equal to `provider_mode_summary`.
+
+See `docs/PROVIDER_RESULT_CONTRACT.md` for the provider outcome and provenance
+contract.
+
 ## Evidence Status Summary
 
 `evidence.evidence_status_summary` is descriptive. It is not an input to the
@@ -105,7 +114,9 @@ renamed in the 77A compatibility period:
 - `step_results`
 
 The raw `step_results` payload is intentionally not migrated in 77A. It remains
-the existing raw step audit payload for compatibility and debugging.
+the existing raw step audit payload for compatibility and debugging. 77B adds
+`step_results.provider_runtime` as a normalized additive provider summary while
+preserving the raw provider step payloads.
 
 ## Client Guidance
 
