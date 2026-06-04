@@ -64,6 +64,13 @@ prefer this runtime contract when available. For compatibility,
 See `docs/PROVIDER_RESULT_CONTRACT.md` for the provider outcome and provenance
 contract.
 
+77D-1 adds `docs/RUNTIME_OPTIONS.md` and routes the core Python
+`rate_variant` option path through a centralized RuntimeOptions normalizer.
+This supports future `input.options_used` and `runtime` consistency work while
+preserving the existing canonical output fields and legacy option surfaces.
+CLI, MCP, batch, annotated-batch, and natural-language wrapper option assembly
+are intentionally left for later 77D tasks.
+
 ## Evidence Status Summary
 
 `evidence.evidence_status_summary` is descriptive. It is not an input to the

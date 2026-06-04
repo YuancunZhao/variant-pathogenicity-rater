@@ -61,6 +61,10 @@ from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evide
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
 from variant_pathogenicity_rater.reporting import generate_report
+from variant_pathogenicity_rater.runtime.options import (
+    normalize_runtime_options,
+    runtime_options_to_pipeline_dict,
+)
 from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
 from variant_pathogenicity_rater.schemas.consistency import ContextConsistency
@@ -982,36 +986,13 @@ def _manual_nmd_context_supplied(arguments: dict[str, Any]) -> bool:
 
 
 def _options(arguments: dict[str, Any]) -> dict[str, Any]:
-    options = dict(arguments.get("options") or {})
-    options.setdefault("mock_mode", True)
-    return _normalize_online_provider_options(options)
+    runtime_options = normalize_runtime_options(arguments.get("options") or {})
+    return runtime_options_to_pipeline_dict(runtime_options)
 
 
 def _normalize_online_provider_options(options: dict[str, Any]) -> dict[str, Any]:
-    data_sources = dict(options.get("data_sources") or {})
-    sources = dict(data_sources.get("sources") or data_sources.get("data_sources") or {})
-    cache_root = options.get("provider_cache_dir")
-    mappings = {
-        "use_online_clinvar": ("clinvar", "clinvar", "NCBI ClinVar E-utilities live"),
-        "use_online_gnomad": ("population", "gnomad", "gnomAD gnomad_r4 live GraphQL"),
-        "use_online_vep": ("computational", "vep", "Ensembl REST VEP live"),
-        "use_online_pubmed": ("literature", "literature", "PubMed/LitVar live"),
-        "use_online_litvar": ("literature", "literature", "PubMed/LitVar live"),
-    }
-    for flag, (source_name, cache_name, live_source_version) in mappings.items():
-        if not options.get(flag):
-            continue
-        source = dict(sources.get(source_name) or {})
-        source.update({"mode": "online", "online_enabled": True})
-        if not source.get("source_version"):
-            source["source_version"] = live_source_version
-        if cache_root and not source.get("cache_dir"):
-            source["cache_dir"] = f"{str(cache_root).rstrip('/')}/{cache_name}"
-        sources[source_name] = source
-    if sources:
-        data_sources["sources"] = sources
-        options["data_sources"] = data_sources
-    return options
+    runtime_options = normalize_runtime_options(options)
+    return runtime_options_to_pipeline_dict(runtime_options)
 
 
 def _use_online_literature(options: dict[str, Any]) -> bool:

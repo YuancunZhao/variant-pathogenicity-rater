@@ -19,9 +19,11 @@ canonical additive output view while preserving legacy fields. The 77B provider
 interface consolidation now backs provider summaries with a normalized runtime
 contract while preserving raw provider step payloads, and the 77C evidence
 status helper unification centralizes read-only applied/candidate/review-note
-status grouping without changing evidence logic. Default workflows remain
-no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
-surfaces are opt-in only.
+status grouping without changing evidence logic. The 77D-1 RuntimeOptions
+foundation now centralizes the Python API `rate_variant` core option path while
+leaving CLI/MCP/batch/text wrapper migration to later 77D work. Default
+workflows remain no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed,
+and LitVar surfaces are opt-in only.
 Selected real-world case validation should now exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
 summary/draft behavior, duplicate literature/case handling, and report wording
@@ -32,6 +34,7 @@ without changing evidence logic or the combiner.
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
 | `77C_evidence_status_helper_unification` | Done | Added a shared read-only evidence status helper and canonical status summary fields while preserving applied/candidate boundaries, reviewed-evidence validation, and classification. | Medium-high | Evidence status helper, pipeline grouping reads, canonical evidence summary, reports, docs, tests | Yes |
+| `77D-1_runtime_options_foundation` | Done | Added a centralized RuntimeOptions foundation for the Python API `rate_variant` core option path while preserving legacy options, provider mapping semantics, default offline/mock behavior, and reviewed-evidence boundaries. | Medium | Runtime options helper, rate_variant option adapter, focused tests, docs | Yes |
 | `77B_provider_interface_consolidation` | Done | Added a normalized provider runtime result contract and adapter-backed provider summaries without changing provider internals, evidence generation, or classification. | Medium | Provider runtime contract, pipeline summary adapter, canonical provider output, CLI/MCP output tests, docs | Yes |
 | `77A_output_schema_unification` | Done | Added additive canonical output sections for single, text, batch, annotated-batch, CLI JSON, and MCP outputs while preserving legacy fields and leaving combiner/evidence logic unchanged. | Medium | Pipeline output view, batch summaries, CLI/MCP output tests, docs | Yes |
 | `76_mock_fixture_interface_audit_and_activation` | Done | Added explicit provider outcome summaries, clarified `mock_mode`/`data_source_modes` semantics, preserved structured coordinates in variant resolution, bridged VEP descriptive protein/consequence facts into resolution only, and kept provider facts behind existing evaluator/review boundaries. | High | Pipeline outputs, provider provenance summaries, variant resolution, online-provider tests, docs | Yes |
@@ -70,8 +73,11 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 77C evidence status helper unification:
+Current known gaps after 77D-1 RuntimeOptions foundation:
 
+- CLI, MCP, batch, annotated-batch, and natural-language wrapper option
+  normalization still use their existing wrapper-specific assembly paths and
+  should be migrated in later 77D tasks without deleting public fields.
 - Live provider smoke validation is implemented and remains outside default
   pytest/CI; current live endpoint results still depend on explicit local
   execution under `VPR_RUN_LIVE_PROVIDER_SMOKE=1`.
