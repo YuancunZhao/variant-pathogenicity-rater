@@ -22,6 +22,13 @@ default. See `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
   provider.
 - Provider cache directories are explicit configuration, not a signal to enable
   online retrieval by themselves.
+- `mock_mode` is retained as a backward-compatible output field and is not the
+  source of truth for individual provider outcomes.
+- `data_source_modes` reports configured/requested modes. Actual provider
+  success, no-record, failure, skipped, and cache-hit outcomes are reported in
+  `provider_mode_summary`.
+- Online provider requests use live source-version labels by default unless a
+  caller explicitly overrides the source version.
 
 ## Evidence Boundaries
 
@@ -43,6 +50,7 @@ limitations and continues:
 - timeout;
 - HTTP error;
 - malformed JSON;
+- parser uncertainty such as unparseable ClinVar date fields;
 - empty provider result;
 - missing source version or provenance;
 - gnomAD no-record result;
@@ -68,5 +76,16 @@ source envelope with:
 - cache hit state where applicable;
 - limitations.
 
+ClinVar date provenance additionally preserves the raw `last_evaluated` value,
+normalized date when available, parse status, and date precision. Year-only
+dates remain reviewable as year-precision records; unknown or malformed dates
+are limitations rather than provider failures.
+
 The raw snapshot hash may refer to a structured failure or empty-result envelope
 when no successful provider record was returned.
+
+`provider_mode_summary` is the top-level audit view for this envelope. It
+includes requested mode, configured mode, actual outcome, source version,
+endpoint, query, raw hash, cache-hit state, provider mode, record count, and
+limitations for ClinVar, population/gnomAD, computational/VEP,
+literature/PubMed-LitVar, and ClinGen ERepo when included.

@@ -189,6 +189,9 @@ def test_online_flags_false_do_not_enable_network_provider(tmp_path: Path) -> No
     )
     assert result["status"] == "ok"
     assert result["data_source_modes"]["population"] == "mock"
+    assert result["provider_mode_summary"]["population"]["configured_mode"] == "mock"
+    assert result["provider_mode_summary"]["population"]["actual_outcome"] == "success"
+    assert result["offline_default_mode"] is True
 
 
 def test_explicit_online_gnomad_flag_uses_mocked_provider_path(monkeypatch, tmp_path: Path) -> None:
@@ -220,7 +223,82 @@ def test_explicit_online_gnomad_flag_uses_mocked_provider_path(monkeypatch, tmp_
     assert calls["count"] == 1
     assert result["data_source_modes"]["population"] == "online"
     assert result["step_results"]["query_population_frequency"]["source"]["provenance"]["cache_hit"] is False
+    assert result["step_results"]["query_population_frequency"]["source"]["version"] == "gnomAD gnomad_r4 live GraphQL"
+    assert result["provider_mode_summary"]["population"]["actual_outcome"] == "no_record"
+    assert result["provider_mode_summary"]["population"]["query"]["variant_id"] == "1-21563117-A-C"
     assert not any(item["code"] == "PM2" for item in result["applied_evidence"])
+
+
+def test_mcp_online_gnomad_flag_reports_provider_summary(monkeypatch, tmp_path: Path) -> None:
+    def post_json(_self, _url: str, payload: dict) -> dict:
+        assert payload["variables"]["variantId"] == "1-21563117-A-C"
+        return {"data": {"variant": None}}
+
+    monkeypatch.setattr(ProviderHTTPClient, "post_json", post_json)
+    request = {
+        "jsonrpc": "2.0",
+        "id": 76,
+        "method": "tools/call",
+        "params": {
+            "name": "rate_variant",
+            "arguments": {
+                "gene": "GENE1",
+                "chromosome": "1",
+                "position": 21563117,
+                "ref": "A",
+                "alt": "C",
+                "disease": "Example disease",
+                "options": {
+                    "use_online_gnomad": True,
+                    "provider_cache_dir": str(tmp_path / "providers"),
+                    "include_clinvar": False,
+                    "include_computational": False,
+                    "include_literature": False,
+                },
+            },
+        },
+    }
+
+    response = asyncio.run(_server().handle_message(json.dumps(request)))
+    payload = json.loads(response["result"]["content"][0]["text"])
+
+    assert response["result"]["isError"] is False
+    assert payload["data_source_modes"]["population"] == "online"
+    assert payload["provider_mode_summary"]["population"]["actual_outcome"] == "no_record"
+    assert payload["provider_mode_summary"]["population"]["query"]["variant_id"] == "1-21563117-A-C"
+
+
+def test_online_vep_failure_is_provider_summary_failure(monkeypatch, tmp_path: Path) -> None:
+    def get_json(_self, _url: str, params: dict | None = None) -> list:
+        raise ProviderHTTPError("Provider HTTP error 503", url="https://rest.ensembl.org", status=503)
+
+    monkeypatch.setattr(ProviderHTTPClient, "get_json", get_json)
+    result = rate_variant(
+        {
+            "gene": "GENE1",
+            "chromosome": "1",
+            "position": 21563117,
+            "ref": "A",
+            "alt": "C",
+            "disease": "Example disease",
+            "options": {
+                "use_online_vep": True,
+                "provider_cache_dir": str(tmp_path / "providers"),
+                "include_clinvar": False,
+                "include_literature": False,
+            },
+        }
+    )
+
+    computational = result["provider_mode_summary"]["computational"]
+    assert computational["requested_mode"] == "online"
+    assert computational["configured_mode"] == "online"
+    assert computational["actual_outcome"] == "failure"
+    assert computational["source_version"] == "Ensembl REST VEP live"
+    assert computational["endpoint"] == "https://rest.ensembl.org/vep/homo_sapiens/region"
+    assert computational["query"]["variant_id"] == "GRCh38-1-21563117-A-C"
+    assert result["unresolved_placeholder_mode"] is True
+    assert not any(item["code"] in {"PP3", "BP4"} for item in result["applied_evidence"])
 
 
 def test_gnomad_mocked_graphql_maps_population_frequency_and_cache(tmp_path: Path) -> None:
@@ -364,6 +442,11 @@ def test_rate_variant_online_literature_summary_is_candidate_only(monkeypatch, t
                 }
             ],
             reviewed_evidence_drafts=[{"evidence_status": "needs_more_info"}],
+            provenance={
+                "online_pubmed_requested": True,
+                "query": {"gene": payload["gene"], "variant": payload["variant"]},
+                "source_version": "PubMed/LitVar live",
+            },
             applied_evidence=[],
             final_classification_changed=False,
         )
@@ -419,6 +502,190 @@ def test_clinvar_online_provenance_and_no_pp5_bp6_applied(tmp_path: Path) -> Non
     assert result.candidate_evidence_items
     assert all(item.applied is False for item in result.candidate_evidence_items)
     assert all(item.strength == "none" for item in result.candidate_evidence_items)
+
+
+def test_alpl_online_provider_flow_with_slash_clinvar_date_is_review_gated(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: dict[str, Any] = {"gnomad_payloads": [], "vep_urls": [], "clinvar": 0}
+
+    def clinvar_http_get(_self, endpoint: str, params: dict[str, str]) -> dict:
+        calls["clinvar"] += 1
+        if endpoint.endswith("esearch.fcgi"):
+            assert "ALPL[gene]" in params["term"]
+            assert "NM_000478.6:c.305A>C" in params["term"]
+            return {"esearchresult": {"idlist": ["305"]}}
+        return {
+            "endpoint": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
+            "result": {
+                "uids": ["305"],
+                "305": {
+                    "uid": "305",
+                    "variation_id": "305",
+                    "clinical_significance": {
+                        "description": "Pathogenic",
+                        "review_status": "reviewed by expert panel",
+                        "last_evaluated": "2025/08/29",
+                    },
+                    "trait_set": [{"trait_name": "Hypophosphatasia"}],
+                    "classification_type": "germline",
+                    "number_submitters": 6,
+                },
+            },
+        }
+
+    def post_json(_self, url: str, payload: dict) -> dict:
+        calls["gnomad_payloads"].append(payload)
+        assert "gnomad" in url.lower()
+        assert payload["variables"]["variantId"] == "1-21563117-A-C"
+        return {"data": {"variant": None}}
+
+    def get_json(_self, url: str, params: dict | None = None) -> list:
+        calls["vep_urls"].append(url)
+        assert "1:21563117-21563117:1/A/C" in url
+        return [
+            {
+                "most_severe_consequence": "missense_variant",
+                "transcript_consequences": [
+                    {
+                        "transcript_id": "NM_000478.6",
+                        "hgvsp": "NP_000469.3:p.Thr102Pro",
+                    }
+                ],
+            }
+        ]
+
+    def fake_literature(payload: dict):
+        from variant_pathogenicity_rater.literature_agent.schema import LiteratureSearchResult
+
+        assert payload["use_online_pubmed"] is True
+        assert payload["gene"] == "ALPL"
+        assert payload["variant"] == "NM_000478.6:c.305A>C"
+        return LiteratureSearchResult(
+            literature_search_results=[],
+            limitations=["PubMed mocked online record stayed candidate-only."],
+            suggested_evidence=[
+                {"code": "PS3", "candidate_only": True, "applied": False, "suggested_strength": "supporting"}
+            ],
+            evidence_items=[{"code": "PS3", "strength": "none", "candidate_only": True, "applied": False}],
+            reviewed_evidence_drafts=[{"evidence_status": "needs_more_info"}],
+            provenance={
+                "online_pubmed_requested": True,
+                "query": {"gene": payload["gene"], "variant": payload["variant"]},
+                "source_version": "PubMed/LitVar live",
+            },
+            applied_evidence=[],
+            final_classification_changed=False,
+        )
+
+    monkeypatch.setattr(ClinVarOnlineProvider, "_http_get", clinvar_http_get)
+    monkeypatch.setattr(ProviderHTTPClient, "post_json", post_json)
+    monkeypatch.setattr(ProviderHTTPClient, "get_json", get_json)
+    monkeypatch.setattr(RATE_VARIANT_MODULE, "search_and_summarize_literature", fake_literature)
+
+    result = rate_variant(
+        {
+            "gene": "ALPL",
+            "transcript": "NM_000478.6",
+            "hgvs_c": "NM_000478.6:c.305A>C",
+            "chromosome": "1",
+            "position": 21563117,
+            "ref": "A",
+            "alt": "C",
+            "genome_build": "GRCh38",
+            "disease": "Hypophosphatasia",
+            "inheritance": "autosomal_dominant",
+            "options": {
+                "use_online_clinvar": True,
+                "use_online_gnomad": True,
+                "use_online_vep": True,
+                "use_online_pubmed": True,
+                "provider_cache_dir": str(tmp_path / "providers"),
+            },
+        }
+    )
+
+    assert result["status"] == "ok"
+    assert result["data_source_modes"]["clinvar"] == "online"
+    assert result["data_source_modes"]["population"] == "online"
+    assert result["data_source_modes"]["computational"] == "online"
+    assert result["data_source_modes"]["literature"] == "online"
+    assert result["data_source_modes_semantics"].startswith("Configured/requested")
+    assert result["offline_default_mode"] is True
+    assert result["mock_mode"] is True
+    assert result["unresolved_placeholder_mode"] is True
+    provider_summary = result["provider_mode_summary"]
+    assert set(provider_summary) >= {"clinvar", "population", "computational", "literature", "clingen_erepo"}
+    assert provider_summary["clinvar"]["requested_mode"] == "online"
+    assert provider_summary["clinvar"]["configured_mode"] == "online"
+    assert provider_summary["clinvar"]["actual_outcome"] == "success"
+    assert provider_summary["clinvar"]["source_version"] == "NCBI ClinVar E-utilities live"
+    assert provider_summary["population"]["actual_outcome"] == "no_record"
+    assert provider_summary["population"]["query"]["variant_id"] == "1-21563117-A-C"
+    assert provider_summary["population"]["source_version"] == "gnomAD gnomad_r4 live GraphQL"
+    assert provider_summary["computational"]["actual_outcome"] == "success"
+    assert provider_summary["computational"]["source_version"] == "Ensembl REST VEP live"
+    assert provider_summary["computational"]["query"]["variant_id"] == "GRCh38-1-21563117-A-C"
+    assert provider_summary["literature"]["requested_mode"] == "online"
+    assert provider_summary["literature"]["actual_outcome"] == "no_record"
+    assert calls["clinvar"] == 2
+    assert calls["gnomad_payloads"]
+    assert calls["vep_urls"]
+    assert "Invalid isoformat" not in " ".join(result["limitations"])
+
+    clinvar_step = result["step_results"]["query_clinvar"]
+    assert clinvar_step["records"]
+    clinvar_record = clinvar_step["records"][0]
+    provenance = clinvar_record["source"]["provenance"]
+    assert clinvar_record["last_evaluated"] == "2025-08-29"
+    assert provenance["raw_last_evaluated"] == "2025/08/29"
+    assert provenance["last_evaluated_precision"] == "day"
+    for field in {
+        "provider_mode",
+        "cache_hit",
+        "query",
+        "source_version",
+        "endpoint",
+        "request_url",
+        "parser_version",
+        "raw_record_hash",
+        "retrieved_at",
+    }:
+        assert provenance[field] is not None
+
+    assert clinvar_step["candidate_evidence_items"]
+    assert all(item["applied"] is False for item in clinvar_step["candidate_evidence_items"])
+    assert all(item["strength"] == "none" for item in clinvar_step["candidate_evidence_items"])
+    assert not any(item["code"] in {"PP5", "BP6"} for item in result["applied_evidence"])
+
+    population_step = result["step_results"]["query_population_frequency"]
+    assert population_step["source"]["provenance"]["query"]["variant_id"] == "1-21563117-A-C"
+    assert population_step["source"]["version"] == "gnomAD gnomad_r4 live GraphQL"
+    assert population_step["is_absent"] is False
+    assert not any(item["code"] == "PM2" for item in result["applied_evidence"])
+
+    assert result["normalized_variant"]["chrom"] == "1"
+    assert result["normalized_variant"]["pos"] == 21563117
+    assert result["variant_resolution"]["resolved_coordinate"]["chrom"] == "1"
+    assert result["variant_resolution"]["resolved_coordinate"]["pos"] == 21563117
+    assert result["variant_resolution"]["resolved_coordinate"]["provenance"][0]["source"] == "normalized_variant"
+    assert result["variant_resolution"]["resolved_hgvs_p"]["hgvs_p"] == "NP_000469.3:p.Thr102Pro"
+    assert result["variant_resolution"]["resolved_hgvs_p"]["consequence"] == "missense_variant"
+    assert result["variant_resolution"]["resolved_hgvs_p"]["provenance"][0]["source"] == "computational"
+    assert result["resolved_variant"]["hgvs_p"] == "NP_000469.3:p.Thr102Pro"
+
+    computational_step = result["step_results"]["evaluate_computational_evidence"]
+    predictor_calls = computational_step["summary"]["predictor_calls"]
+    assert predictor_calls
+    assert any(
+        "supported predictor field" in limitation
+        for call in predictor_calls
+        for limitation in call["limitations"]
+    )
+    literature_step = result["step_results"]["search_and_summarize_literature"]
+    assert literature_step["provenance"]["query"]["variant"] == "NM_000478.6:c.305A>C"
+    assert literature_step["applied_evidence"] == []
+    assert literature_step["final_classification_changed"] is False
 
 
 def test_cli_provider_cache_dir_flag_without_online_keeps_offline_default(capsys, tmp_path: Path) -> None:
@@ -481,6 +748,8 @@ def test_cli_online_pubmed_reports_literature_data_source_mode(monkeypatch, caps
 
     assert exit_code == 0
     assert payload["data_source_modes"]["literature"] == "online"
+    assert payload["provider_mode_summary"]["literature"]["requested_mode"] == "online"
+    assert payload["provider_mode_summary"]["literature"]["configured_mode"] == "online"
 
 
 @pytest.mark.online_gnomad_smoke

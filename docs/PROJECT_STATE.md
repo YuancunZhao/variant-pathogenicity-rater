@@ -26,8 +26,8 @@ safety-boundary validation. This is not a clinical validation statement and
 does not authorize autonomous clinical interpretation.
 
 After VCEP signal/override framework validation, real provider validation,
-benchmark Phase C, the General Literature Search and Summary Engine, and the
-74 real provider pipeline, the
+benchmark Phase C, the General Literature Search and Summary Engine, the
+74 real provider pipeline, and the 76 mock/fixture interface audit activation, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -38,7 +38,9 @@ annotated-batch VCEP summaries, local ClinVar/gnomAD/MANE/ERepo provider
 validation, a 100-case offline curated fixture-backed benchmark,
 natural-language input wrappers, offline variant resolution, opt-in online
 ClinVar/gnomAD/Ensembl VEP/PubMed/LitVar provider adapters, shared provider
-cache/provenance handling, CLI opt-in flags, MCP online options, Chinese
+cache/provenance handling, provider outcome summaries, structured-coordinate
+resolution fallback, descriptive VEP-to-resolution bridging, CLI opt-in flags,
+MCP online options, Chinese
 laboratory reporting, and the unchanged ACMG classification combiner. The 74
 real provider pipeline has passed offline integration review with the default
 no-network safety boundary intact. The next project
@@ -46,9 +48,8 @@ constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
 cases, or general literature search/summarization; it is selected real-world
-case validation, env-gated live provider smoke validation, a narrow real VCEP
-profile pilot, provider cache/reproducibility hardening, and CNV/SV framework
-planning.
+case validation, a narrow real VCEP profile pilot, provider
+cache/reproducibility hardening, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
 Rater is a semi-automated ACMG interpretation assistant for SNV/small-indel
@@ -245,6 +246,15 @@ ClinVar online records do not trigger PP5/BP6, PubMed/LitVar records remain
 candidate-only literature inputs, gnomAD and VEP online facts flow only through
 the existing population and computational evaluators, no gnomAD record triggers
 PM2 by itself, and candidate evidence remains outside the combiner.
+
+Provider mode reporting is now explicit. `mock_mode` remains for backward
+compatibility, and `data_source_modes` reports configured/requested modes after
+runtime options are applied. Actual provider outcomes are reported in
+`provider_mode_summary`, including requested mode, configured mode, outcome,
+source version, endpoint, query, raw hash, cache hit, provider mode, record
+count, and limitations. `offline_default_mode` and
+`unresolved_placeholder_mode` make default-off and unresolved placeholder
+states visible.
 
 ### Benchmark Validation
 
@@ -485,9 +495,8 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is env-gated live provider smoke validation, followed
-by selected real-world case validation and one narrowly scoped real VCEP
-profile pilot behind explicit profile selection.
+The recommended next task is selected real-world case validation, followed by
+one narrowly scoped real VCEP profile pilot behind explicit profile selection.
 
 Real provider validation for ClinVar, gnomAD, Ensembl VEP, PubMed/LitVar,
 MANE, and ERepo is complete for the current provider surface and should now be
@@ -495,8 +504,8 @@ maintained as a regression boundary: local fixture/snapshot validation,
 optional online disabled by default, provenance/cache visibility,
 failure-to-limitation behavior, and no direct provider-driven classification.
 
-Current known gaps are env-gated live provider smoke validation, selected
-real-world case validation, a selected real VCEP profile pilot, larger
-real-world hospital annotation validation, broader resolution fixture coverage
+Current known gaps are selected real-world case validation, a selected real
+VCEP profile pilot, larger real-world hospital annotation validation, broader
+resolution fixture coverage
 beyond the initial targeted records, provider cache/reproducibility hardening,
 and CNV/SV support.

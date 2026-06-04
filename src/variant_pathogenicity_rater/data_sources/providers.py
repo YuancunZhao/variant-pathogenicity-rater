@@ -24,6 +24,7 @@ from variant_pathogenicity_rater.evidence.clinvar import (
     _record_keys as clinvar_record_keys,
     _review_flags as clinvar_review_flags,
     clinvar_limitations,
+    clinvar_record_parser_limitations,
     condition_review_flags,
     map_clinvar_record_to_candidate_evidence,
     parse_clinvar_record,
@@ -163,6 +164,16 @@ class LocalFileClinVarProvider(ClinVarProvider):
                 )
                 continue
             if query_keys.intersection(record_keys):
+                try:
+                    record = parse_clinvar_record(raw, query=query)
+                except Exception as exc:  # noqa: BLE001 - malformed matched row becomes limitation.
+                    limitations.append(
+                        "Matched ClinVar local-file record "
+                        f"{index} could not be parsed: {exc.__class__.__name__}: {exc}"
+                    )
+                    continue
+                limitations.extend(clinvar_record_parser_limitations([record]))
+                parser_provenance = record.source.provenance
                 provenance = provenance_from_raw_record(
                     data_source=self.config.name,
                     source_version=self.config.source_version,
@@ -173,16 +184,17 @@ class LocalFileClinVarProvider(ClinVarProvider):
                     limitations=[
                         "Local-file source; source freshness depends on the file snapshot.",
                         *self.config.limitations,
+                        *clinvar_record_parser_limitations([record]),
                     ],
+                    last_evaluated=getattr(parser_provenance, "last_evaluated", None),
+                    raw_last_evaluated=getattr(parser_provenance, "raw_last_evaluated", None),
+                    last_evaluated_precision=getattr(
+                        parser_provenance, "last_evaluated_precision", None
+                    ),
+                    last_evaluated_parse_status=getattr(
+                        parser_provenance, "last_evaluated_parse_status", None
+                    ),
                 )
-                try:
-                    record = parse_clinvar_record(raw, query=query)
-                except Exception as exc:  # noqa: BLE001 - malformed matched row becomes limitation.
-                    limitations.append(
-                        "Matched ClinVar local-file record "
-                        f"{index} could not be parsed: {exc.__class__.__name__}: {exc}"
-                    )
-                    continue
                 attach_provenance_to_source(record.source, provenance)
                 records.append(record)
         review_flags = [

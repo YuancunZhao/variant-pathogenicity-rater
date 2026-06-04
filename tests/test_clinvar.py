@@ -53,6 +53,68 @@ def test_parse_clinvar_record_contains_required_contract() -> None:
     assert dumped["review_confidence"] == "high"
 
 
+@pytest.mark.parametrize(
+    ("raw_date", "expected_date", "expected_precision", "expected_status"),
+    [
+        ("2025/08/29", "2025-08-29", "day", "parsed"),
+        ("2025-08-29", "2025-08-29", "day", "parsed"),
+        ("2025.08.29", "2025-08-29", "day", "parsed"),
+        ("Aug 29, 2025", "2025-08-29", "day", "parsed"),
+        ("August 29, 2025", "2025-08-29", "day", "parsed"),
+        ("29 Aug 2025", "2025-08-29", "day", "parsed"),
+        ("29 August 2025", "2025-08-29", "day", "parsed"),
+        ("2025", "2025-01-01", "year", "parsed"),
+        ("unknown", None, "unknown", "unknown"),
+        ("not provided", None, "unknown", "unknown"),
+        ("", None, None, "missing"),
+        (None, None, None, "missing"),
+    ],
+)
+def test_parse_clinvar_record_accepts_common_last_evaluated_formats(
+    raw_date: str | None,
+    expected_date: str | None,
+    expected_precision: str | None,
+    expected_status: str,
+) -> None:
+    record = parse_clinvar_record(
+        {
+            "variation_id": "date-matrix",
+            "clinical_significance": "Pathogenic",
+            "review_status": "reviewed by expert panel",
+            "condition": "Example condition",
+            "last_evaluated": raw_date,
+            "germline_or_somatic": "germline",
+        }
+    )
+
+    assert (record.last_evaluated.isoformat() if record.last_evaluated else None) == expected_date
+    provenance = record.source.provenance
+    assert provenance.raw_last_evaluated == (str(raw_date).strip() if raw_date is not None else None)
+    assert provenance.last_evaluated == expected_date
+    assert provenance.last_evaluated_precision == expected_precision
+    assert provenance.last_evaluated_parse_status == expected_status
+
+
+def test_parse_clinvar_record_malformed_last_evaluated_is_limitation_not_crash() -> None:
+    record = parse_clinvar_record(
+        {
+            "variation_id": "bad-date",
+            "clinical_significance": "Pathogenic",
+            "review_status": "reviewed by expert panel",
+            "condition": "Example condition",
+            "last_evaluated": "definitely not a date",
+            "germline_or_somatic": "germline",
+        }
+    )
+
+    assert record.last_evaluated is None
+    provenance = record.source.provenance
+    assert provenance.raw_last_evaluated == "definitely not a date"
+    assert provenance.last_evaluated_precision == "unparseable"
+    assert provenance.last_evaluated_parse_status == "unparseable"
+    assert any("could not be parsed" in limitation for limitation in provenance.limitations)
+
+
 def test_mock_provider_queries_by_gene_and_hgvs_c() -> None:
     result = MockClinVarProvider().query(
         ClinVarQuery(gene="BRCA1", hgvs_c="NM_007294.4:c.68_69delAG")
@@ -238,6 +300,110 @@ def test_online_provider_cache_hit_does_not_repeat_http(tmp_path) -> None:
     assert calls["count"] == 2
     assert first.records[0].variation_id == second.records[0].variation_id == "1"
     assert any("disk cache" in limitation for limitation in second.limitations)
+
+
+@pytest.mark.parametrize("last_evaluated", ["2025/08/29", "2025-08-29", "Aug 29, 2025", "2025", "unknown", "bad date"])
+def test_online_provider_last_evaluated_formats_stay_candidate_only(
+    tmp_path, last_evaluated: str
+) -> None:
+    from variant_pathogenicity_rater.data_sources.config import DataSourceConfig
+
+    def http_get(endpoint: str, params: dict[str, str]) -> dict:
+        return {
+            "result": {
+                "uids": ["305"],
+                "305": {
+                    "variation_id": "305",
+                    "germline_classification": {
+                        "description": "Pathogenic",
+                        "review_status": "reviewed by expert panel",
+                        "last_evaluated": last_evaluated,
+                    },
+                    "trait_set": [{"trait_name": "Hypophosphatasia"}],
+                    "classification_type": "germline",
+                },
+            }
+        }
+
+    provider = ClinVarOnlineProvider(
+        DataSourceConfig(
+            name="clinvar",
+            mode="online",
+            online_enabled=True,
+            source_version="clinvar-date-test",
+            parser_version="clinvar-parser-date-test",
+            cache_dir=str(tmp_path),
+        ),
+        http_get=http_get,
+    )
+    result = provider.query(ClinVarQuery(variation_id="305", condition="Hypophosphatasia"))
+
+    assert result.records
+    assert result.candidate_evidence_items
+    assert all(item.strength == EvidenceStrength.NONE for item in result.candidate_evidence_items)
+    assert all(item.applied is False for item in result.candidate_evidence_items)
+    assert not any(item.code in {"PP5", "BP6"} and item.applied for item in result.candidate_evidence_items)
+    if last_evaluated == "2025":
+        assert result.records[0].source.provenance.last_evaluated_precision == "year"
+        assert any("year-only precision" in limitation for limitation in result.limitations)
+    if last_evaluated in {"unknown", "bad date"}:
+        assert result.records[0].last_evaluated is None
+        assert result.limitations
+
+
+def test_malformed_clinvar_date_does_not_change_final_classification() -> None:
+    baseline = rate_variant(
+        {
+            "gene": "ALPL",
+            "chromosome": "1",
+            "position": 21563117,
+            "ref": "A",
+            "alt": "C",
+            "genome_build": "GRCh38",
+            "disease": "Hypophosphatasia",
+            "inheritance": "autosomal_dominant",
+            "options": {"include_clinvar": False, "include_literature": False},
+        }
+    )
+    with_clinvar = rate_variant(
+        {
+            "gene": "ALPL",
+            "chromosome": "1",
+            "position": 21563117,
+            "ref": "A",
+            "alt": "C",
+            "genome_build": "GRCh38",
+            "disease": "Hypophosphatasia",
+            "inheritance": "autosomal_dominant",
+            "options": {
+                "clinvar_records": [
+                    {
+                        "variation_id": "alpl-bad-date",
+                        "gene": "ALPL",
+                        "hgvs_c": "NM_000478.6:c.305A>C",
+                        "genomic": {
+                            "genome_build": "GRCh38",
+                            "chromosome": "1",
+                            "position": 21563117,
+                            "ref": "A",
+                            "alt": "C",
+                        },
+                        "clinical_significance": "Pathogenic",
+                        "review_status": "reviewed by expert panel",
+                        "condition": "Hypophosphatasia",
+                        "last_evaluated": "bad date",
+                        "germline_or_somatic": "germline",
+                    }
+                ],
+                "include_literature": False,
+            },
+        }
+    )
+
+    assert with_clinvar["status"] == "ok"
+    assert with_clinvar["final_classification"] == baseline["final_classification"]
+    assert not any(item["code"] in {"PP5", "BP6"} for item in with_clinvar["applied_evidence"])
+    assert any("could not be parsed" in limitation for limitation in with_clinvar["limitations"])
 
 
 @pytest.mark.parametrize(

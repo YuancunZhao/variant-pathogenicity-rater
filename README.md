@@ -279,6 +279,20 @@ The `rate_variant` output includes:
 - `applied_evidence`: evidence counted by the supplied classification result
 - `review_note_evidence`: candidate/review-note evidence excluded from the combiner
 - `normalization_identity`: stable normalized identity metadata from normalization
+- `mock_mode`: backward-compatible legacy flag; it is not per-provider outcome
+  status
+- `offline_default_mode`: whether the loaded data-source configuration remains
+  offline by default
+- `data_source_modes`: configured/requested provider modes after options are
+  applied
+- `data_source_modes_semantics`: reminder that `data_source_modes` is not an
+  outcome summary
+- `provider_mode_summary`: actual provider outcomes by source, including
+  requested/configured mode, success/no-record/failure/skipped/cache-hit
+  outcome, source version, endpoint, query, raw hash, cache hit, provider mode,
+  record count, and limitations
+- `unresolved_placeholder_mode`: whether resolution or provider outputs still
+  contain unresolved placeholder state
 - `transcript_selection`: transcript recommendation context, when supplied
 - `context_consistency`: context checks, when available
 - `final_classification`: one of `pathogenic`, `likely_pathogenic`, `vus`, `likely_benign`, `benign`
@@ -327,6 +341,13 @@ printf '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"normaliz
 ```
 
 HGVS-like inputs preserve `transcript`, `hgvs_c`, and `hgvs_p`. Because phase 1 does not perform liftover, transcript mapping, or external API normalization, genomic fields that cannot be resolved locally are returned in `unresolved_fields`, accompanied by `normalization_warnings`, and `human_review_required` is always `true`.
+
+For structured inputs that already include genome build, chromosome, position,
+ref, and alt, `variant_resolution.resolved_coordinate` preserves the normalized
+coordinate even when no local transcript-resolution fixture is available. When
+online VEP is explicitly requested, VEP transcript consequences may populate
+descriptive `variant_resolution.resolved_hgvs_p` and consequence fields. These
+resolution facts are review context only; they do not create applied evidence.
 
 Example JSON files live in `examples/normalization/`.
 

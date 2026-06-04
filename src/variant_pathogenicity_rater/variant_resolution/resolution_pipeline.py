@@ -62,7 +62,7 @@ def resolve_variant(
 
     resolved_transcript = resolve_transcript(variant, record)
     resolved_protein = resolve_protein(variant, record)
-    resolved_coordinate = resolve_coordinate(record)
+    resolved_coordinate = resolve_coordinate(record, fallback_variant=variant)
     exon_context = resolve_exon_context(record)
     nmd_context = resolve_nmd_context(record, exon_context)
 

@@ -12,6 +12,15 @@ review completed with `655 passed, 2 skipped`; optional live smoke validation is
 implemented in `tests/test_live_provider_smoke.py`, remains env-gated, and is
 skipped by default. See `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
 
+The 76 mock/fixture interface audit activation clarified runtime mode reporting
+without changing evidence logic. `mock_mode` remains in outputs for backward
+compatibility. `data_source_modes` reports configured/requested modes after
+runtime options are applied, while `provider_mode_summary` reports actual
+provider outcomes such as success, no record, failure, skipped, or cache hit.
+`offline_default_mode` records the default-off posture, and
+`unresolved_placeholder_mode` flags unresolved resolution/provider placeholder
+states.
+
 ## Architecture
 
 Online providers are fact providers, not ACMG classifiers:
@@ -45,6 +54,12 @@ normalizes review status, star level, condition, germline/somatic context,
 clinical significance, submitter count, last evaluated date, conflict status,
 citations, and provenance into `ClinVarRecord`.
 
+ClinVar date parsing accepts common ISO, slash, dot, English month, and
+year-only `last_evaluated` formats. Day-precision dates normalize to
+`YYYY-MM-DD`; year-only dates normalize to `YYYY-01-01` with
+`last_evaluated_precision=year` in provenance. Unknown or malformed dates
+become limitations and do not fail the provider query.
+
 ClinVar never emits applied PP5/BP6. Exact records are review notes, and
 same-residue or same-amino-acid records can only support PS1/PM5 through the
 existing comparator generator.
@@ -58,6 +73,11 @@ and query provenance into `PopulationFrequency`.
 A missing gnomAD record is a limitation only. It is not interpreted as
 population absence and cannot trigger PM2 by itself.
 
+When online gnomAD is requested, source labels default to
+`gnomAD gnomad_r4 live GraphQL` unless the caller explicitly supplies a source
+version. The provider summary exposes the normalized gnomAD variant ID query,
+for example `1-21563117-A-C`.
+
 ### Ensembl VEP
 
 The Ensembl VEP online provider parses transcript consequences, HGVS
@@ -67,6 +87,10 @@ fields including CADD, REVEL, SIFT, PolyPhen, MutationTaster, AlphaMissense,
 and SpliceAI.
 
 Missing predictors become limitations. VEP does not directly apply PP3/BP4.
+VEP transcript consequences may also populate descriptive
+`variant_resolution.resolved_hgvs_p` and consequence fields when local
+resolution fixtures are missing. This bridge is scoped to variant resolution
+only and does not create evidence or bypass the computational evaluator.
 
 ### PubMed and LitVar
 
@@ -91,10 +115,21 @@ Provider outputs preserve:
 - cache hit status when available;
 - limitations and review flags.
 
+`provider_mode_summary` repeats these audit fields per provider, including
+requested mode, configured mode, actual outcome, source version, endpoint,
+query, raw hash, cache hit, provider mode, record count, and limitations.
+Online provider attempts use live source labels by default; they should not
+surface `offline-fixture-v1` unless the caller explicitly configured a local or
+fixture source.
+
 Provider failures, timeouts, malformed responses, empty results, low-quality
 population data, build mismatch, ancestry mismatch, stale source metadata, and
 unsupported predictor fields degrade to limitations instead of aborting the
 main workflow.
+
+Provider parser uncertainty, including unparseable ClinVar dates, is retained
+as provenance and limitations. Parser limitations do not promote candidate
+evidence and do not change classification directly.
 
 ## Integration Review Boundary
 

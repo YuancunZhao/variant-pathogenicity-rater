@@ -29,6 +29,9 @@ class ProvenanceMetadata(SchemaModel):
     raw_payload_kind: str | None = None
     review_status: str | None = None
     last_evaluated: str | None = None
+    raw_last_evaluated: str | None = None
+    last_evaluated_precision: str | None = None
+    last_evaluated_parse_status: str | None = None
     confidence: float = Field(default=0.5, ge=0, le=1)
     ancestry: str | None = None
     population: str | None = None
@@ -66,6 +69,9 @@ def provenance_from_raw_record(
     raw_payload_kind: str | None = None,
     review_status: str | None = None,
     last_evaluated: str | None = None,
+    raw_last_evaluated: str | None = None,
+    last_evaluated_precision: str | None = None,
+    last_evaluated_parse_status: str | None = None,
     ancestry: str | None = None,
     population: str | None = None,
     allele_number: int | None = None,
@@ -89,6 +95,9 @@ def provenance_from_raw_record(
         raw_payload_kind=raw_payload_kind,
         review_status=review_status,
         last_evaluated=last_evaluated,
+        raw_last_evaluated=raw_last_evaluated,
+        last_evaluated_precision=last_evaluated_precision,
+        last_evaluated_parse_status=last_evaluated_parse_status,
         confidence=confidence,
         ancestry=ancestry,
         population=population,

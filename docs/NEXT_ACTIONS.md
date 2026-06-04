@@ -10,10 +10,12 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 The recommended next task is `63_selected_real_world_case_validation`.
 
-It is the best next step because the 74 real provider pipeline is implemented
-and the 75 live-provider smoke validation layer is now available behind
-explicit environment gates. Default workflows remain no-network, and online
-ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar surfaces are opt-in only.
+It is the best next step because the 74 real provider pipeline is implemented,
+the 75 live-provider smoke validation layer is available behind explicit
+environment gates, and the 76 mock/fixture interface audit activation now makes
+provider outcomes and unresolved placeholders visible. Default workflows remain
+no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
+surfaces are opt-in only.
 Selected real-world case validation should now exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
 summary/draft behavior, duplicate literature/case handling, and report wording
@@ -23,6 +25,7 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `76_mock_fixture_interface_audit_and_activation` | Done | Added explicit provider outcome summaries, clarified `mock_mode`/`data_source_modes` semantics, preserved structured coordinates in variant resolution, bridged VEP descriptive protein/consequence facts into resolution only, and kept provider facts behind existing evaluator/review boundaries. | High | Pipeline outputs, provider provenance summaries, variant resolution, online-provider tests, docs | Yes |
 | `75_live_provider_smoke_validation` | Done | Added explicitly env-gated live smoke validation for completed online providers, checking reachability, cache/provenance, parser resilience, failure-to-limitation behavior, CLI smoke, and MCP online-option schema compatibility without default network dependency. | High | Smoke docs, optional smoke fixtures, provider cache/provenance review | Yes |
 | `63_selected_real_world_case_validation` | P0 | Validate selected real-world SNV/small-indel cases with completed provider boundaries, provenance review, and no direct provider classification. | High | Case fixtures, validation docs, report examples | Yes |
 | `74_real_provider_pipeline` | Done | Added opt-in online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar provider adapters with shared HTTP/cache/provenance handling, CLI/MCP online options, default-off safety, and mocked offline validation. Integration review passed with `655 passed, 2 skipped`. | High | Online providers, CLI/MCP, provenance/cache docs, tests | Yes |
@@ -45,7 +48,7 @@ without changing evidence logic or the combiner.
 | `51_clinvar_and_ps1_pm5_generation` | Done | Implemented conservative ClinVar-derived PS1/PM5 applied generator with candidate-only fallbacks and no PP5/BP6 reuse. | Medium-high | ClinVar comparator workflow, reports, CLI/MCP serialization, docs, focused tests | Yes |
 | `legacy_vcep_profile_design` | Superseded by `54_vcep_clingen_rule_knowledge_base` | Design explicit disease/gene-specific VCEP profile configuration before implementation. | High | Design docs, schema proposal, roadmap docs | Yes for design; any later implementation needs explicit impact review |
 | `58_release_review_standardization` | P2 | Convert release review into a repeatable checklist-driven gate tied to docs, benchmarks, smoke, provenance, and leakage checks. | Low-medium | Docs, release notes template, optional scripts later | Yes |
-| `59_provider_provenance_audit` | P3 | Audit all provider outputs for source version, query, snapshot, timestamps, limitations, and offline/online mode labels. | Medium | Provider adapters, schemas, reports, docs, tests | Yes |
+| `59_provider_provenance_audit` | Superseded by `76_mock_fixture_interface_audit_and_activation` | Provider source version, query, raw hash, cache hit, limitations, and requested/configured/outcome mode labels are now surfaced through `provider_mode_summary`. | Medium | Provider adapters, schemas, reports, docs, tests | Yes |
 | `60_batch_report_consistency_audit` | P3 | Verify single, batch, annotated-batch, CLI, and MCP outputs preserve the same evidence separation and safety language. | Medium | Batch orchestration, reports, CLI/MCP output tests, docs | Yes |
 
 ## Guardrails For Selecting Work
@@ -58,7 +61,7 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 75 live provider smoke validation:
+Current known gaps after 76 mock/fixture interface audit activation:
 
 - Live provider smoke validation is implemented and remains outside default
   pytest/CI; current live endpoint results still depend on explicit local
@@ -68,8 +71,8 @@ Current known gaps after 75 live provider smoke validation:
 - PubMed/LitVar online adapters are implemented but remain opt-in and
   candidate-only.
 - A selected real VCEP profile pilot has not been implemented.
-- Provider cache/reproducibility hardening remains a follow-up after live
-  smoke validation.
+- Provider cache/reproducibility hardening remains a follow-up now that
+  provider outcomes and raw-hash/cache-hit fields are visible.
 - Larger real-world hospital annotation validation has not been completed.
 - CNV/SV interpretation is not supported; only framework planning is currently
   appropriate.

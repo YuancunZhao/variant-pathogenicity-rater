@@ -629,16 +629,18 @@ def _apply_online_provider_cli_options(
     cache_root = getattr(args, "provider_cache_dir", None)
     if cache_root:
         options["provider_cache_dir"] = cache_root
-    for attr, option_key, source_name, cache_name in [
-        ("online_clinvar", "use_online_clinvar", "clinvar", "clinvar"),
-        ("online_gnomad", "use_online_gnomad", "population", "gnomad"),
-        ("online_vep", "use_online_vep", "computational", "vep"),
+    for attr, option_key, source_name, cache_name, source_version in [
+        ("online_clinvar", "use_online_clinvar", "clinvar", "clinvar", "NCBI ClinVar E-utilities live"),
+        ("online_gnomad", "use_online_gnomad", "population", "gnomad", "gnomAD gnomad_r4 live GraphQL"),
+        ("online_vep", "use_online_vep", "computational", "vep", "Ensembl REST VEP live"),
     ]:
         if not getattr(args, attr, False):
             continue
         options[option_key] = True
         override = dict(data_source_overrides.get(source_name) or {})
         override.update({"mode": "online", "online_enabled": True})
+        if not override.get("source_version"):
+            override["source_version"] = source_version
         if cache_root and not override.get("cache_dir"):
             override["cache_dir"] = str(Path(cache_root) / cache_name)
         data_source_overrides[source_name] = override
@@ -656,6 +658,8 @@ def _apply_online_literature_cli_option(
 ) -> None:
     override = dict(data_source_overrides.get("literature") or {})
     override.update({"mode": "online", "online_enabled": True})
+    if not override.get("source_version"):
+        override["source_version"] = "PubMed/LitVar live"
     if cache_root and not override.get("cache_dir"):
         override["cache_dir"] = str(Path(cache_root) / "literature")
     data_source_overrides["literature"] = override

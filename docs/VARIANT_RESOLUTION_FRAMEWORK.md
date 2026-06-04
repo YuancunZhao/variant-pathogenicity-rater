@@ -15,6 +15,13 @@ It resolves transcript, protein, coordinate, exon, and NMD context when local
 fixtures are available. It does not create ACMG evidence, apply PVS1, change
 PS1/PM5, or modify the classification combiner.
 
+After the 76 mock/fixture interface audit activation, structured genomic input
+is also preserved in the resolution result. When `normalize_variant` already
+has `genome_build`, chromosome, position, ref, and alt, and no local resolution
+fixture coordinate is available, `resolved_coordinate` inherits the normalized
+coordinate with provenance `source=normalized_variant`. Placeholder HGVS-only
+coordinates remain unresolved.
+
 ## Scope
 
 The resolution layer can enrich supported SNV/small-indel inputs with:
@@ -25,6 +32,8 @@ The resolution layer can enrich supported SNV/small-indel inputs with:
 - exon number, exon count, and CDS position;
 - NMD context: `NMD_expected`, `NMD_unlikely`, or `unknown`;
 - provenance, limitations, review flags, and per-step confidence.
+- optional descriptive protein consequence from Ensembl VEP output when VEP is
+  explicitly enabled and local protein resolution is unavailable.
 
 `normalize_variant` remains conservative. HGVS c. inputs can still normalize to
 placeholder genomic fields when transcript-to-genome mapping is unavailable.
@@ -60,6 +69,16 @@ The resolver does not silently replace a user transcript with MANE.
 If a fixture coordinate conflicts with an explicit user/local coordinate or
 allele, the user/local value is preserved and the result emits a blocking review
 flag.
+
+Local fixture coordinates enrich the downstream resolved variant only when
+they do not conflict with user/local normalized coordinates. Missing local
+fixtures no longer cause structured input coordinates to disappear from
+`resolved_coordinate`.
+
+Ensembl VEP transcript consequences can fill descriptive
+`resolved_hgvs_p.hgvs_p` and consequence fields in `variant_resolution`. This
+is a review/context bridge only: VEP predictor records still reach ACMG
+classification only through the existing PP3/BP4 computational evaluator.
 
 ## Pipeline Output
 

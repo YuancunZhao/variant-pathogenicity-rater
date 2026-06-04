@@ -261,8 +261,26 @@ only through existing computational evaluators, no gnomAD record triggers PM2
 by itself, and candidate evidence does not silently enter the combiner.
 
 The integration-review regression baseline is `655 passed, 2 skipped`. Live
-provider smoke validation remains an env-gated follow-up and is not part of
-default pytest.
+provider smoke validation is available behind explicit environment gates and
+is not part of default pytest.
+
+### Phase 16: Mock / Fixture Interface Audit Activation
+
+The 76 mock/fixture interface audit activation is implemented. It clarifies
+runtime provider semantics without changing evidence logic or the combiner.
+`mock_mode` remains for backward compatibility, `data_source_modes` reports
+configured/requested modes, and `provider_mode_summary` reports actual
+provider outcomes, source versions, endpoint/query/raw-hash/cache-hit
+provenance, record counts, and limitations.
+
+This phase also keeps structured input coordinates visible in
+`variant_resolution.resolved_coordinate` when no local resolution fixture is
+available, and it allows explicitly requested VEP transcript consequences to
+populate descriptive `resolved_hgvs_p`/consequence fields. These facts remain
+resolution context only; gnomAD and VEP still affect classification only
+through existing population/computational evaluators, and ClinVar,
+ERepo, and literature remain review-note/candidate-only unless promoted
+through reviewed evidence.
 
 ## Current Complete Interpretation Workflow
 
@@ -279,37 +297,7 @@ variant input
 
 ## Highest Priority Current Tasks
 
-### 1. Live Provider Smoke Validation
-
-Goal: run a narrow, explicitly env-gated live smoke validation pass for the
-completed online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar providers
-without making network access part of default pytest or CI.
-
-Why it matters: the 74 pipeline has been validated with mocked HTTP and has
-passed offline integration review. Live provider endpoints can still drift, so
-the next provider-specific check should verify reachability, parser resilience,
-cache/provenance visibility, source-version/live-source labels, raw payload
-hashes, and failure-to-limitation behavior.
-
-Architecture impact: should focus on optional smoke commands, cache/provenance
-audit documentation, provider replay expectations, and limitations. It should
-not change evidence application, safety gates, default offline behavior, or the
-classification combiner.
-
-Safety risks: live smoke must not become default CI, must not be treated as
-clinical validation, and must not let live provider assertions bypass existing
-population, computational, ClinVar comparator, literature, or reviewed-evidence
-gates.
-
-Expected deliverables: env-gated smoke instructions, cache-hit/miss
-provenance checks, failure-to-limitation examples, and documentation that
-default pytest remains offline.
-
-Release gate expectations: skipped by default, opt-in only, no combiner
-change, no direct provider-driven classification, and no network dependency in
-routine validation.
-
-### 2. Selected Real-World Case Validation
+### 1. Selected Real-World Case Validation
 
 Goal: validate selected real-world SNV/small-indel cases end to end using the
 completed provider-validation posture: local fixtures/snapshots where possible,
@@ -337,7 +325,7 @@ Release gate expectations: no default network dependency, no direct provider
 classification, no combiner change, and explicit limitations for unresolved
 provider or context gaps.
 
-### 3. Selected Real VCEP Profile Pilot
+### 2. Selected Real VCEP Profile Pilot
 
 Goal: pilot one carefully selected real VCEP profile behind explicit selection,
 now that toy profile validation, real provider validation, benchmark Phase C,
@@ -363,7 +351,7 @@ Release gate expectations: design approval, benchmark pass, no default clinical
 profile activation, no combiner change without explicit review, and clear
 profile limitations.
 
-### 4. Provider Cache / Reproducibility Hardening
+### 3. Provider Cache / Reproducibility Hardening
 
 Goal: harden provider cache and replay expectations after live smoke
 validation, including cache-key review, raw payload hash audit, source-version
@@ -387,7 +375,7 @@ clear warnings for stale or incomplete provider metadata.
 Release gate expectations: no default network dependency, failure-to-limitation
 behavior preserved, and no direct provider-driven classification.
 
-### 5. CNV/SV Framework Planning
+### 4. CNV/SV Framework Planning
 
 Goal: plan the future CNV/SV interpretation framework without implementing
 clinical CNV/SV classification in the current SNV/small-indel engine.

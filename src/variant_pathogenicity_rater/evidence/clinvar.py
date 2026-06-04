@@ -28,6 +28,7 @@ CLINVAR_REVIEW_NOTE = (
     "ClinVar assertions are treated as review notes by default. PP5/BP6 are not "
     "recommended for automatic use, and PS1/PM5 require independent variant-level assessment."
 )
+_UNKNOWN_DATE_VALUES = {"unknown", "not provided", "not_provided", "na", "n/a", "none", "null"}
 
 
 class ClinVarQuery(SchemaModel):
@@ -152,6 +153,11 @@ def parse_clinvar_record(
     raw_record: dict[str, Any], query: ClinVarQuery | None = None
 ) -> ClinVarRecord:
     source_payload = raw_record.get("source") or {}
+    date_parse = _parse_clinvar_date(raw_record.get("last_evaluated"))
+    provenance_limitations = [
+        "ClinVar assertions are candidate review notes only; PP5/BP6 are disabled.",
+        *date_parse["limitations"],
+    ]
     source = EvidenceSource(
         name=source_payload.get("name", "ClinVar"),
         version=source_payload.get("version", "mock-clinvar-offline-v1"),
@@ -176,12 +182,13 @@ def parse_clinvar_record(
         raw_payload_kind=source_payload.get("raw_payload_kind"),
         retrieved_at=source_payload.get("retrieved_at"),
         review_status=raw_record.get("review_status"),
-        last_evaluated=str(raw_record.get("last_evaluated"))
-        if raw_record.get("last_evaluated")
-        else None,
+        last_evaluated=date_parse["normalized"],
+        raw_last_evaluated=date_parse["raw"],
+        last_evaluated_precision=date_parse["precision"],
+        last_evaluated_parse_status=date_parse["status"],
         parser_version=source_payload.get("parser_version", CLINVAR_PARSER_VERSION),
         confidence=_confidence_from_raw(raw_record),
-        limitations=["ClinVar assertions are candidate review notes only; PP5/BP6 are disabled."],
+        limitations=provenance_limitations,
     )
     attach_provenance_to_source(source, provenance)
     conditions = list(raw_record.get("conditions") or [])
@@ -209,7 +216,7 @@ def parse_clinvar_record(
         condition=condition,
         conditions=conditions,
         submitter_count=raw_record.get("submitter_count"),
-        last_evaluated=_parse_date(raw_record.get("last_evaluated")),
+        last_evaluated=date_parse["date"],
         conflicting_interpretations=bool(raw_record.get("conflicting_interpretations", False)),
         conflict_status=raw_record.get("conflict_status"),
         germline_or_somatic=raw_record.get("germline_or_somatic"),
@@ -385,6 +392,7 @@ def _limitations(records: list[ClinVarRecord]) -> list[str]:
     ]
     if not records:
         limitations.append("No mock ClinVar record matched the supplied query.")
+    limitations.extend(_record_provenance_limitations(records))
     return limitations
 
 
@@ -414,7 +422,12 @@ def clinvar_limitations(
         limitations.append("Somatic-only ClinVar records were not used as germline ACMG candidates.")
     if not records:
         limitations.append("No ClinVar record matched the supplied query.")
+    limitations.extend(_record_provenance_limitations(records))
     return limitations
+
+
+def clinvar_record_parser_limitations(records: list[ClinVarRecord]) -> list[str]:
+    return _record_provenance_limitations(records)
 
 
 def _record_keys(raw_record: dict[str, Any]) -> set[str]:
@@ -449,13 +462,126 @@ def _transcript_from_hgvs_c(value: str | None) -> str | None:
     return value.split(":", 1)[0]
 
 
-def _parse_date(value: Any) -> date | None:
-    if value is None or isinstance(value, date):
-        return value
-    text = str(value).strip()
-    if not text:
-        return None
-    return date.fromisoformat(text[:10])
+def _parse_clinvar_date(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {
+            "date": None,
+            "normalized": None,
+            "raw": None,
+            "precision": None,
+            "status": "missing",
+            "limitations": [],
+        }
+    if isinstance(value, datetime):
+        parsed = value.date()
+        return {
+            "date": parsed,
+            "normalized": parsed.isoformat(),
+            "raw": value.isoformat(),
+            "precision": "day",
+            "status": "parsed",
+            "limitations": [],
+        }
+    if isinstance(value, date):
+        return {
+            "date": value,
+            "normalized": value.isoformat(),
+            "raw": value.isoformat(),
+            "precision": "day",
+            "status": "parsed",
+            "limitations": [],
+        }
+
+    raw = str(value).strip()
+    if not raw:
+        return {
+            "date": None,
+            "normalized": None,
+            "raw": raw,
+            "precision": None,
+            "status": "missing",
+            "limitations": [],
+        }
+    if raw.lower() in _UNKNOWN_DATE_VALUES:
+        return {
+            "date": None,
+            "normalized": None,
+            "raw": raw,
+            "precision": "unknown",
+            "status": "unknown",
+            "limitations": [f"ClinVar last_evaluated date was not provided: {raw!r}."],
+        }
+    if raw.isdigit() and len(raw) == 4:
+        parsed = date(int(raw), 1, 1)
+        return {
+            "date": parsed,
+            "normalized": parsed.isoformat(),
+            "raw": raw,
+            "precision": "year",
+            "status": "parsed",
+            "limitations": [
+                "ClinVar last_evaluated date has year-only precision; normalized to "
+                f"{parsed.isoformat()} for stable date handling."
+            ],
+        }
+
+    normalized = raw.replace("/", "-").replace(".", "-")
+    for candidate in (normalized[:10], raw[:10]):
+        try:
+            parsed = date.fromisoformat(candidate)
+            return {
+                "date": parsed,
+                "normalized": parsed.isoformat(),
+                "raw": raw,
+                "precision": "day",
+                "status": "parsed",
+                "limitations": [],
+            }
+        except ValueError:
+            pass
+
+    for fmt in ("%B %d, %Y", "%b %d, %Y", "%d %B %Y", "%d %b %Y"):
+        try:
+            parsed = datetime.strptime(raw, fmt).date()
+            return {
+                "date": parsed,
+                "normalized": parsed.isoformat(),
+                "raw": raw,
+                "precision": "day",
+                "status": "parsed",
+                "limitations": [],
+            }
+        except ValueError:
+            pass
+
+    return {
+        "date": None,
+        "normalized": None,
+        "raw": raw,
+        "precision": "unparseable",
+        "status": "unparseable",
+        "limitations": [f"ClinVar last_evaluated date could not be parsed: {raw!r}."],
+    }
+
+
+def _record_provenance_limitations(records: list[ClinVarRecord]) -> list[str]:
+    limitations: list[str] = []
+    for record in records:
+        provenance = getattr(record.source, "provenance", None)
+        for limitation in getattr(provenance, "limitations", []) or []:
+            if limitation.startswith("ClinVar last_evaluated date"):
+                limitations.append(limitation)
+    return _unique_strings(limitations)
+
+
+def _unique_strings(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
 
 
 def _has_high_review_status(review_status: str | None) -> bool:
