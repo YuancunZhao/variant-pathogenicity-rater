@@ -50,6 +50,10 @@ from variant_pathogenicity_rater.evidence.clinvar import ClinVarQuery
 from variant_pathogenicity_rater.evidence.literature import (
     extract_literature_evidence,
 )
+from variant_pathogenicity_rater.evidence.status import (
+    is_applied_evidence,
+    split_evidence_by_status,
+)
 from variant_pathogenicity_rater.literature_agent import (
     search_and_summarize_literature,
 )
@@ -1335,22 +1339,15 @@ def _unique_review_flags(flags: list[Any]) -> list[Any]:
 
 
 def _applied_evidence_items(items: list[EvidenceItem]) -> list[EvidenceItem]:
-    return [item for item in items if _is_applied_evidence(item)]
+    return list(split_evidence_by_status(items)["applied"])
 
 
 def _review_note_evidence_items(items: list[EvidenceItem]) -> list[EvidenceItem]:
-    return [item for item in items if not _is_applied_evidence(item)]
+    return list(split_evidence_by_status(items)["review_note"])
 
 
 def _is_applied_evidence(item: EvidenceItem) -> bool:
-    return not (
-        item.candidate_only
-        or item.applied is False
-        or str(item.strength) == "none"
-        or item.supporting_data.get("candidate_only")
-        or item.supporting_data.get("evidence_status") == "candidate"
-        or item.supporting_data.get("applied") is False
-    )
+    return is_applied_evidence(item)
 
 
 def _provenance_summary(

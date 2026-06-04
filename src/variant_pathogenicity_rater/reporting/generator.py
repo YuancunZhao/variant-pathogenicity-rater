@@ -25,9 +25,9 @@ from variant_pathogenicity_rater.reporting.templates import (
     ZH_SPLICEAI_CAUTION,
     ZH_VUS_NOTE,
 )
+from variant_pathogenicity_rater.evidence.status import is_applied_evidence
 from variant_pathogenicity_rater.schemas.classification import ClassificationResult
 from variant_pathogenicity_rater.schemas.evidence import EvidenceItem
-from variant_pathogenicity_rater.schemas.evidence import EvidenceStrength
 from variant_pathogenicity_rater.schemas.report import (
     DataSourceSummary,
     EvidenceReportEntry,
@@ -1568,14 +1568,7 @@ def _clinvar_conflict_detected(result: ClassificationResult) -> bool:
 
 
 def _is_applied_evidence(item: EvidenceItem) -> bool:
-    return not (
-        item.candidate_only
-        or item.applied is False
-        or str(item.strength) == EvidenceStrength.NONE.value
-        or item.supporting_data.get("candidate_only")
-        or item.supporting_data.get("evidence_status") == "candidate"
-        or item.supporting_data.get("applied") is False
-    )
+    return is_applied_evidence(item)
 
 
 def _transcript_label(result_variant: Any) -> str | None:

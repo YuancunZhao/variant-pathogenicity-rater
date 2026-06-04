@@ -7,6 +7,8 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+from variant_pathogenicity_rater.evidence.status import summarize_evidence_status
+
 
 CANONICAL_OUTPUT_VERSION = "77A-output-schema-v1"
 
@@ -220,7 +222,7 @@ def failed_batch_record_canonical_summary(error: Any) -> dict[str, Any]:
             "review_note": [],
             "reviewed": [],
             "all_items": [],
-            "evidence_status_summary": _evidence_status_summary([], []),
+            "evidence_status_summary": summarize_evidence_status([], []),
         },
         "classification": {
             "final_classification": None,
@@ -448,31 +450,8 @@ def _evidence_section(result: dict[str, Any]) -> dict[str, Any]:
         "review_note": _json_copy(review_note),
         "reviewed": _json_copy(reviewed),
         "all_items": _json_copy(all_items),
-        "evidence_status_summary": _evidence_status_summary(all_items, reviewed),
+        "evidence_status_summary": summarize_evidence_status(all_items, reviewed),
     }
-
-
-def _evidence_status_summary(items: list[Any], reviewed: list[Any]) -> dict[str, int]:
-    summary = {
-        "applied": 0,
-        "candidate_only": 0,
-        "review_note": 0,
-        "reviewed_applied": 0,
-        "reviewed_rejected": 0,
-        "needs_more_info": 0,
-    }
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        status = _evidence_status(item)
-        summary[status] = summary.get(status, 0) + 1
-    for record in reviewed:
-        if not isinstance(record, dict):
-            continue
-        status = str(record.get("evidence_status") or "")
-        if status in {"reviewed_applied", "reviewed_rejected", "needs_more_info"}:
-            summary[status] = summary.get(status, 0) + 1
-    return summary
 
 
 def _classification_section(result: dict[str, Any]) -> dict[str, Any]:
@@ -678,23 +657,6 @@ def _source_version_from_transcript(validation: Any, resolution: Any) -> str | N
             if isinstance(item, dict) and item.get("source_version"):
                 return str(item["source_version"])
     return None
-
-
-def _evidence_status(item: dict[str, Any]) -> str:
-    supporting = item.get("supporting_data") if isinstance(item.get("supporting_data"), dict) else {}
-    status = supporting.get("evidence_status")
-    if status in {"reviewed_applied", "reviewed_rejected", "needs_more_info"}:
-        return str(status)
-    if (
-        item.get("candidate_only")
-        or item.get("applied") is False
-        or str(item.get("strength")) == "none"
-        or supporting.get("candidate_only")
-        or supporting.get("evidence_status") == "candidate"
-        or supporting.get("applied") is False
-    ):
-        return "review_note" if supporting.get("review_note") else "candidate_only"
-    return "applied"
 
 
 def _classification_changed_by_reviewed_evidence(result: dict[str, Any]) -> bool:

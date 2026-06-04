@@ -10,6 +10,12 @@ The classification combiner remains unchanged. It combines supplied evidence
 items and does not trigger evidence. Candidate-only and review-note evidence
 must remain visible for review but excluded from classification.
 
+77C adds a shared read-only evidence status helper for grouping and displaying
+applied, candidate-only, review-note, and reviewed evidence status consistently
+across pipeline, canonical output, reports, and batch summaries. It does not
+change evidence generation, reviewed-evidence validation, combiner input, or
+`final_classification`. See `docs/EVIDENCE_STATUS_HELPER.md`.
+
 ## Current Benchmark Validation
 
 Benchmark Phase C is complete and is the current applied-evidence regression
@@ -85,6 +91,9 @@ workflow. It is not automatic evidence generation: only records with
 `evidence_status=reviewed_applied` are converted into applied `EvidenceItem`
 objects, while `reviewed_rejected` and `needs_more_info` records remain
 review-note evidence.
+Raw reviewed records are not combiner eligible until the existing reviewed
+evidence workflow validates and converts eligible `reviewed_applied` records
+into applied `EvidenceItem` objects.
 
 The implemented human-reviewed pathway is:
 

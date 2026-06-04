@@ -53,6 +53,12 @@ Each reviewed evidence record contains:
 decision, and either citation or provenance. Applied records cannot use
 `strength=none`, `direction=neutral`, or `direction=conflicting`.
 
+The 77C evidence status helper can display reviewed evidence status in reports
+and canonical summaries, but it does not validate or promote reviewed records.
+Validation and conversion remain in the reviewed evidence workflow in
+`evidence/reviewed.py`. Raw `reviewed_applied` records are not treated as
+combiner eligible until converted into applied `EvidenceItem` records.
+
 ## Inputs
 
 Python API:

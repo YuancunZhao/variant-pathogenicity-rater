@@ -10,6 +10,11 @@ criterion-specific literature summaries, candidate suggestions, review
 questions, blocking/review flags, duplicate groups, and reviewed-evidence
 drafts while preserving the same non-applied boundary.
 
+77C centralizes read-only evidence status display through
+`docs/EVIDENCE_STATUS_HELPER.md`. Literature suggestions and reviewed drafts
+remain non-applied; the helper only reports their candidate, review-note, or
+needs-more-info status consistently.
+
 It is part of the current semi-automated interpretation loop:
 
 ```text

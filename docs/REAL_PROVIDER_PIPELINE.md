@@ -35,6 +35,10 @@ rather than directly depending on ad hoc pipeline-side interpretation of
 heterogeneous provider steps. Provider internals and raw step payloads remain
 unchanged.
 
+The 77C evidence status helper centralizes read-only applied/candidate/review
+status grouping for provider-derived evidence items. It does not change provider
+retrieval, evidence generation, reviewed-evidence promotion, or classification.
+
 ## Architecture
 
 Online providers are fact providers, not ACMG classifiers:

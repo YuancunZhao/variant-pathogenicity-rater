@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from variant_pathogenicity_rater.evidence.status import is_applied_evidence
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
 from variant_pathogenicity_rater.schemas.evidence import (
     EvidenceDirection,
@@ -213,14 +214,7 @@ def _conflict_flags(item: EvidenceItem, existing_items: list[EvidenceItem]) -> l
 
 
 def _is_applied(item: EvidenceItem) -> bool:
-    return not (
-        item.candidate_only
-        or item.applied is False
-        or str(item.strength) == EvidenceStrength.NONE.value
-        or item.supporting_data.get("candidate_only")
-        or item.supporting_data.get("evidence_status") == "candidate"
-        or item.supporting_data.get("applied") is False
-    )
+    return is_applied_evidence(item)
 
 
 def _evidence_id(record: ReviewedEvidence, variant: Variant, status: str) -> str:

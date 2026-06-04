@@ -27,9 +27,9 @@ does not authorize autonomous clinical interpretation.
 
 After VCEP signal/override framework validation, real provider validation,
 benchmark Phase C, the General Literature Search and Summary Engine, the
-74 real provider pipeline, the 76 mock/fixture interface audit activation, and
-the 77A output schema unification, and the 77B provider interface
-consolidation, the
+74 real provider pipeline, the 76 mock/fixture interface audit activation,
+the 77A output schema unification, the 77B provider interface consolidation,
+and the 77C evidence status helper unification, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -44,7 +44,8 @@ cache/provenance handling, provider outcome summaries, structured-coordinate
 resolution fallback, descriptive VEP-to-resolution bridging, CLI opt-in flags,
 MCP online options, canonical additive output sections for Python/CLI/MCP
 single, text, batch, and annotated-batch outputs, a normalized additive
-provider runtime result contract, Chinese
+provider runtime result contract, a shared read-only evidence status view,
+Chinese
 laboratory reporting, and the unchanged ACMG classification combiner. The 74
 real provider pipeline has passed offline integration review with the default
 no-network safety boundary intact. The next project
@@ -100,6 +101,9 @@ The 77A canonical output view is additive. New clients should prefer
 `final_classification`, `report_text`, and `step_results` remain emitted.
 77B adds `step_results.provider_runtime` as the normalized provider runtime
 contract backing provider summaries while preserving raw provider step payloads.
+77C adds a shared read-only evidence status helper used for applied,
+candidate-only, review-note, and reviewed evidence grouping without changing
+evidence generation, reviewed-evidence validation, or the combiner.
 
 ### Natural Language Input
 

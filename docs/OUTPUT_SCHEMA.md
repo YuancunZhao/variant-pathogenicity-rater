@@ -77,10 +77,19 @@ Statuses:
 - `reviewed_applied`
 - `reviewed_rejected`
 - `needs_more_info`
+- `invalid`
+- `unknown`
 
 Candidate and review-note evidence remain outside classification unless a
 curator supplies valid `reviewed_applied` evidence through the existing manual
 reviewed-evidence workflow.
+
+77C builds this summary through the shared read-only evidence status helper.
+The summary includes legacy status counts plus `applied_count`,
+`candidate_count`, `review_note_count`, `reviewed_applied_count`,
+`reviewed_rejected_count`, `needs_more_info_count`, `invalid_count`,
+`combiner_eligible_count`, and `codes_by_status`. See
+`docs/EVIDENCE_STATUS_HELPER.md`.
 
 ## Compatibility Fields
 
