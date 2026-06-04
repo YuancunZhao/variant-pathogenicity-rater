@@ -41,6 +41,7 @@ class BatchVariantResult(SchemaModel):
     transcript_selection_summary: dict[str, Any] | None = None
     transcript_validation_summary: dict[str, Any] | None = None
     context_consistency_summary: dict[str, Any] | None = None
+    canonical_summary: dict[str, Any] | None = None
 
 
 class BatchSummary(SchemaModel):

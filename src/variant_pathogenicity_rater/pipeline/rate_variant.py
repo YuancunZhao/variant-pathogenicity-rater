@@ -53,6 +53,7 @@ from variant_pathogenicity_rater.literature_agent import (
 )
 from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
+from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
 from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
 from variant_pathogenicity_rater.schemas.common import AuditTrail, ReviewFlag
@@ -657,7 +658,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     step_results["generate_report"] = serialized_report
     combined_audit = audit_trail + classification_result.audit_trail
 
-    return {
+    output = {
         "status": "ok",
         "tool": "rate_variant",
         "stage": "integrated_snv_small_indel_acmg_pipeline",
@@ -766,6 +767,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         "audit_trail": [json.loads(event.model_dump_json()) for event in combined_audit],
         "step_results": step_results,
     }
+    return add_rate_variant_canonical_fields(output, original_input=arguments)
 
 
 def _run_step(
@@ -1282,7 +1284,7 @@ def _failed_normalization_response(
     limitations: list[str],
     step_results: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
+    output = {
         "status": "error",
         "tool": "rate_variant",
         "stage": "variant_normalization",
@@ -1299,6 +1301,7 @@ def _failed_normalization_response(
         "step_results": step_results,
         "input": arguments,
     }
+    return add_rate_variant_canonical_fields(output, original_input=arguments)
 
 
 def _audit(step_name: str, status: str, notes: list[str] | None = None) -> AuditTrail:

@@ -48,6 +48,10 @@ def test_single_rate_json(capsys) -> None:
     assert payload["status"] == "ok"
     assert payload["mock_mode"] is True
     assert payload["classification_result"]["human_review_required"] is True
+    assert payload["variant"]["normalized"] == payload["normalized_variant"]
+    assert payload["classification"]["final_classification"] == payload["final_classification"]
+    assert payload["evidence"]["applied"] == payload["applied_evidence"]
+    assert payload["providers"]["summary"] == payload["provider_mode_summary"]
 
 
 def test_resolve_json_smoke(capsys) -> None:
@@ -157,6 +161,10 @@ def test_rate_text_json_smoke(capsys) -> None:
     assert payload["status"] == "ok"
     assert payload["tool"] == "rate_variant_from_text"
     assert payload["parsed_input"]["gene"] == "BRCA1"
+    assert payload["input"]["parsed_input"] == payload["parsed_input"]
+    assert payload["classification"]["final_classification"] == payload["rate_variant_result"][
+        "final_classification"
+    ]
     assert payload["parsed_input"]["disease"] == "Hereditary breast and ovarian cancer syndrome"
     assert payload["rate_variant_result"]["status"] == "ok"
 

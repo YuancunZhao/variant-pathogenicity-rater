@@ -55,6 +55,13 @@ The legacy JSON keys `evidence`, `data_source_summary`, `cautions`,
 `clinvar_conflict_detected`, and `human_review_note` remain present for
 compatibility.
 
+Pipeline, CLI JSON, and MCP rating outputs wrap report content in the canonical
+output view documented in `docs/OUTPUT_SCHEMA.md`. The canonical `report`
+section exposes `report_text`, `report_language`, `report_mode`, and
+`report_sections` without changing renderer behavior. Existing report JSON keys
+and legacy top-level `report_text` / `report` compatibility fields remain
+available.
+
 Reports support `language=en` and `language=zh`. Chinese output is a laboratory
 internal review template and remains presentation-only. It localizes section
 headings, classification labels, notes, and safety wording while preserving the

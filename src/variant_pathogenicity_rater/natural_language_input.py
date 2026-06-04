@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic import Field
 
+from variant_pathogenicity_rater.pipeline.output_schema import add_text_canonical_fields
 from variant_pathogenicity_rater.pipeline.rate_variant import HUMAN_REVIEW_NOTICE, rate_variant
 from variant_pathogenicity_rater.schemas.common import SchemaModel
 
@@ -276,7 +277,7 @@ def parse_variant_text(
         context_confirmation_required=_context_confirmation_required(options, ai_context),
         context_used_for_rating=context_used_for_rating,
     )
-    return _dump(result)
+    return add_text_canonical_fields(_dump(result))
 
 
 def rate_variant_from_text(
@@ -332,7 +333,7 @@ def rate_variant_from_text(
         report=rate_result.get("report") if isinstance(rate_result, dict) else None,
         error=rate_result.get("error") if isinstance(rate_result, dict) else None,
     )
-    return _dump(result)
+    return add_text_canonical_fields(_dump(result))
 
 
 def render_parsed_input_review(result: dict[str, Any]) -> str:
@@ -659,7 +660,7 @@ def _has_supported_variant_shape(parsed: dict[str, Any]) -> bool:
 
 
 def _rate_error(text: str, parsed: dict[str, Any], parsed_input: dict[str, Any]) -> dict[str, Any]:
-    return _dump(
+    return add_text_canonical_fields(_dump(
         RateVariantFromTextResult(
             status="error",
             input_text=str(text or ""),
@@ -674,7 +675,7 @@ def _rate_error(text: str, parsed: dict[str, Any], parsed_input: dict[str, Any])
                 "message": "No supported variant shape was parsed; rate_variant was not called.",
             },
         )
-    )
+    ))
 
 
 def _parsed_error(

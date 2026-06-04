@@ -56,6 +56,16 @@ vpr rate \
   --inheritance "autosomal dominant"
 ```
 
+Single-variant JSON includes the canonical output sections documented in
+`docs/OUTPUT_SCHEMA.md`: `input`, `variant`, `context`, `runtime`,
+`providers`, `evidence`, `classification`, `review`, `report`, `provenance`,
+`warnings`, and `compatibility`. New clients should prefer these canonical
+sections. Legacy compatibility fields such as `mock_mode`,
+`data_source_modes`, `provider_mode_summary`, `normalized_variant`,
+`variant_resolution`, `applied_evidence`, `review_note_evidence`,
+`final_classification`, `limitations`, `report_text`, and `step_results`
+remain present.
+
 Markdown report output:
 
 ```bash
@@ -144,6 +154,11 @@ nested `rate_variant_result`. Markdown output prepends parsed-input and
 clinical-context review blocks so the user can verify the parser result before
 reading the report.
 
+The JSON wrapper also includes canonical `input.original_input` and
+`input.parsed_input` fields. The nested `rate_variant_result` keeps the same
+canonical rating sections and the same legacy compatibility fields as
+`vpr rate`.
+
 `--ai-assisted-context` is opt-in and only returns candidate disease/HPO
 context when an AI context parser provider is available. Candidates remain
 review-only and are not used as applied context. To use a reviewed candidate,
@@ -188,6 +203,12 @@ Per-record errors are preserved in `failed_records` and summarized with
 successful records remain usable. Use `--no-continue-on-error` to return a
 non-zero exit code when any record fails.
 
+Each successful batch record includes a `canonical_summary` subset with
+`variant`, `runtime`, `providers`, `evidence`, `classification`, and `review`.
+The subset is derived from the same single-record canonical output while the
+full legacy `result` payload remains available. Failed records keep failure
+isolation and include a review-required canonical summary when possible.
+
 Fatal input/configuration problems, such as an unreadable file or unsupported
 format, return a non-zero exit code and write the error to stderr.
 
@@ -216,6 +237,9 @@ successful per-record result preserves `normalization_identity`,
 `applied_evidence`, `review_note_evidence`, `review_flags`, `provenance`, and
 `limitations`. Annotation-derived fields are descriptive context only and do not
 generate ACMG evidence.
+
+Annotated-batch records use the same per-record `canonical_summary` subset as
+normal batch results.
 
 ## Literature Draft Reviewed
 

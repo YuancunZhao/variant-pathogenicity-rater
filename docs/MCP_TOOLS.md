@@ -34,6 +34,11 @@ Phase 1 tools:
 
 ## Shared Objects
 
+Rating tools return the additive canonical output view documented in
+`docs/OUTPUT_SCHEMA.md` while preserving legacy compatibility fields. The MCP
+input schemas remain Codex-compatible and do not use top-level `oneOf`,
+`anyOf`, `allOf`, `enum`, or `not` wrappers for flexible tool selection.
+
 `Variant` requires `variant_id`, `genome_build`, `variant_type`, `chrom`, `pos`,
 `ref`, and `alt`. Allowed `genome_build` values are `GRCh37` and `GRCh38`.
 Allowed `variant_type` values are `snv`, `small_insertion`, `small_deletion`,
@@ -152,9 +157,14 @@ Top-level `reviewed_evidence` is an explicit curator-reviewed evidence array.
 Only `reviewed_applied` records can be converted into applied ACMG evidence
 before the existing combiner runs.
 
-Output includes normalized variant, classification result, evidence items,
-final classification, report, limitations, human review status, audit trail, and
-per-step results.
+Output includes the canonical `input`, `variant`, `context`, `runtime`,
+`providers`, `evidence`, `classification`, `review`, `report`, `provenance`,
+`warnings`, and `compatibility` sections. Legacy fields such as
+`mock_mode`, `data_source_modes`, `provider_mode_summary`,
+`normalized_variant`, `variant_resolution`, `applied_evidence`,
+`review_note_evidence`, `classification_result`, `final_classification`,
+`limitations`, `report_text`, and `step_results` remain available for existing
+clients.
 
 Invalid schema input is rejected before pipeline execution. Normalization or
 downstream module failures are preserved as structured limitations inside the
@@ -212,6 +222,9 @@ Output includes `parsed_input`, `missing_fields`, `ambiguity_warnings`,
 `normalization_warnings`, `alias_candidates`, optional `ai_assisted_context`,
 `context_candidates`, `confirmed_context`, `context_confirmation_required`,
 nested `rate_variant_result`, `report`, and the mandatory human-review notice.
+The wrapper also exposes canonical `input.original_input` and
+`input.parsed_input`; the nested rating result exposes the full canonical
+rating view and all legacy compatibility fields.
 Invalid text that does not contain a supported HGVS-like or genomic-coordinate
 variant shape returns `status: error` as a normal structured tool result and
 does not call `rate_variant`.

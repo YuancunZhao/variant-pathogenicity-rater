@@ -16,6 +16,10 @@ from variant_pathogenicity_rater.input_cleaning import (
     normalize_chromosome_label,
 )
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
+from variant_pathogenicity_rater.pipeline.output_schema import (
+    canonical_batch_record_summary,
+    failed_batch_record_canonical_summary,
+)
 from variant_pathogenicity_rater.schemas.batch import (
     BatchRecordError,
     BatchResult,
@@ -182,6 +186,7 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
                 ),
                 transcript_validation_summary=_transcript_validation_summary(pipeline_result),
                 context_consistency_summary=_context_consistency_summary(pipeline_result),
+                canonical_summary=canonical_batch_record_summary(pipeline_result),
             )
         )
 
@@ -483,6 +488,7 @@ def _failed_result(failed: FailedBatchRecord) -> BatchVariantResult:
         error=failed.error,
         review_required=True,
         limitations=failed.error.limitations,
+        canonical_summary=failed_batch_record_canonical_summary(failed.error),
     )
 
 

@@ -21,6 +21,13 @@ provider outcomes such as success, no record, failure, skipped, or cache hit.
 `unresolved_placeholder_mode` flags unresolved resolution/provider placeholder
 states.
 
+The 77A output schema unification adds an additive canonical output view on top
+of these fields. New clients should read provider state from
+`providers.summary` and runtime state from `runtime`, while the legacy
+`provider_mode_summary`, `mock_mode`, `data_source_modes`,
+`offline_default_mode`, and `unresolved_placeholder_mode` fields continue to be
+emitted for compatibility. See `docs/OUTPUT_SCHEMA.md`.
+
 ## Architecture
 
 Online providers are fact providers, not ACMG classifiers:
@@ -118,6 +125,10 @@ Provider outputs preserve:
 `provider_mode_summary` repeats these audit fields per provider, including
 requested mode, configured mode, actual outcome, source version, endpoint,
 query, raw hash, cache hit, provider mode, record count, and limitations.
+Canonical `providers.summary` mirrors this provider outcome summary, and
+per-provider canonical entries normalize requested/configured mode, attempted
+state, outcome, record count, source version, query, endpoint, cache hit,
+limitations, and provenance.
 Online provider attempts use live source labels by default; they should not
 surface `offline-fixture-v1` unless the caller explicitly configured a local or
 fixture source.

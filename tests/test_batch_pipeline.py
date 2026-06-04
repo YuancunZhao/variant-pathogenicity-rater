@@ -45,6 +45,16 @@ def test_json_batch_success() -> None:
     assert result["succeeded"] == 1
     assert result["failed"] == 0
     assert result["results"][0]["classification_result"]["human_review_required"] is True
+    canonical = result["results"][0]["canonical_summary"]
+    assert canonical["variant"]["normalized"]
+    assert canonical["runtime"]["legacy_mock_mode"] is True
+    assert canonical["providers"]["summary"]
+    assert canonical["evidence"]["applied"] == result["results"][0]["applied_evidence"]
+    assert canonical["evidence"]["review_note"] == result["results"][0]["review_note_evidence"]
+    assert canonical["classification"]["final_classification"] == result["results"][0][
+        "classification_result"
+    ]["final_classification"]
+    assert canonical["review"]["human_review_required"] is True
 
 
 def test_jsonl_batch_success() -> None:
@@ -114,6 +124,9 @@ def test_one_bad_record_does_not_stop_batch() -> None:
     assert result["succeeded"] == 1
     assert result["failed"] == 1
     assert [item["status"] for item in result["results"]] == ["ok", "error"]
+    failed = result["results"][1]
+    assert failed["canonical_summary"]["classification"]["final_classification"] is None
+    assert failed["canonical_summary"]["review"]["human_review_required"] is True
 
 
 def test_unsupported_variant_captured() -> None:

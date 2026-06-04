@@ -27,7 +27,8 @@ does not authorize autonomous clinical interpretation.
 
 After VCEP signal/override framework validation, real provider validation,
 benchmark Phase C, the General Literature Search and Summary Engine, the
-74 real provider pipeline, and the 76 mock/fixture interface audit activation, the
+74 real provider pipeline, the 76 mock/fixture interface audit activation, and
+the 77A output schema unification, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -40,7 +41,8 @@ natural-language input wrappers, offline variant resolution, opt-in online
 ClinVar/gnomAD/Ensembl VEP/PubMed/LitVar provider adapters, shared provider
 cache/provenance handling, provider outcome summaries, structured-coordinate
 resolution fallback, descriptive VEP-to-resolution bridging, CLI opt-in flags,
-MCP online options, Chinese
+MCP online options, canonical additive output sections for Python/CLI/MCP
+single, text, batch, and annotated-batch outputs, Chinese
 laboratory reporting, and the unchanged ACMG classification combiner. The 74
 real provider pipeline has passed offline integration review with the default
 no-network safety boundary intact. The next project
@@ -88,6 +90,13 @@ Single variant outputs remain machine proposals. They preserve human-review
 requirements and separate applied ACMG evidence from candidate/review-note
 evidence.
 
+The 77A canonical output view is additive. New clients should prefer
+`input`, `variant`, `context`, `runtime`, `providers`, `evidence`,
+`classification`, `review`, `report`, `provenance`, `warnings`, and
+`compatibility`; legacy fields such as `normalized_variant`,
+`provider_mode_summary`, `applied_evidence`, `review_note_evidence`,
+`final_classification`, `report_text`, and `step_results` remain emitted.
+
 ### Natural Language Input
 
 Natural-language and mixed HGVS text input is implemented as a wrapper around
@@ -104,6 +113,8 @@ row-level success and failure information, preserves malformed or unsupported
 records in `failed_records`, and provides summaries without hiding per-record
 limitations. Batch behavior is part of the safety surface: future evidence
 features must remain batch-compatible and must not silently skip failures.
+Successful records now include a `canonical_summary` subset for clients that
+need stable per-record state without parsing legacy pipeline internals.
 
 ### Annotated-Batch Workflow
 
@@ -255,6 +266,11 @@ source version, endpoint, query, raw hash, cache hit, provider mode, record
 count, and limitations. `offline_default_mode` and
 `unresolved_placeholder_mode` make default-off and unresolved placeholder
 states visible.
+
+The 77A canonical output view maps these legacy provider/runtime fields into
+`runtime` and `providers.summary` without changing provider behavior or default
+network policy. Raw `step_results` remain a compatibility/debug payload and
+have not been migrated.
 
 ### Benchmark Validation
 

@@ -255,6 +255,13 @@ def test_text_wrapper_classification_matches_direct_rate_variant_for_equivalent_
     direct_result = rate_variant(text_result["parsed_input"])
 
     assert text_result["status"] == "ok"
+    assert text_result["input"]["original_input"]["text"] == (
+        "BRCA1 NM_007294.4:c.68_69delAG, HBOC, AD"
+    )
+    assert text_result["input"]["parsed_input"] == text_result["parsed_input"]
+    assert text_result["classification"]["final_classification"] == text_result[
+        "rate_variant_result"
+    ]["final_classification"]
     assert text_result["rate_variant_result"]["final_classification"] == direct_result[
         "final_classification"
     ]
@@ -299,6 +306,8 @@ def test_confirmed_context_is_mapped_to_existing_rate_variant_context() -> None:
 
     assert result["context_confirmation_required"] is False
     assert result["context_used_for_rating"] == "confirmed_context"
+    assert result["context"]["context_used_for_rating"] == "confirmed_context"
+    assert result["context"]["confirmed_context"]["disease_name"] == "Noonan syndrome"
     assert result["parsed_input"]["disease"] == "Noonan syndrome"
     assert result["parsed_input"]["inheritance"] == "autosomal_dominant"
     assert result["parsed_input"]["phenotype_terms"] == ["HP:0004322"]

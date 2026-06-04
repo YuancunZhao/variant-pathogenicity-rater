@@ -259,6 +259,11 @@ def test_mcp_rate_variant_from_text_tool_smoke() -> None:
     assert tool_payload["status"] == "ok"
     assert tool_payload["tool"] == "rate_variant_from_text"
     assert tool_payload["parsed_input"]["gene"] == "BRCA1"
+    assert tool_payload["input"]["parsed_input"] == tool_payload["parsed_input"]
+    assert tool_payload["rate_variant_result"]["input"]["original_input"]
+    assert tool_payload["classification"]["final_classification"] == tool_payload[
+        "rate_variant_result"
+    ]["final_classification"]
     assert tool_payload["rate_variant_result"]["tool"] == "rate_variant"
 
 
@@ -374,6 +379,9 @@ def test_mcp_designated_flexible_mock_options_are_accepted() -> None:
 
     assert tool_payload["status"] == "ok"
     assert tool_payload["tool"] == "rate_variant"
+    assert tool_payload["variant"]["normalized"] == tool_payload["normalized_variant"]
+    assert tool_payload["classification"]["final_classification"] == tool_payload["final_classification"]
+    assert tool_payload["providers"]["summary"] == tool_payload["provider_mode_summary"]
 
 
 def test_mcp_generate_report_tool_smoke(

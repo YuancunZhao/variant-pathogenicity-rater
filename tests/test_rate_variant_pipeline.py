@@ -125,6 +125,31 @@ def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
     assert result["report_text"]
     assert result["limitations"]
     assert result["human_review_required"] is True
+    for key in (
+        "input",
+        "variant",
+        "context",
+        "runtime",
+        "providers",
+        "evidence",
+        "classification",
+        "review",
+        "report",
+        "provenance",
+        "warnings",
+        "compatibility",
+    ):
+        assert key in result
+    assert result["classification"]["final_classification"] == result["final_classification"]
+    assert result["evidence"]["applied"] == result["applied_evidence"]
+    assert result["evidence"]["review_note"] == result["review_note_evidence"]
+    assert result["candidate_evidence"] == result["review_note_evidence"]
+    assert result["providers"]["summary"] == result["provider_mode_summary"]
+    assert result["runtime"]["legacy_mock_mode"] == result["mock_mode"]
+    assert result["variant"]["normalized"] == result["normalized_variant"]
+    assert result["variant"]["resolved"] == result["resolved_variant"]
+    assert result["variant"]["resolution_summary"] == result["variant_resolution"]
+    assert "mock_mode" in result["compatibility"]["legacy_fields"]
 
     completed_steps = {event["tool_name"] for event in result["audit_trail"]}
     assert {
