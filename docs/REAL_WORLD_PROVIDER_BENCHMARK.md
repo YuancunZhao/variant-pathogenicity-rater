@@ -1,0 +1,148 @@
+# Real-World Provider Benchmark
+
+78C adds a provider benchmark for the six real-world HGVS cases introduced in
+78A and improved by 78B. This is a provider-yield and observability benchmark,
+not an ACMG classification benchmark.
+
+## Dataset
+
+Dataset: `data/provider_benchmark/provider_benchmark_v1.json`
+
+Cases: 6 variants
+
+- `PKLR NM_000298.6:c.1403C>G`
+- `MYH7 NM_000257.4:c.5347A>T`
+- `FLG NM_002016.2:c.12064A>T`
+- `AIFM1 NM_004208.4:c.1030C>T`
+- `GAMT NM_000156.6:c.268G>A`
+- `HLCS NM_001352514.2:c.1063_1064del`
+
+The dataset records expected 78B local resolution availability for coordinate
+and protein fields. These expectations are used only for coverage metrics.
+
+## Runner
+
+Python API:
+
+```python
+from variant_pathogenicity_rater.benchmark import run_provider_benchmark
+
+result = run_provider_benchmark(
+    use_online=True,
+    include_litvar=False,
+    provider_cache_dir="/tmp/vpr_provider_benchmark_cache",
+    provider_timeout=10,
+)
+```
+
+The result is `ProviderBenchmarkResult` and includes:
+
+- `dataset_size`
+- provider outcome metrics for `clinvar`, `gnomad`, `vep`, `pubmed`, `litvar`
+- provider-yield metrics
+- provider runtime/cache/timeout metrics
+- resolution coverage before/after provider execution
+- per-case provider runtime payloads
+- summary and limitations
+
+The benchmark reads provider runtime output from the pipeline but does not
+write to `rate_variant` output, `classification_result`, or evidence items.
+
+## Provider Metrics
+
+Each provider records:
+
+- `success`
+- `no_record`
+- `failure`
+- `partial`
+- `skipped`
+
+`population` runtime is reported as `gnomad`, and `computational` runtime is
+reported as `vep`. Literature runtime is split into PubMed and LitVar benchmark
+surfaces for reporting and yield metrics.
+
+## Yield Metrics
+
+ClinVar:
+
+- `records_found`
+- `candidate_evidence_generated`
+
+gnomAD:
+
+- `af_records_found`
+- `population_provider_hits`
+
+VEP:
+
+- `consequence_resolved`
+- `predictor_records_returned`
+
+PubMed:
+
+- `articles_found`
+- `summary_generated`
+
+LitVar:
+
+- `citations_found`
+
+These are benchmark metrics only. They do not become ACMG evidence and do not
+change candidate/applied evidence boundaries.
+
+## Runtime And Cache Metrics
+
+For each provider:
+
+- `avg_latency_ms`
+- `median_latency_ms`
+- `timeout_count`
+- `cache_hit_count`
+- `cache_miss_count`
+
+Provider failures and timeouts are captured as benchmark results and
+limitations. They must not crash benchmark execution.
+
+## Optional Live Benchmark
+
+The live benchmark is skipped by default. Run it only with an explicit
+environment gate:
+
+```bash
+VPR_RUN_PROVIDER_BENCHMARK=1 \
+VPR_PROVIDER_BENCHMARK_TIMEOUT=10 \
+PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache \
+.venv/bin/python -m pytest tests/test_real_world_provider_benchmark.py -q
+```
+
+LitVar can be included explicitly:
+
+```bash
+VPR_RUN_PROVIDER_BENCHMARK=1 \
+VPR_RUN_PROVIDER_BENCHMARK_LITVAR=1 \
+PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache \
+.venv/bin/python -m pytest tests/test_real_world_provider_benchmark.py -q
+```
+
+## Offline Test Coverage
+
+Default pytest validates the benchmark contract without network access:
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest \
+  tests/test_provider_benchmark.py \
+  tests/test_real_world_provider_benchmark.py \
+  -q
+```
+
+The offline tests cover success, no-record, partial, failure, timeout,
+cache-hit, cache-miss, report generation, and classification isolation.
+
+## Safety
+
+- The ACMG combiner is unchanged.
+- Evidence generation logic is unchanged.
+- Candidate/applied evidence boundaries are unchanged.
+- Provider metrics do not change final classification.
+- Live provider execution remains opt-in and env-gated.

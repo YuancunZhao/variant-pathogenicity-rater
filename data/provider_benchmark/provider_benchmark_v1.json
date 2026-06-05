@@ -1,0 +1,67 @@
+{
+  "dataset_id": "provider_benchmark_v1",
+  "source_dataset": "real_world_smoke_variants_v1",
+  "purpose": "Provider yield, runtime, cache, and failure observability benchmark; not an ACMG classification benchmark.",
+  "cases": [
+    {
+      "case_id": "provider-benchmark-pklr-c1403c-g",
+      "gene": "PKLR",
+      "transcript": "NM_000298.6",
+      "hgvs_c": "NM_000298.6:c.1403C>G",
+      "expected_resolution": {
+        "coordinate_available": true,
+        "protein_available": true
+      }
+    },
+    {
+      "case_id": "provider-benchmark-myh7-c5347a-t",
+      "gene": "MYH7",
+      "transcript": "NM_000257.4",
+      "hgvs_c": "NM_000257.4:c.5347A>T",
+      "expected_resolution": {
+        "coordinate_available": false,
+        "protein_available": false
+      }
+    },
+    {
+      "case_id": "provider-benchmark-flg-c12064a-t",
+      "gene": "FLG",
+      "transcript": "NM_002016.2",
+      "hgvs_c": "NM_002016.2:c.12064A>T",
+      "expected_resolution": {
+        "coordinate_available": true,
+        "protein_available": true
+      }
+    },
+    {
+      "case_id": "provider-benchmark-aifm1-c1030c-t",
+      "gene": "AIFM1",
+      "transcript": "NM_004208.4",
+      "hgvs_c": "NM_004208.4:c.1030C>T",
+      "expected_resolution": {
+        "coordinate_available": true,
+        "protein_available": true
+      }
+    },
+    {
+      "case_id": "provider-benchmark-gamt-c268g-a",
+      "gene": "GAMT",
+      "transcript": "NM_000156.6",
+      "hgvs_c": "NM_000156.6:c.268G>A",
+      "expected_resolution": {
+        "coordinate_available": true,
+        "protein_available": true
+      }
+    },
+    {
+      "case_id": "provider-benchmark-hlcs-c1063-1064del",
+      "gene": "HLCS",
+      "transcript": "NM_001352514.2",
+      "hgvs_c": "NM_001352514.2:c.1063_1064del",
+      "expected_resolution": {
+        "coordinate_available": false,
+        "protein_available": true
+      }
+    }
+  ]
+}

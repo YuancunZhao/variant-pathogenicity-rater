@@ -61,6 +61,12 @@ resolution fixture coverage for the same smoke dataset. It improves
 protein/consequence/coordinate resolution without changing evidence generation
 or the ACMG combiner. See `docs/HGVS_RESOLUTION_PROVIDER.md`.
 
+78C adds a provider benchmark runner for the six real-world cases. It measures
+ClinVar, gnomAD, VEP, PubMed, and optional LitVar outcomes, yield, runtime,
+cache, and timeout behavior without changing `rate_variant` outputs or
+classification. Live execution is env-gated with
+`VPR_RUN_PROVIDER_BENCHMARK=1`. See `docs/REAL_WORLD_PROVIDER_BENCHMARK.md`.
+
 ## Directory Structure
 
 ```text

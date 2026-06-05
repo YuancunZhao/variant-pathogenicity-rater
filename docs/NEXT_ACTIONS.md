@@ -27,8 +27,11 @@ one natural-language text wrapper case return structured, auditable results
 without changing classification or evidence logic. The 78B HGVS resolution
 provider upgrade now improves local descriptive protein/consequence/coordinate
 coverage for the same smoke dataset while preserving the combiner and evidence
-boundaries. Default workflows remain no-network, and online ClinVar, gnomAD,
-Ensembl VEP, PubMed, and LitVar surfaces are opt-in only.
+boundaries. The 78C provider benchmark now measures ClinVar, gnomAD, VEP,
+PubMed, and optional LitVar outcome/yield/runtime/cache behavior for the same
+six cases without modifying pipeline classification output. Default workflows
+remain no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
+surfaces are opt-in only.
 Selected real-world case validation should now go beyond smoke behavior and
 exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
@@ -39,6 +42,7 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `78C_real_world_online_provider_benchmark` | Done | Added an env-gated real-world provider benchmark dataset/runner/report path for ClinVar, gnomAD, VEP, PubMed, and optional LitVar, with outcome, yield, resolution coverage, runtime, cache, timeout, and failure metrics isolated from classification. | Medium | Benchmark dataset, benchmark runner, provider metrics models, env-gated live test, docs | Yes |
 | `78B_hgvs_resolution_provider_upgrade` | Done | Added resolution-provider contract surfaces, local real-world HGVS resolution fixtures, coordinate inheritance tightening, canonical protein/coordinate/runtime output fields, and real-world resolution validation showing measurable coverage improvement without classification or evidence-generation changes. | Medium-high | Resolution layer, resolution contract facade, local fixtures, canonical output view, tests, docs | Yes |
 | `78A_real_world_smoke_validation` | Done | Added a six-case real HGVS smoke dataset plus offline/default pytest coverage for structured end-to-end returns, canonical/legacy output fields, provider/runtime/evidence auditability, natural-language wrapper smoke, and env-gated online outcome counting without expected classifications. | Medium | Smoke dataset, smoke tests, validation docs, project state docs | Yes |
 | `77D-2_runtime_options_migration` | Done | Migrated CLI, MCP, text, batch, and annotated-batch entry points onto RuntimeOptions while preserving public fields, offline defaults, provider mapping, reviewed evidence precedence, and classification behavior. | Medium | Runtime options helper, CLI adapter, MCP handlers, text wrapper, batch/annotated-batch adapters, canonical runtime snapshot, tests, docs | Yes |
@@ -82,7 +86,7 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 78B HGVS resolution provider upgrade:
+Current known gaps after 78C real-world provider benchmark:
 
 - RuntimeOptions is now the shared option interpretation layer for current
   user-facing entry points, but future new tools must be checked against this
@@ -96,6 +100,9 @@ Current known gaps after 78B HGVS resolution provider upgrade:
   record or an explicitly gated online HGVS resolver is added.
 - Deeper selected-case validation has not yet exercised the full completed
   literature-engine plus provider stack on selected cases.
+- 78C live provider hit rates remain env-gated and should be run periodically
+  with a controlled cache directory to identify unstable providers and
+  endpoint-specific failures.
 - PubMed/LitVar online adapters are implemented but remain opt-in and
   candidate-only.
 - A selected real VCEP profile pilot has not been implemented.
