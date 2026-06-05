@@ -24,6 +24,10 @@ def resolve_transcript(
             gene_symbol=variant.gene_symbol,
             transcript_source=source,
             mane_status=record.mane_status if record else None,
+            transcript_status="validated" if record else "unverified",
+            canonical_status=(
+                "validated" if record and record.canonical else ("alternative" if record else "unverified")
+            ),
             protein_accession=record.protein_accession if record else None,
             user_transcript_provided=True,
             user_transcript_preserved=True,
@@ -49,6 +53,8 @@ def resolve_transcript(
             gene_symbol=record.gene,
             transcript_source=source,
             mane_status=record.mane_status,
+            transcript_status="alternative",
+            canonical_status="validated" if record.canonical else "alternative",
             protein_accession=record.protein_accession,
             user_transcript_provided=False,
             user_transcript_preserved=True,
@@ -60,6 +66,8 @@ def resolve_transcript(
     return ResolvedTranscript(
         gene_symbol=variant.gene_symbol,
         transcript_source="unknown",
+        transcript_status="unresolved",
+        canonical_status="unresolved",
         user_transcript_provided=False,
         user_transcript_preserved=True,
         suggestion_only=True,

@@ -56,6 +56,11 @@ benchmark and does not define expected classifications. Optional online outcome
 counting is skipped unless `VPR_RUN_REAL_WORLD_ONLINE_SMOKE=1` is set. See
 `docs/REAL_WORLD_VARIANT_SMOKE_VALIDATION.md`.
 
+78B adds a descriptive HGVS resolution provider contract and local real-world
+resolution fixture coverage for the same smoke dataset. It improves
+protein/consequence/coordinate resolution without changing evidence generation
+or the ACMG combiner. See `docs/HGVS_RESOLUTION_PROVIDER.md`.
+
 ## Directory Structure
 
 ```text

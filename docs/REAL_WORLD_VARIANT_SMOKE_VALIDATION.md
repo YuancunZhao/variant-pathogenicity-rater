@@ -39,11 +39,25 @@ asserts:
 - any structured error must include limitations and `human_review_required`;
 - unresolved protein, coordinate, and transcript counts can be summarized.
 
-At the time this validation was added, the offline smoke path returns
-`status=ok` for all six cases. The expected limitations are unresolved
-protein/coordinate/transcript mapping for HGVS-only inputs, with the HLCS
-deletion also surfacing unresolved deletion ref/alt limitations unless a
-genomic anchor is supplied.
+At the time 78A validation was added, the offline smoke path returned
+`status=ok` for all six cases but most HGVS-only protein and coordinate fields
+remained unresolved. 78B adds a local resolution smoke fixture that improves
+descriptive resolution without changing evidence generation or classification.
+
+78B offline resolution coverage:
+
+| Field | 78A resolved count | 78B resolved count |
+| --- | ---: | ---: |
+| `hgvs_p` | 0/6 | 5/6 |
+| `chrom` | 0/6 | 4/6 |
+| `pos` | 0/6 | 4/6 |
+| `ref` | 5/6 normalized only | 4/6 coordinate-resolution fixture |
+| `alt` | 5/6 normalized only | 4/6 coordinate-resolution fixture |
+| `consequence` | 0/6 | 5/6 |
+
+`MYH7` remains unresolved in the local 78B fixture. `HLCS` resolves
+protein/consequence only; coordinate/ref/alt remain unresolved without a
+reviewed genomic anchor. These unresolved states are limitations, not crashes.
 
 ## Natural-Language Smoke
 
@@ -83,6 +97,16 @@ PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest \
   tests/test_real_world_variant_smoke_validation.py \
   tests/test_rate_variant_pipeline.py \
   tests/test_natural_language_input.py \
+  -q
+```
+
+78B targeted validation:
+
+```bash
+PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest \
+  tests/test_real_world_resolution_validation.py \
+  tests/test_real_provider_online_pipeline.py \
+  tests/test_rate_variant_pipeline.py \
   -q
 ```
 

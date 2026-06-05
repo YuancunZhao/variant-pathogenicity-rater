@@ -30,7 +30,8 @@ benchmark Phase C, the General Literature Search and Summary Engine, the
 74 real provider pipeline, the 76 mock/fixture interface audit activation,
 the 77A output schema unification, the 77B provider interface consolidation,
 the 77C evidence status helper unification, the 77D RuntimeOptions
-foundation, and the 78A real-world smoke validation layer, the
+foundation, the 78A real-world smoke validation layer, and the 78B HGVS
+resolution provider upgrade, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -48,17 +49,20 @@ single, text, batch, and annotated-batch outputs, a normalized additive
 provider runtime result contract, a shared read-only evidence status view,
 centralized runtime-option normalization for Python API, CLI, MCP,
 natural-language text, batch, and annotated-batch entry points,
+HGVS-to-protein/coordinate resolution-provider contract output,
 Chinese laboratory reporting, and the unchanged ACMG classification combiner.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
 now checks six real HGVS c. inputs for structured end-to-end returns without
-asserting clinical truth. The next project
+asserting clinical truth. The 78B resolution upgrade improves offline
+descriptive resolution for the real-world smoke dataset without changing
+classification or evidence generation. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
-cases, general literature search/summarization, or first-pass real-world HGVS
-smoke coverage; it is deeper selected real-world case validation, a narrow
-real VCEP profile pilot, provider
+cases, general literature search/summarization, first-pass real-world HGVS
+smoke coverage, or first-pass HGVS resolution provider output; it is deeper
+selected real-world case validation, a narrow real VCEP profile pilot, provider
 cache/reproducibility hardening, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity

@@ -5,6 +5,7 @@ from variant_pathogenicity_rater.variant_resolution.schema import (
     ResolvedCoordinate,
     ResolvedProtein,
     ResolvedTranscript,
+    ResolutionOutcome,
     VariantResolutionRecord,
     VariantResolutionResult,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "ResolvedCoordinate",
     "ResolvedProtein",
     "ResolvedTranscript",
+    "ResolutionOutcome",
     "VariantResolutionRecord",
     "VariantResolutionResult",
     "resolve_variant",

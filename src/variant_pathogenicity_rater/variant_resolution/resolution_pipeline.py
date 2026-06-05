@@ -120,8 +120,10 @@ def resolve_variant(
                 **record.provenance,
             }
         )
+    runtime = _resolution_runtime(record, confidence, status, limitations)
     return VariantResolutionResult(
         status=status,
+        outcome=_outcome(status, record, limitations),
         confidence=confidence,
         resolved_transcript=resolved_transcript,
         resolved_hgvs_p=resolved_protein,
@@ -138,9 +140,38 @@ def resolve_variant(
             _step("nmd_context_resolution", nmd_context.nmd_confidence),
         ],
         provenance=provenance,
+        resolution_runtime=runtime,
         resolved_variant=enriched_variant,
         resolved_context=enriched_context,
     )
+
+
+def _outcome(status: str, record: Any, limitations: list[str]) -> str:
+    if any("failed" in item.lower() for item in limitations):
+        return "failure"
+    if status == "resolved":
+        return "success"
+    if status == "partial":
+        return "partial"
+    if record is None:
+        return "no_record"
+    return "skipped"
+
+
+def _resolution_runtime(
+    record: Any,
+    confidence: float,
+    status: str,
+    limitations: list[str],
+) -> dict[str, Any]:
+    return {
+        "provider": record.source if record is not None else "local_transcript_resolution_fixture",
+        "outcome": _outcome(status, record, limitations),
+        "source_version": record.source_version if record is not None else None,
+        "cache_hit": None,
+        "confidence": confidence,
+        "limitations": _unique(limitations),
+    }
 
 
 def _enriched_variant(

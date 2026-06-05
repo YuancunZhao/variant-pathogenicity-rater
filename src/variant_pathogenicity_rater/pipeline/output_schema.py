@@ -260,6 +260,15 @@ def _variant_section(result: dict[str, Any]) -> dict[str, Any]:
         "resolved": _json_copy(result.get("resolved_variant")),
         "resolution_summary": _json_copy(resolution),
         "transcript_validation": _json_copy(result.get("transcript_validation")),
+        "protein_resolution": _json_copy(
+            resolution.get("resolved_hgvs_p") if isinstance(resolution, dict) else None
+        ),
+        "coordinate_resolution": _json_copy(
+            resolution.get("resolved_coordinate") if isinstance(resolution, dict) else None
+        ),
+        "resolution_runtime": _json_copy(
+            resolution.get("resolution_runtime") if isinstance(resolution, dict) else {}
+        ),
         "unresolved_fields": unresolved,
         "placeholder_fields": placeholders,
     }

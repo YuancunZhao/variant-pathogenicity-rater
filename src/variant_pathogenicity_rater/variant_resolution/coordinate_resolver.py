@@ -51,7 +51,7 @@ def _has_structured_coordinate(variant: Variant) -> bool:
     return (
         bool(variant.chrom)
         and variant.chrom != "unresolved"
-        and variant.pos > 1
+        and variant.pos >= 1
         and "N" not in {variant.ref.upper(), variant.alt.upper()}
     )
 

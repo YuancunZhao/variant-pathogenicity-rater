@@ -9,6 +9,7 @@ from variant_pathogenicity_rater.schemas.variant import GeneDiseaseContext, Vari
 
 
 ResolutionStatus = Literal["resolved", "partial", "unresolved", "error"]
+ResolutionOutcome = Literal["success", "partial", "no_record", "failure", "skipped"]
 TranscriptSource = Literal[
     "user_supplied",
     "hgvs_embedded",
@@ -37,6 +38,8 @@ class ResolvedTranscript(SchemaModel):
     gene_symbol: str | None = None
     transcript_source: TranscriptSource = "unknown"
     mane_status: str | None = None
+    transcript_status: Literal["validated", "alternative", "unverified", "unresolved"] = "unverified"
+    canonical_status: Literal["validated", "alternative", "unverified", "unresolved"] = "unverified"
     protein_accession: str | None = None
     user_transcript_provided: bool = False
     user_transcript_preserved: bool = True
@@ -117,6 +120,7 @@ class VariantResolutionRecord(SchemaModel):
 
 class VariantResolutionResult(SchemaModel):
     status: ResolutionStatus
+    outcome: ResolutionOutcome = "skipped"
     confidence: float = Field(default=0.0, ge=0, le=1)
     resolved_transcript: ResolvedTranscript | None = None
     resolved_hgvs_p: ResolvedProtein | None = None
@@ -127,5 +131,6 @@ class VariantResolutionResult(SchemaModel):
     review_flags: list[ReviewFlag] = Field(default_factory=list)
     resolution_steps: list[ResolutionStep] = Field(default_factory=list)
     provenance: list[dict[str, Any]] = Field(default_factory=list)
+    resolution_runtime: dict[str, Any] = Field(default_factory=dict)
     resolved_variant: Variant | None = None
     resolved_context: GeneDiseaseContext | None = None

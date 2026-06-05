@@ -9,21 +9,26 @@ from pydantic import ValidationError
 from variant_pathogenicity_rater.variant_resolution.schema import VariantResolutionRecord
 
 
-DEFAULT_RESOLUTION_FIXTURE = (
+DEFAULT_RESOLUTION_FIXTURES = [
     Path(__file__).resolve().parents[3]
     / "data"
     / "transcript_resolution"
-    / "brca1_resolution.jsonl"
-)
+    / "brca1_resolution.jsonl",
+    Path(__file__).resolve().parents[3]
+    / "data"
+    / "transcript_resolution"
+    / "real_world_smoke_resolution_v1.jsonl",
+]
 
 
 def load_resolution_records(raw: Any = None) -> tuple[list[VariantResolutionRecord], list[str]]:
     records: list[VariantResolutionRecord] = []
     limitations: list[str] = []
-    if DEFAULT_RESOLUTION_FIXTURE.exists():
-        default_records, default_limitations = _load_payload(DEFAULT_RESOLUTION_FIXTURE)
-        records.extend(default_records)
-        limitations.extend(default_limitations)
+    for fixture in DEFAULT_RESOLUTION_FIXTURES:
+        if fixture.exists():
+            default_records, default_limitations = _load_payload(fixture)
+            records.extend(default_records)
+            limitations.extend(default_limitations)
     if raw is not None:
         extra_records, extra_limitations = _load_payload(raw)
         records.extend(extra_records)

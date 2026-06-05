@@ -19,8 +19,16 @@ After the 76 mock/fixture interface audit activation, structured genomic input
 is also preserved in the resolution result. When `normalize_variant` already
 has `genome_build`, chromosome, position, ref, and alt, and no local resolution
 fixture coordinate is available, `resolved_coordinate` inherits the normalized
-coordinate with provenance `source=normalized_variant`. Placeholder HGVS-only
+coordinate with provenance `source=normalized_variant`. This inheritance applies
+to any valid positive coordinate, including position 1. Placeholder HGVS-only
 coordinates remain unresolved.
+
+78B adds a resolution provider contract surface and a local real-world HGVS
+smoke fixture. The new `src/variant_pathogenicity_rater/resolution/` package is
+a compatibility facade over the existing `variant_resolution` layer and exposes
+`ResolutionOutcome`, `ResolutionProviderResult`, `resolve_variant`, and
+`resolve_hgvs_to_variant`. Provider failures are captured as `outcome=failure`
+with limitations rather than exceptions.
 
 ## Scope
 
@@ -34,6 +42,8 @@ The resolution layer can enrich supported SNV/small-indel inputs with:
 - provenance, limitations, review flags, and per-step confidence.
 - optional descriptive protein consequence from Ensembl VEP output when VEP is
   explicitly enabled and local protein resolution is unavailable.
+- resolution runtime metadata: provider, outcome, source version, cache hit,
+  confidence, and limitations.
 
 `normalize_variant` remains conservative. HGVS c. inputs can still normalize to
 placeholder genomic fields when transcript-to-genome mapping is unavailable.
@@ -59,6 +69,19 @@ The BRCA1 fixture for `NM_007294.4:c.68_69delAG` resolves to:
 No network access is attempted by default. External canonicalization providers,
 including ClinGen Allele Registry-style adapters, remain future optional
 providers and must be explicitly gated if added.
+
+The 78B real-world smoke fixture is
+`data/transcript_resolution/real_world_smoke_resolution_v1.jsonl`. It improves
+offline descriptive resolution for the 78A smoke dataset:
+
+- `FLG NM_002016.2:c.12064A>T`: protein, consequence, and coordinate.
+- `AIFM1 NM_004208.4:c.1030C>T`: protein, consequence, and coordinate.
+- `GAMT NM_000156.6:c.268G>A`: protein, consequence, and coordinate.
+- `PKLR NM_000298.6:c.1403C>G`: protein, consequence, and coordinate.
+- `HLCS NM_001352514.2:c.1063_1064del`: protein and consequence only.
+
+`MYH7 NM_000257.4:c.5347A>T` remains unresolved in the local smoke fixture
+until a reviewed coordinate/protein source is added.
 
 ## Transcript Rules
 
@@ -87,6 +110,9 @@ classification only through the existing PP3/BP4 computational evaluator.
 - `normalized_variant`: output from local normalization;
 - `resolved_variant`: enriched variant used by downstream context/generators;
 - `variant_resolution`: full descriptive resolution result;
+- `variant.protein_resolution`: canonical protein resolution view;
+- `variant.coordinate_resolution`: canonical coordinate resolution view;
+- `variant.resolution_runtime`: canonical resolution provider outcome view;
 - `step_results["resolve_variant"]`: audit payload for the resolution step.
 
 Existing evidence generators consume the richer variant/context objects through

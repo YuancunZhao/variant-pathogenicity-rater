@@ -213,7 +213,7 @@ def test_real_world_smoke_summary_is_auditable() -> None:
     assert stats["normalization_failures"] == 0
     assert stats["unresolved_protein_count"] >= 1
     assert stats["unresolved_coordinate_count"] >= 1
-    assert stats["unresolved_transcript_count"] == 6
+    assert stats["unresolved_transcript_count"] >= 1
     assert stats["provider_outcomes"]["population"]["success"] == 6
     assert stats["provider_outcomes"]["clinvar"]["no_record"] == 6
     assert stats["provider_outcomes"]["literature"]["skipped"] == 6
