@@ -10,6 +10,10 @@ from pydantic import Field
 
 from variant_pathogenicity_rater.pipeline.output_schema import add_text_canonical_fields
 from variant_pathogenicity_rater.pipeline.rate_variant import HUMAN_REVIEW_NOTICE, rate_variant
+from variant_pathogenicity_rater.runtime.options import (
+    runtime_options_from_text_input,
+    runtime_options_to_pipeline_dict,
+)
 from variant_pathogenicity_rater.schemas.common import SchemaModel
 
 
@@ -299,8 +303,19 @@ def rate_variant_from_text(
         ai_assisted_parser=ai_assisted_parser,
     )
     parsed_input = copy.deepcopy(parsed.get("parsed_input") or {})
-    if options:
-        parsed_input["options"] = _merge_options(parsed_input.get("options"), options)
+    runtime_options = runtime_options_from_text_input(
+        parsed_input,
+        options,
+        language,
+        output,
+        report_mode,
+    )
+    parsed_input["options"] = runtime_options_to_pipeline_dict(runtime_options)
+    if runtime_options.normalization_warnings:
+        parsed["normalization_warnings"] = _unique(
+            list(parsed.get("normalization_warnings") or [])
+            + list(runtime_options.normalization_warnings)
+        )
 
     if parsed.get("status") != "parsed":
         return _rate_error(text, parsed, parsed_input)

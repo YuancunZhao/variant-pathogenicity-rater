@@ -29,6 +29,10 @@ from variant_pathogenicity_rater.natural_language_input import (
     render_parsed_input_review,
 )
 from variant_pathogenicity_rater.reporting import render_literature_search_summary_section
+from variant_pathogenicity_rater.runtime.options import (
+    runtime_options_from_cli,
+    runtime_options_to_pipeline_dict,
+)
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
 
 
@@ -572,53 +576,11 @@ def _cmd_check_env(_args: argparse.Namespace) -> int:
 
 
 def _clingen_erepo_options(args: argparse.Namespace) -> dict[str, Any]:
-    options: dict[str, Any] = {"mock_mode": True}
-    data_source_overrides: dict[str, Any] = {}
-    if getattr(args, "include_clingen_erepo", False) or getattr(args, "clingen_erepo_local_file", None):
-        options["include_clingen_erepo"] = True
-    local_file = getattr(args, "clingen_erepo_local_file", None)
-    if local_file:
-        data_source_overrides["clingen_erepo"] = {
-            "mode": "local_file",
-            "local_file": local_file,
-            "source_version": "cli-local-clingen-erepo",
-        }
-    population_file = getattr(args, "population_local_file", None)
-    if population_file:
-        data_source_overrides["population"] = {
-            "mode": "local_file",
-            "local_file": population_file,
-            "source_version": getattr(args, "population_source_version", None)
-            or "cli-local-population-snapshot",
-            "parser_version": "population-parser-v1",
-        }
-    if getattr(args, "include_vcep_signals", False):
-        options["include_vcep_signals"] = True
-    if getattr(args, "apply_vcep_overrides", False):
-        options["include_vcep_signals"] = True
-        options["apply_vcep_overrides"] = True
-    if getattr(args, "vcep_profile_file", None):
-        options["include_vcep_signals"] = True
-        options["vcep_profile_file"] = args.vcep_profile_file
-    if getattr(args, "vcep_kb_dir", None):
-        options["include_vcep_signals"] = True
-        options["vcep_kb_dir"] = args.vcep_kb_dir
-    output = getattr(args, "output", None)
-    language = getattr(args, "language", "en")
-    report_mode = getattr(args, "report_mode", None)
-    if output == "markdown-zh":
-        language = "zh"
-        report_mode = report_mode or "laboratory"
-    if language == "zh":
-        report_mode = report_mode or "laboratory"
-    if language:
-        options["report_language"] = language
-    if report_mode:
-        options["report_mode"] = report_mode
-    _apply_online_provider_cli_options(args, options, data_source_overrides)
-    if data_source_overrides:
-        options["data_sources"] = {"sources": data_source_overrides}
-    return options
+    runtime_options = runtime_options_from_cli(
+        args,
+        command=str(getattr(args, "command", None) or getattr(args, "source", None) or "cli"),
+    )
+    return runtime_options_to_pipeline_dict(runtime_options, include_reviewed_evidence=False)
 
 
 def _apply_online_provider_cli_options(

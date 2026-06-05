@@ -29,7 +29,7 @@ After VCEP signal/override framework validation, real provider validation,
 benchmark Phase C, the General Literature Search and Summary Engine, the
 74 real provider pipeline, the 76 mock/fixture interface audit activation,
 the 77A output schema unification, the 77B provider interface consolidation,
-the 77C evidence status helper unification, and the 77D-1 RuntimeOptions
+the 77C evidence status helper unification, and the 77D RuntimeOptions
 foundation, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
@@ -46,7 +46,8 @@ resolution fallback, descriptive VEP-to-resolution bridging, CLI opt-in flags,
 MCP online options, canonical additive output sections for Python/CLI/MCP
 single, text, batch, and annotated-batch outputs, a normalized additive
 provider runtime result contract, a shared read-only evidence status view,
-centralized core Python API runtime-option normalization for `rate_variant`,
+centralized runtime-option normalization for Python API, CLI, MCP,
+natural-language text, batch, and annotated-batch entry points,
 Chinese laboratory reporting, and the unchanged ACMG classification combiner. The 74
 real provider pipeline has passed offline integration review with the default
 no-network safety boundary intact. The next project
@@ -105,11 +106,11 @@ contract backing provider summaries while preserving raw provider step payloads.
 77C adds a shared read-only evidence status helper used for applied,
 candidate-only, review-note, and reviewed evidence grouping without changing
 evidence generation, reviewed-evidence validation, or the combiner.
-77D-1 adds a centralized RuntimeOptions foundation for the Python API
-`rate_variant` core option path, preserving legacy options, default mock/offline
-behavior, online-provider mapping semantics, and reviewed-evidence safety
-boundaries. CLI, MCP, batch, annotated-batch, and natural-language wrapper
-normalization remain follow-up work.
+77D adds a centralized RuntimeOptions layer for Python API, CLI, MCP,
+natural-language text, batch, and annotated-batch option handling, preserving
+legacy options, default mock/offline behavior, online-provider mapping
+semantics, reviewed-evidence precedence, and reviewed-evidence safety
+boundaries.
 
 ### Natural Language Input
 

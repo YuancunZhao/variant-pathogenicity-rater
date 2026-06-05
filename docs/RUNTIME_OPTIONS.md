@@ -1,7 +1,7 @@
 # Runtime Options
 
-77D-1 adds a centralized RuntimeOptions normalization foundation for the
-Python API and core `rate_variant` option path.
+77D adds a centralized RuntimeOptions normalization layer for Python API, CLI,
+MCP, natural-language text, batch, and annotated-batch option handling.
 
 This is an additive compatibility layer. It does not change variant
 normalization, provider retrieval semantics, evidence generation, reviewed
@@ -10,11 +10,13 @@ or default offline behavior.
 
 ## Scope
 
-77D-1 wires only the `rate_variant` core `_options()` path through the shared
-normalizer. CLI, MCP, batch, annotated-batch, and natural-language wrappers keep
-their existing argument surfaces and wrapper-specific option assembly for now.
-Later 77D tasks can migrate those wrappers onto the same helper without
-renaming or deleting public fields.
+77D-1 introduced the foundation and wired the `rate_variant` core `_options()`
+path. 77D-2 migrates CLI, MCP, natural-language text, batch, and annotated-batch
+entry points onto the same RuntimeOptions interpretation layer.
+
+All public CLI arguments, MCP schemas, Python API fields, and legacy option keys
+remain available. RuntimeOptions returns legacy-compatible dictionaries to the
+existing pipeline so the migration remains an adapter/refactor layer.
 
 ## RuntimeOptions Fields
 
@@ -54,11 +56,46 @@ The module exposes:
 
 - `normalize_runtime_options(options=None, top_level=None, source="python_api")`
 - `merge_runtime_options(base, override, source)`
+- `runtime_options_from_cli(args, command)`
+- `runtime_options_from_mcp(arguments, tool_name)`
+- `runtime_options_from_text_input(parsed_input, explicit_options, language, output, report_mode)`
+- `runtime_options_for_batch(batch_options, record, input_index)`
 - `runtime_options_to_pipeline_dict(runtime_options)`
+- `runtime_options_snapshot(runtime_options)`
 - `apply_online_provider_modes(runtime_options)`
 
 `runtime_options_to_pipeline_dict()` returns a legacy-compatible dictionary so
 existing pipeline code can continue consuming `options` without broad rewrites.
+`runtime_options_snapshot()` supplies the descriptive
+`runtime.runtime_options_snapshot` canonical output view.
+
+## Entry Point Migration
+
+- CLI `rate`, `rate-text`, `batch`, and `annotated-batch` build RuntimeOptions
+  before calling pipeline functions.
+- MCP `rate_variant`, `rate_variant_from_text`, `parse_variant_text`,
+  `rate_variant_batch`, and `rate_annotated_variants` normalize options in the
+  handler without changing input schemas.
+- `rate_variant_from_text()` uses `runtime_options_from_text_input()` to merge
+  parsed options, explicit language/report arguments, and explicit options with
+  deterministic precedence.
+- Batch records use `runtime_options_for_batch()` so record-level overrides stay
+  isolated from batch-level defaults.
+- Annotated-batch records normalize annotation-derived options before they enter
+  the batch pipeline.
+
+Text input precedence is:
+
+1. explicit options;
+2. explicit language/report arguments;
+3. parsed-input options;
+4. defaults.
+
+Batch precedence is:
+
+1. record-level options;
+2. batch-level options;
+3. defaults.
 
 ## Online Provider Mapping
 
@@ -86,8 +123,9 @@ cache directories are not overwritten.
 - Top-level reviewed evidence precedence remains handled by the existing
   pipeline reviewed-evidence workflow.
 - `normalize_runtime_options(..., top_level=...)` records top-level
-  `reviewed_evidence` as the preferred runtime value for future wrappers, but
-  77D-1 does not force that value into the core pipeline path.
+  `reviewed_evidence` as the preferred runtime value. Entry-point adapters avoid
+  duplicating top-level reviewed evidence into `options` when the pipeline must
+  retain legacy top-level precedence behavior.
 - `mock_supplemental_evidence_items` remains compatible and keeps the existing
   precedence over `supplemental_evidence_items`.
 - Provider cache directory configuration alone does not enable online access.

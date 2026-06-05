@@ -58,6 +58,10 @@ from variant_pathogenicity_rater.natural_language_input import (  # noqa: E402
     parse_variant_text as parse_variant_text_service,
     rate_variant_from_text as rate_variant_from_text_service,
 )
+from variant_pathogenicity_rater.runtime.options import (  # noqa: E402
+    runtime_options_from_mcp,
+    runtime_options_to_pipeline_dict,
+)
 from variant_pathogenicity_rater.config.thresholds import (  # noqa: E402
     computational_thresholds_from_options,
     population_thresholds_from_options,
@@ -106,6 +110,21 @@ def _placeholder_result(tool_name: str, arguments: dict[str, Any]) -> dict[str, 
     }
 
 
+def _arguments_with_runtime_options(
+    arguments: dict[str, Any],
+    *,
+    tool_name: str,
+    include_reviewed_evidence: bool = False,
+) -> dict[str, Any]:
+    runtime_options = runtime_options_from_mcp(arguments, tool_name=tool_name)
+    normalized = dict(arguments)
+    normalized["options"] = runtime_options_to_pipeline_dict(
+        runtime_options,
+        include_reviewed_evidence=include_reviewed_evidence,
+    )
+    return normalized
+
+
 async def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     has_wrapped_variant = isinstance(arguments.get("variant"), dict)
     has_flat_variant = any(
@@ -138,7 +157,9 @@ async def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             },
         )
 
-    return rate_variant_pipeline(arguments)
+    return rate_variant_pipeline(
+        _arguments_with_runtime_options(arguments, tool_name="rate_variant")
+    )
 
 
 async def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -150,7 +171,9 @@ async def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
             "rate_variant_batch requires either a 'records' array or textual batch input.",
             details={"required_any": ["records", "input_text/text/data"]},
         )
-    return rate_variant_batch_pipeline(arguments)
+    return rate_variant_batch_pipeline(
+        _arguments_with_runtime_options(arguments, tool_name="rate_variant_batch")
+    )
 
 
 async def rate_variant_from_text(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -182,7 +205,11 @@ async def rate_variant_from_text(arguments: dict[str, Any]) -> dict[str, Any]:
         output=arguments.get("output"),
         language=arguments.get("language"),
         report_mode=arguments.get("report_mode"),
-        options=arguments.get("options") if isinstance(arguments.get("options"), dict) else None,
+        options=_arguments_with_runtime_options(
+            arguments,
+            tool_name="rate_variant_from_text",
+            include_reviewed_evidence=True,
+        ).get("options"),
     )
 
 
@@ -213,7 +240,11 @@ async def parse_variant_text(arguments: dict[str, Any]) -> dict[str, Any]:
         output=arguments.get("output"),
         language=arguments.get("language"),
         report_mode=arguments.get("report_mode"),
-        options=arguments.get("options") if isinstance(arguments.get("options"), dict) else None,
+        options=_arguments_with_runtime_options(
+            arguments,
+            tool_name="parse_variant_text",
+            include_reviewed_evidence=True,
+        ).get("options"),
     )
     result["tool"] = "parse_variant_text"
     return result
@@ -228,7 +259,9 @@ async def rate_annotated_variants(arguments: dict[str, Any]) -> dict[str, Any]:
             "rate_annotated_variants requires either annotation 'records' or textual annotation input.",
             details={"required_any": ["records", "input_text/text/data"]},
         )
-    return run_annotation_batch_workflow(arguments)
+    return run_annotation_batch_workflow(
+        _arguments_with_runtime_options(arguments, tool_name="rate_annotated_variants")
+    )
 
 
 async def normalize_variant(arguments: dict[str, Any]) -> dict[str, Any]:

@@ -102,6 +102,145 @@ def normalize_runtime_options(
     return apply_online_provider_modes(runtime_options)
 
 
+def runtime_options_from_cli(args: Any, command: str) -> RuntimeOptions:
+    options: dict[str, Any] = {"mock_mode": True}
+    data_source_overrides: dict[str, Any] = {}
+
+    if getattr(args, "include_clingen_erepo", False) or getattr(args, "clingen_erepo_local_file", None):
+        options["include_clingen_erepo"] = True
+    local_file = getattr(args, "clingen_erepo_local_file", None)
+    if local_file:
+        data_source_overrides["clingen_erepo"] = {
+            "mode": "local_file",
+            "local_file": local_file,
+            "source_version": "cli-local-clingen-erepo",
+        }
+
+    population_file = getattr(args, "population_local_file", None)
+    if population_file:
+        data_source_overrides["population"] = {
+            "mode": "local_file",
+            "local_file": population_file,
+            "source_version": getattr(args, "population_source_version", None)
+            or "cli-local-population-snapshot",
+            "parser_version": "population-parser-v1",
+        }
+
+    if getattr(args, "include_vcep_signals", False):
+        options["include_vcep_signals"] = True
+    if getattr(args, "apply_vcep_overrides", False):
+        options["include_vcep_signals"] = True
+        options["apply_vcep_overrides"] = True
+    if getattr(args, "vcep_profile_file", None):
+        options["include_vcep_signals"] = True
+        options["vcep_profile_file"] = args.vcep_profile_file
+    if getattr(args, "vcep_kb_dir", None):
+        options["include_vcep_signals"] = True
+        options["vcep_kb_dir"] = args.vcep_kb_dir
+
+    report_options = _report_options_from_args(
+        output=getattr(args, "output", None),
+        language=getattr(args, "language", "en"),
+        report_mode=getattr(args, "report_mode", None),
+    )
+    options.update(report_options)
+
+    if getattr(args, "online_clinvar", False):
+        options["use_online_clinvar"] = True
+    if getattr(args, "online_gnomad", False):
+        options["use_online_gnomad"] = True
+    if getattr(args, "online_vep", False):
+        options["use_online_vep"] = True
+    if getattr(args, "online_pubmed", False):
+        options["use_online_pubmed"] = True
+    if getattr(args, "online_litvar", False):
+        options["use_online_litvar"] = True
+    if getattr(args, "provider_cache_dir", None):
+        options["provider_cache_dir"] = args.provider_cache_dir
+
+    if data_source_overrides:
+        options["data_sources"] = {"sources": data_source_overrides}
+
+    top_level = _top_level_runtime_fields(
+        {
+            "disease": getattr(args, "disease", None),
+            "inheritance": getattr(args, "inheritance", None),
+        }
+    )
+    runtime = normalize_runtime_options(options, top_level=top_level, source=f"cli.{command}")
+    runtime.option_sources.setdefault("_entrypoint", f"cli.{command}")
+    return runtime
+
+
+def runtime_options_from_mcp(arguments: Mapping[str, Any], tool_name: str) -> RuntimeOptions:
+    options = arguments.get("options") if isinstance(arguments.get("options"), Mapping) else {}
+    top_level = _top_level_runtime_fields(arguments)
+    runtime = normalize_runtime_options(options, top_level=top_level, source=f"mcp.{tool_name}")
+    runtime.option_sources.setdefault("_entrypoint", f"mcp.{tool_name}")
+    return runtime
+
+
+def runtime_options_from_text_input(
+    parsed_input: Mapping[str, Any] | None,
+    explicit_options: Mapping[str, Any] | None,
+    language: str | None,
+    output: str | None,
+    report_mode: str | None,
+) -> RuntimeOptions:
+    parsed_options = {}
+    if isinstance(parsed_input, Mapping) and isinstance(parsed_input.get("options"), Mapping):
+        parsed_options = dict(parsed_input["options"])
+    report_options = _report_options_from_args(
+        output=output,
+        language=language,
+        report_mode=report_mode,
+    )
+    explicit = dict(explicit_options or {})
+    warnings = _conflict_warnings(
+        [
+            ("parsed_input.options", parsed_options),
+            ("text_args", report_options),
+            ("explicit_options", explicit),
+        ]
+    )
+    merged = dict(parsed_options)
+    merged.update(report_options)
+    merged.update(explicit)
+    if warnings:
+        merged["normalization_warnings"] = _unique(
+            list(merged.get("normalization_warnings") or []) + warnings
+        )
+    runtime = normalize_runtime_options(merged, source="text_input")
+    runtime.option_sources.setdefault("_entrypoint", "text_input")
+    return runtime
+
+
+def runtime_options_for_batch(
+    batch_options: Mapping[str, Any] | None,
+    record: Mapping[str, Any] | None,
+    input_index: int,
+) -> RuntimeOptions:
+    record_options = {}
+    if isinstance(record, Mapping) and isinstance(record.get("options"), Mapping):
+        record_options = dict(record["options"])
+    warnings = _conflict_warnings(
+        [
+            ("batch.options", dict(batch_options or {})),
+            (f"record[{input_index}].options", record_options),
+        ]
+    )
+    merged = dict(batch_options or {})
+    merged.update(record_options)
+    if warnings:
+        merged["normalization_warnings"] = _unique(
+            list(merged.get("normalization_warnings") or []) + warnings
+        )
+    runtime = normalize_runtime_options(merged, source=f"batch.record[{input_index}]")
+    runtime.option_sources.setdefault("_entrypoint", "batch")
+    runtime.option_sources.setdefault("_input_index", str(input_index))
+    return runtime
+
+
 def merge_runtime_options(
     base: RuntimeOptions | Mapping[str, Any] | None,
     override: RuntimeOptions | Mapping[str, Any] | None,
@@ -126,7 +265,11 @@ def merge_runtime_options(
     return normalize_runtime_options(merged, source=source)
 
 
-def runtime_options_to_pipeline_dict(runtime_options: RuntimeOptions) -> dict[str, Any]:
+def runtime_options_to_pipeline_dict(
+    runtime_options: RuntimeOptions,
+    *,
+    include_reviewed_evidence: bool = True,
+) -> dict[str, Any]:
     payload = dict(runtime_options.passthrough_options)
     for key in (
         "use_online_clinvar",
@@ -151,7 +294,6 @@ def runtime_options_to_pipeline_dict(runtime_options: RuntimeOptions) -> dict[st
         "disease",
         "inheritance",
         "confirmed_context",
-        "reviewed_evidence",
         "supplemental_evidence_items",
     )
     for key in optional_fields:
@@ -160,6 +302,11 @@ def runtime_options_to_pipeline_dict(runtime_options: RuntimeOptions) -> dict[st
             payload[key] = value
         else:
             payload.pop(key, None)
+
+    if include_reviewed_evidence and runtime_options.reviewed_evidence is not None:
+        payload["reviewed_evidence"] = runtime_options.reviewed_evidence
+    else:
+        payload.pop("reviewed_evidence", None)
 
     payload["mock_mode"] = bool(runtime_options.mock_mode)
     if runtime_options.option_sources:
@@ -171,6 +318,38 @@ def runtime_options_to_pipeline_dict(runtime_options: RuntimeOptions) -> dict[st
     else:
         payload.pop("normalization_warnings", None)
     return payload
+
+
+def runtime_options_snapshot(runtime_options: RuntimeOptions) -> dict[str, Any]:
+    return {
+        "provider_flags": {
+            "use_online_clinvar": runtime_options.use_online_clinvar,
+            "use_online_gnomad": runtime_options.use_online_gnomad,
+            "use_online_vep": runtime_options.use_online_vep,
+            "use_online_pubmed": runtime_options.use_online_pubmed,
+            "use_online_litvar": runtime_options.use_online_litvar,
+        },
+        "report": {
+            "report_language": runtime_options.report_language,
+            "report_mode": runtime_options.report_mode,
+        },
+        "context": {
+            "disease": runtime_options.disease,
+            "inheritance": runtime_options.inheritance,
+            "confirmed_context": runtime_options.confirmed_context,
+        },
+        "review": {
+            "reviewed_evidence_present": runtime_options.reviewed_evidence is not None,
+            "supplemental_evidence_items_present": runtime_options.supplemental_evidence_items is not None,
+        },
+        "execution": {
+            "mock_mode": runtime_options.mock_mode,
+            "provider_cache_dir": runtime_options.provider_cache_dir,
+            "provider_timeout": runtime_options.provider_timeout,
+            "provider_email": runtime_options.provider_email,
+            "provider_user_agent": runtime_options.provider_user_agent,
+        },
+    }
 
 
 def apply_online_provider_modes(runtime_options: RuntimeOptions) -> RuntimeOptions:
@@ -246,6 +425,58 @@ def _runtime_payload_from_mapping(options: Mapping[str, Any], source: str) -> di
         if key != "passthrough_options":
             payload["option_sources"].setdefault(key, source)
     return payload
+
+
+def _report_options_from_args(
+    *,
+    output: str | None,
+    language: str | None,
+    report_mode: str | None,
+) -> dict[str, Any]:
+    options: dict[str, Any] = {}
+    resolved_language = language
+    resolved_mode = report_mode
+    if output == "markdown-zh":
+        resolved_language = "zh"
+        resolved_mode = resolved_mode or "laboratory"
+    if resolved_language == "zh":
+        resolved_mode = resolved_mode or "laboratory"
+    if resolved_language:
+        options["report_language"] = resolved_language
+    if resolved_mode:
+        options["report_mode"] = resolved_mode
+    return options
+
+
+def _top_level_runtime_fields(source: Mapping[str, Any]) -> dict[str, Any]:
+    fields = {}
+    for key in (
+        "disease",
+        "inheritance",
+        "confirmed_context",
+        "reviewed_context",
+        "reviewed_evidence",
+        "supplemental_evidence_items",
+        "mock_supplemental_evidence_items",
+    ):
+        if key in source and source.get(key) is not None:
+            fields[key] = source.get(key)
+    return fields
+
+
+def _conflict_warnings(sources: list[tuple[str, Mapping[str, Any]]]) -> list[str]:
+    warnings: list[str] = []
+    seen: dict[str, tuple[str, Any]] = {}
+    for label, payload in sources:
+        for key, value in payload.items():
+            if key in {"normalization_warnings", "option_sources"}:
+                continue
+            if key in seen and seen[key][1] != value:
+                warnings.append(
+                    f"Runtime option '{key}' from {label} overrides value from {seen[key][0]}."
+                )
+            seen[key] = (label, value)
+    return _unique(warnings)
 
 
 def _runtime_from_pipeline_payload(

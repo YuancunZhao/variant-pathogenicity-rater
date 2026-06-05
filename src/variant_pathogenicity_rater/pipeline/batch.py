@@ -27,6 +27,10 @@ from variant_pathogenicity_rater.schemas.batch import (
     BatchVariantResult,
     FailedBatchRecord,
 )
+from variant_pathogenicity_rater.runtime.options import (
+    runtime_options_for_batch,
+    runtime_options_to_pipeline_dict,
+)
 
 SUPPORTED_BATCH_FORMATS = {"json", "jsonl", "csv", "tsv", "vcf", "vcf_like"}
 VARIANT_FIELDS = {
@@ -109,7 +113,11 @@ def rate_variant_batch(arguments: dict[str, Any]) -> dict[str, Any]:
             results.append(_failed_result(failed))
             continue
 
-        record = _with_default_options(parsed_record.record, arguments.get("options"))
+        record = _with_default_options(
+            parsed_record.record,
+            arguments.get("options"),
+            input_index=output_index,
+        )
         reviewed = _reviewed_evidence_for_record(arguments, output_index)
         if reviewed is not None and "reviewed_evidence" not in record:
             record["reviewed_evidence"] = reviewed
@@ -417,15 +425,19 @@ def _normalize_variant_identity_fields(record: dict[str, Any], warnings: list[st
             warnings.append("Field 'transcript' was whitespace-trimmed and uppercased.")
 
 
-def _with_default_options(record: dict[str, Any], batch_options: Any) -> dict[str, Any]:
+def _with_default_options(
+    record: dict[str, Any],
+    batch_options: Any,
+    *,
+    input_index: int = 0,
+) -> dict[str, Any]:
     payload = dict(record)
-    options: dict[str, Any] = {}
-    if isinstance(batch_options, dict):
-        options.update(batch_options)
-    if isinstance(payload.get("options"), dict):
-        options.update(payload["options"])
-    options.setdefault("mock_mode", True)
-    payload["options"] = options
+    runtime_options = runtime_options_for_batch(
+        batch_options if isinstance(batch_options, dict) else {},
+        payload,
+        input_index,
+    )
+    payload["options"] = runtime_options_to_pipeline_dict(runtime_options)
     return payload
 
 

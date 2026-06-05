@@ -16,6 +16,10 @@ from variant_pathogenicity_rater.annotation.adapters import AnnotationAdapter, _
 from variant_pathogenicity_rater.input_cleaning import clean_record, normalize_chromosome_label
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
+from variant_pathogenicity_rater.runtime.options import (
+    normalize_runtime_options,
+    runtime_options_to_pipeline_dict,
+)
 from variant_pathogenicity_rater.schemas.annotation import VariantAnnotation
 from variant_pathogenicity_rater.schemas.batch import BatchRecordError, FailedBatchRecord
 
@@ -364,8 +368,8 @@ def _record_options(
     options["annotations"] = [json.loads(annotation.model_dump_json()) for annotation in annotations]
     if selected_transcript:
         options["user_transcript"] = selected_transcript
-    options.setdefault("mock_mode", True)
-    return options
+    runtime_options = normalize_runtime_options(options, source="annotated_batch.record")
+    return runtime_options_to_pipeline_dict(runtime_options)
 
 
 def _local_normalization_identity(record: dict[str, Any]) -> dict[str, Any] | None:

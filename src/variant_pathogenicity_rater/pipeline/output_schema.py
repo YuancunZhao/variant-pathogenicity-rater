@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from variant_pathogenicity_rater.evidence.status import summarize_evidence_status
+from variant_pathogenicity_rater.runtime.options import (
+    normalize_runtime_options,
+    runtime_options_snapshot,
+    runtime_options_to_pipeline_dict,
+)
 
 
 CANONICAL_OUTPUT_VERSION = "77A-output-schema-v1"
@@ -186,6 +191,7 @@ def add_text_canonical_fields(result: dict[str, Any]) -> dict[str, Any]:
 
 def canonical_batch_record_summary(pipeline_result: dict[str, Any]) -> dict[str, Any]:
     return {
+        "input": _json_copy(pipeline_result.get("input") or {}),
         "variant": _json_copy(pipeline_result.get("variant") or {}),
         "runtime": _json_copy(pipeline_result.get("runtime") or {}),
         "providers": _json_copy(pipeline_result.get("providers") or {}),
@@ -303,12 +309,14 @@ def _context_section(
 
 def _runtime_section(result: dict[str, Any], options_used: dict[str, Any]) -> dict[str, Any]:
     data_modes = result.get("data_source_modes") or {}
+    runtime_options = normalize_runtime_options(options_used)
     return {
         "legacy_mock_mode": bool(result.get("mock_mode", True)),
         "offline_default_mode": bool(result.get("offline_default_mode", True)),
         "data_source_modes_configured": _json_copy(data_modes),
         "data_source_modes_semantics": str(result.get("data_source_modes_semantics") or ""),
         "unresolved_placeholder_mode": bool(result.get("unresolved_placeholder_mode", False)),
+        "runtime_options_snapshot": runtime_options_snapshot(runtime_options),
         "network_policy": {
             "default_network_enabled": False,
             "online_requested": any(
@@ -580,7 +588,8 @@ def _options_used(
 ) -> dict[str, Any]:
     for source in (parsed_input, original_input):
         if isinstance(source, dict) and isinstance(source.get("options"), dict):
-            return _json_copy(source["options"])
+            runtime_options = normalize_runtime_options(source["options"])
+            return _json_copy(runtime_options_to_pipeline_dict(runtime_options))
     return _options_from_runtime(result)
 
 
