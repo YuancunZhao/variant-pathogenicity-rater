@@ -32,8 +32,8 @@ the 77A output schema unification, the 77B provider interface consolidation,
 the 77C evidence status helper unification, the 77D RuntimeOptions
 foundation, the 78A real-world smoke validation layer, the 78B HGVS
 resolution provider upgrade, the 78C real-world provider benchmark, the
-78D/78E/78F provider hardening passes, and the 79A-1 provider-layer
-VariantIdentity model/adapter, the
+78D/78E/78F provider hardening passes, the 79A-1 provider-layer
+VariantIdentity model/adapter, and 79A-2 provider dependency gating, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -61,7 +61,9 @@ fallback stabilization, VEP timeout/error diagnostics, VEP minimal consequence
 fallback, descriptive protein-change bridge from VEP transcript consequences,
 provider-layer VariantIdentity output, validated gnomAD ID construction,
 provider alias helpers for ClinVar/VEP/literature, additive provider identity
-benchmark coverage,
+benchmark coverage, provider dependency checks, identity-gated online provider
+skips, gnomAD invalid-identity skip reporting, dependency-status runtime
+payloads,
 Chinese laboratory reporting, and the unchanged ACMG classification combiner.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
@@ -81,15 +83,18 @@ applied evidence, or default no-network behavior. The 79A-1 provider-layer
 VariantIdentity contract exposes normalized/resolution identity, provider
 aliases, identity conflicts, limitations, and review flags without changing
 provider calls, evidence generation, classification, or default no-network
-behavior. The next project
+behavior. The 79A-2 dependency gating pass moves missing or invalid online
+provider identity into pre-provider skipped runtime results, especially for
+gnomAD, where invalid identity no longer needs to reach GraphQL as provider
+failure. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
 cases, general literature search/summarization, first-pass real-world HGVS
 smoke coverage, first-pass HGVS resolution provider output, or first-pass
-provider hardening after 78C; it is provider identity-backed resolution
-orchestration, deeper selected real-world case validation, a narrow real VCEP
-profile pilot, provider
+provider hardening after 78C, or first-pass provider dependency gating; it is a
+fuller provider orchestrator, deeper selected real-world case validation, a
+narrow real VCEP profile pilot, provider
 cache/reproducibility hardening, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity

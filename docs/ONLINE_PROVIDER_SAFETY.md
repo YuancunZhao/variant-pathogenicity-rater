@@ -40,7 +40,17 @@ default. See `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
 - Literature records are candidate-only and reviewed-draft inputs only.
 - gnomAD and VEP facts may only flow through existing population and
   computational evaluators.
+- 79A-2 adds provider dependency gating before current online provider calls.
+  Missing or invalid provider identity is reported as `skipped`, not
+  `no_record`, and not as provider failure.
 - A no-record gnomAD result is limitation-only and must not trigger PM2.
+- gnomAD `no_record` means a valid gnomAD query was executed and returned no
+  matching variant. It must not be used for identity-gated skips.
+- gnomAD online GraphQL schema drift is handled through staged provider
+  fallback. A legacy full query may fail on optional fields such as
+  `populations` or `faf95`; the provider then tries stable exome/genome
+  frequency fields and finally minimal variant identity fields. These fallback
+  diagnostics remain provenance/limitations, not evidence.
 - VEP missing predictors become limitations and must not directly generate
   PP3/BP4.
 - Candidate evidence must not silently enter the combiner.
@@ -57,6 +67,7 @@ limitations and continues:
 - empty provider result;
 - missing source version or provenance;
 - gnomAD no-record result;
+- provider dependency skip due to missing, invalid, or unsupported identity;
 - low AN or unknown coverage;
 - population/build/ancestry mismatch;
 - missing VEP predictor fields;
@@ -77,6 +88,9 @@ source envelope with:
 - parser version;
 - raw snapshot hash;
 - cache hit state where applicable;
+- provider-specific request diagnostics such as gnomAD dataset, variant ID,
+  GraphQL query name/version, request payload hash, HTTP status, and bounded
+  response-body or GraphQL-error summaries when available;
 - limitations.
 
 ClinVar date provenance additionally preserves the raw `last_evaluated` value,
@@ -97,3 +111,6 @@ literature/PubMed-LitVar, and ClinGen ERepo when included.
 outcome summaries. It adds attempted state, standardized outcome labels,
 warnings, error summary fields, raw record hash, retrieval timestamp, and
 structured provenance while preserving all raw provider step payloads.
+For 79A-2 dependency-gated skips, the same runtime result includes
+`dependency_status` with required fields, status, skip reason, limitations, and
+the identity snapshot used for the check.

@@ -285,6 +285,37 @@ def test_explicit_online_gnomad_flag_uses_mocked_provider_path(monkeypatch, tmp_
     assert not any(item["code"] == "PM2" for item in result["applied_evidence"])
 
 
+def test_online_gnomad_invalid_identity_is_dependency_skip_not_provider_failure(monkeypatch, tmp_path: Path) -> None:
+    def post_json(_self, _url: str, _payload: dict) -> dict:
+        raise AssertionError("gnomAD HTTP should not be called when provider identity is invalid")
+
+    monkeypatch.setattr(ProviderHTTPClient, "post_json", post_json)
+    result = rate_variant(
+        {
+            "gene": "GENE1",
+            "transcript": "NM_000001.1",
+            "hgvs_c": "NM_000001.1:c.1A>G",
+            "disease": "Example disease",
+            "options": {
+                "use_online_gnomad": True,
+                "provider_cache_dir": str(tmp_path / "providers"),
+                "include_clinvar": False,
+                "include_computational": False,
+                "include_literature": False,
+            },
+        }
+    )
+
+    runtime = result["step_results"]["provider_runtime"]["population"]
+    assert result["data_source_modes"]["population"] == "online"
+    assert runtime["outcome"] == "skipped"
+    assert runtime["attempted"] is False
+    assert runtime["dependency_status"]["status"] == "invalid_identity"
+    assert result["provider_mode_summary"]["population"]["actual_outcome"] == "skipped"
+    assert "Invalid variant ID" not in " ".join(runtime.get("limitations") or [])
+    assert not any(item["code"] == "PM2" for item in result["applied_evidence"])
+
+
 def test_mcp_online_gnomad_flag_reports_provider_summary(monkeypatch, tmp_path: Path) -> None:
     def post_json(_self, _url: str, payload: dict) -> dict:
         assert payload["variables"]["variantId"] == "1-21563117-A-C"

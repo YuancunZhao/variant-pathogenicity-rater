@@ -145,6 +145,20 @@ provider-specific timing.
 Provider failures and timeouts are captured as benchmark results and
 limitations. They must not crash benchmark execution.
 
+## Identity Gating Summary
+
+79A-2 separates provider dependency skips from true provider failures. Benchmark
+outcome metrics now include:
+
+- `dependency_skipped`
+- `invalid_identity`
+- `missing_identity`
+
+For gnomAD, invalid or missing provider-layer identity is counted as a skipped
+dependency before GraphQL is called. It is not counted as `failure` and is not
+counted as `no_record`. gnomAD `no_record` is used only after a valid query
+executes and returns no matching variant.
+
 ## Provider Diagnostics
 
 78D/78E harden the provider observability path used by this benchmark:
@@ -176,7 +190,8 @@ limitations. They must not crash benchmark execution.
   only after search terms return no records.
 
 Benchmark summaries include per-provider failure case IDs, no-record case IDs,
-and the first error examples with `error_type` and `error_message_summary`.
+dependency-skipped case IDs, gnomAD invalid-identity skip case IDs, and the
+first error examples with `error_type` and `error_message_summary`.
 
 ## Optional Live Benchmark
 

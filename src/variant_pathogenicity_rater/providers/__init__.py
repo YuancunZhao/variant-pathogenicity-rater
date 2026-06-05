@@ -18,6 +18,16 @@ from variant_pathogenicity_rater.providers.identity_adapter import (
     variant_identity_from_normalized_variant,
     variant_identity_from_resolution,
 )
+from variant_pathogenicity_rater.providers.dependencies import (
+    ProviderDependency,
+    ProviderDependencyCheck,
+    ProviderDependencyStatus,
+    check_clinvar_dependency,
+    check_gnomad_dependency,
+    check_literature_dependency,
+    check_vep_dependency,
+    dependency_skip_payload,
+)
 
 __all__ = [
     "VariantIdentity",
@@ -30,4 +40,12 @@ __all__ = [
     "variant_identity_from_resolution",
     "merge_variant_identities",
     "build_variant_identity",
+    "ProviderDependency",
+    "ProviderDependencyCheck",
+    "ProviderDependencyStatus",
+    "check_gnomad_dependency",
+    "check_vep_dependency",
+    "check_clinvar_dependency",
+    "check_literature_dependency",
+    "dependency_skip_payload",
 ]

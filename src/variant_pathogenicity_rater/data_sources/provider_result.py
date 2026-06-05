@@ -42,6 +42,7 @@ class ProviderRuntimeResult(SchemaModel):
     raw_record_hash: str | None = None
     retrieval_timestamp: str | None = None
     provenance: dict[str, Any] = Field(default_factory=dict)
+    dependency_status: dict[str, Any] | None = None
 
 
 def build_provider_runtime_result(
@@ -63,6 +64,7 @@ def build_provider_runtime_result(
     raw_record_hash: str | None = None,
     retrieval_timestamp: str | None = None,
     provenance: dict[str, Any] | None = None,
+    dependency_status: dict[str, Any] | None = None,
 ) -> ProviderRuntimeResult:
     resolved_outcome = ProviderOutcome(str(outcome))
     resolved_attempted = attempted
@@ -86,6 +88,7 @@ def build_provider_runtime_result(
         raw_record_hash=raw_record_hash,
         retrieval_timestamp=retrieval_timestamp,
         provenance=dict(provenance or {}),
+        dependency_status=dependency_status,
     )
 
 
@@ -224,6 +227,29 @@ def provider_result_from_step_payload(
             configured_mode=str(source_config.mode),
             limitations=list(source_config.limitations or []),
         )
+    dependency_status = _provider_dependency_status(step_payload)
+    if dependency_status and dependency_status.get("satisfied") is False:
+        limitations = _provider_limitations(step_payload)
+        source_payload = _provider_source_payload(step_payload)
+        provenance = _provider_provenance(source_payload)
+        return build_provider_runtime_result(
+            provider_name=provider_name,
+            requested_mode=requested_mode,
+            configured_mode=str(source_config.mode),
+            attempted=False,
+            outcome=ProviderOutcome.SKIPPED,
+            records_count=0,
+            source_version=_provider_source_version(source_config, source_payload, provenance),
+            query=provenance.get("query") or source_payload.get("query"),
+            endpoint=provenance.get("endpoint") or provenance.get("source_url") or provenance.get("request_url") or source_payload.get("endpoint") or source_payload.get("url"),
+            cache_hit=provenance.get("cache_hit"),
+            limitations=limitations,
+            warnings=_provider_warnings(step_payload),
+            raw_record_hash=provenance.get("raw_record_hash") or source_payload.get("raw_snapshot_ref"),
+            retrieval_timestamp=provenance.get("retrieved_at") or source_payload.get("retrieval_timestamp"),
+            provenance=provenance,
+            dependency_status=dependency_status,
+        )
 
     limitations = _provider_limitations(step_payload)
     warnings = _provider_warnings(step_payload)
@@ -257,6 +283,7 @@ def provider_result_from_step_payload(
         raw_record_hash=provenance.get("raw_record_hash") or source_payload.get("raw_snapshot_ref"),
         retrieval_timestamp=provenance.get("retrieved_at") or source_payload.get("retrieval_timestamp"),
         provenance=provenance,
+        dependency_status=dependency_status,
     )
 
 
@@ -331,6 +358,7 @@ def _legacy_summary_item(result: ProviderRuntimeResult) -> dict[str, Any]:
         "raw_record_hash": result.raw_record_hash,
         "retrieval_timestamp": result.retrieval_timestamp,
         "provenance": result.provenance,
+        "dependency_status": result.dependency_status,
     }
 
 
@@ -451,6 +479,18 @@ def _provider_provenance(source_payload: dict[str, Any]) -> dict[str, Any]:
     if isinstance(provenance, dict):
         return provenance
     return {}
+
+
+def _provider_dependency_status(step_payload: Any) -> dict[str, Any] | None:
+    if not isinstance(step_payload, dict):
+        return None
+    payload = step_payload.get("provider_dependency")
+    if isinstance(payload, dict):
+        return payload
+    provenance = step_payload.get("provenance")
+    if isinstance(provenance, dict) and isinstance(provenance.get("provider_dependency"), dict):
+        return provenance["provider_dependency"]
+    return None
 
 
 def _provider_limitations(step_payload: Any) -> list[str]:

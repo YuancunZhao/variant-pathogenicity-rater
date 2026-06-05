@@ -34,6 +34,7 @@ from variant_pathogenicity_rater.clingen_erepo.provider import (
 from variant_pathogenicity_rater.clingen_erepo.schema import ClinGenERepoMatchLevel
 from variant_pathogenicity_rater.data_sources.config import (
     DataSourcesConfig,
+    ProviderMode,
     load_data_sources_config,
 )
 from variant_pathogenicity_rater.data_sources.provider_result import (
@@ -60,7 +61,14 @@ from variant_pathogenicity_rater.literature_agent import (
 from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
-from variant_pathogenicity_rater.providers import build_variant_identity
+from variant_pathogenicity_rater.providers import (
+    build_variant_identity,
+    check_clinvar_dependency,
+    check_gnomad_dependency,
+    check_literature_dependency,
+    check_vep_dependency,
+    dependency_skip_payload,
+)
 from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.runtime.options import (
     normalize_runtime_options,
@@ -123,6 +131,8 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     variant_resolution: VariantResolutionResult | None = None
     reviewed_evidence_records: list[dict[str, Any]] = []
     reviewed_review_flags: list[ReviewFlag] = []
+    provider_dependency_review_flags: list[ReviewFlag] = []
+    provider_dependency_checks: dict[str, Any] = {}
     vcep_signal_result: VCEPSignalResult | None = None
     vcep_override_context: VCEPOverrideContext | None = None
 
@@ -163,6 +173,13 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         if variant_resolution.resolved_context is not None:
             context = variant_resolution.resolved_context
         step_results["resolve_variant"] = variant_resolution.model_dump(mode="json")
+
+    provider_identity = build_variant_identity(
+        normalized_variant=original_normalized_variant,
+        variant_resolution=variant_resolution,
+        explicit_aliases=options.get("provider_identity_aliases"),
+    )
+    step_results["provider_identity"] = provider_identity.model_dump(mode="json")
 
     if _should_resolve_vcep(options):
         vcep_profiles, vcep_load_limitations = load_vcep_profiles(options)
@@ -236,15 +253,26 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         vcep_override_context,
     )
     if options.get("include_population", True):
-        population_frequency = _run_step(
-            "query_population_frequency",
-            audit_trail,
-            limitations,
-            lambda: build_population_provider(
-                data_sources_config.source("population"),
-                _population_fixtures(options),
-            ).query(normalized_variant),
-        )
+        gnomad_dependency = check_gnomad_dependency(provider_identity)
+        provider_dependency_checks["gnomad"] = gnomad_dependency.model_dump(mode="json")
+        if _online_source(data_sources_config, "population") and not gnomad_dependency.satisfied:
+            _record_dependency_skip(
+                "query_population_frequency",
+                gnomad_dependency,
+                step_results,
+                limitations,
+                provider_dependency_review_flags,
+            )
+        else:
+            population_frequency = _run_step(
+                "query_population_frequency",
+                audit_trail,
+                limitations,
+                lambda: build_population_provider(
+                    data_sources_config.source("population"),
+                    _population_fixtures(options),
+                ).query(normalized_variant),
+            )
         if population_frequency is not None:
             population_records.append(population_frequency)
             step_results["query_population_frequency"] = json.loads(
@@ -340,14 +368,17 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             evidence_items.append(pvs1_item)
 
     if options.get("include_computational", True):
+        vep_dependency = check_vep_dependency(provider_identity)
+        provider_dependency_checks["vep"] = vep_dependency.model_dump(mode="json")
         computational_result = _run_step(
             "evaluate_computational_evidence",
             audit_trail,
             limitations,
-            lambda: _evaluate_computational_step(
-                options,
-                normalized_variant,
-                data_sources_config,
+            lambda: _skip_or_evaluate_computational_step(
+                vep_dependency=vep_dependency,
+                options=options,
+                variant=normalized_variant,
+                data_sources_config=data_sources_config,
                 annotation=_selected_annotation_for_pvs1(annotation_records, transcript_selection),
                 context_consistency=context_consistency,
                 existing_evidence_items=evidence_items,
@@ -355,39 +386,60 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             ),
         )
         if computational_result is not None:
-            computational_items, review_flags, summary, computational_predictions = computational_result
-            computational_items = attach_computational_override_note(
-                computational_items,
-                vcep_override_context,
-            )
-            evidence_items.extend(computational_items)
-            decision = summary.get("decision") or {}
-            limitations.extend(decision.get("limitations") or [])
-            limitations.extend(decision.get("conflict_reasons") or [])
-            limitations.extend(decision.get("double_counting_warnings") or [])
-            step_results["evaluate_computational_evidence"] = {
-                "evidence_items": [json.loads(item.model_dump_json()) for item in computational_items],
-                "review_flags": [json.loads(flag.model_dump_json()) for flag in review_flags],
-                "summary": summary,
-            }
-            variant_resolution = _enrich_resolution_from_computational_predictions(
-                variant_resolution,
-                computational_predictions,
-            )
-            if variant_resolution is not None:
-                step_results["resolve_variant"] = variant_resolution.model_dump(mode="json")
+            if isinstance(computational_result, dict) and computational_result.get("provider_dependency"):
+                limitations.extend(computational_result.get("limitations") or [])
+                provider_dependency_review_flags.extend(
+                    ReviewFlag.model_validate(flag)
+                    for flag in computational_result.get("review_flags") or []
+                    if isinstance(flag, dict)
+                )
+                step_results["evaluate_computational_evidence"] = computational_result
+            else:
+                computational_items, review_flags, summary, computational_predictions = computational_result
+                computational_items = attach_computational_override_note(
+                    computational_items,
+                    vcep_override_context,
+                )
+                evidence_items.extend(computational_items)
+                decision = summary.get("decision") or {}
+                limitations.extend(decision.get("limitations") or [])
+                limitations.extend(decision.get("conflict_reasons") or [])
+                limitations.extend(decision.get("double_counting_warnings") or [])
+                step_results["evaluate_computational_evidence"] = {
+                    "evidence_items": [json.loads(item.model_dump_json()) for item in computational_items],
+                    "review_flags": [json.loads(flag.model_dump_json()) for flag in review_flags],
+                    "summary": summary,
+                }
+                variant_resolution = _enrich_resolution_from_computational_predictions(
+                    variant_resolution,
+                    computational_predictions,
+                )
+                if variant_resolution is not None:
+                    step_results["resolve_variant"] = variant_resolution.model_dump(mode="json")
 
     clinvar_records = []
     if options.get("include_clinvar", True):
-        clinvar_result = _run_step(
-            "query_clinvar",
-            audit_trail,
-            limitations,
-            lambda: build_clinvar_provider(
-                data_sources_config.source("clinvar"),
-                options.get("clinvar_records"),
-            ).query(_clinvar_query(normalized_variant, context)),
-        )
+        clinvar_dependency = check_clinvar_dependency(provider_identity)
+        provider_dependency_checks["clinvar"] = clinvar_dependency.model_dump(mode="json")
+        if _online_source(data_sources_config, "clinvar") and not clinvar_dependency.satisfied:
+            _record_dependency_skip(
+                "query_clinvar",
+                clinvar_dependency,
+                step_results,
+                limitations,
+                provider_dependency_review_flags,
+            )
+            clinvar_result = None
+        else:
+            clinvar_result = _run_step(
+                "query_clinvar",
+                audit_trail,
+                limitations,
+                lambda: build_clinvar_provider(
+                    data_sources_config.source("clinvar"),
+                    options.get("clinvar_records"),
+                ).query(_clinvar_query(normalized_variant, context)),
+            )
         if clinvar_result is not None:
             clinvar_records = list(clinvar_result.records)
             evidence_items.extend(clinvar_result.candidate_evidence_items)
@@ -424,30 +476,46 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
     literature_records = []
     if options.get("include_literature", True):
         if _use_online_literature(options):
-            literature_summary_result = _run_step(
-                "search_and_summarize_literature",
-                audit_trail,
-                limitations,
-                lambda: search_and_summarize_literature(
-                    {
-                        "gene": context.gene_symbol or normalized_variant.gene_symbol or "unknown",
-                        "variant": normalized_variant.hgvs_c
-                        or normalized_variant.hgvs_p
-                        or normalized_variant.variant_id,
-                        "transcript": _variant_transcript_label(normalized_variant),
-                        "disease": context.disease_name,
-                        "inheritance": context.inheritance_mode,
-                        "phenotype": context.phenotype_terms,
-                        "literature_records": options.get("literature_records") or [],
-                        "pmids": options.get("pmids") or [],
-                        "search_query": options.get("search_query"),
-                        "variant_aliases": options.get("variant_aliases") or [],
-                        "use_online_pubmed": bool(options.get("use_online_pubmed")),
-                        "use_online_litvar": bool(options.get("use_online_litvar")),
-                        "provider_cache_dir": options.get("provider_cache_dir"),
-                    }
-                ),
+            literature_dependency = check_literature_dependency(
+                provider_identity,
+                explicit_query=options.get("search_query"),
+                pmids=options.get("pmids") or [],
             )
+            provider_dependency_checks["literature"] = literature_dependency.model_dump(mode="json")
+            if not literature_dependency.satisfied:
+                _record_dependency_skip(
+                    "search_and_summarize_literature",
+                    literature_dependency,
+                    step_results,
+                    limitations,
+                    provider_dependency_review_flags,
+                )
+                literature_summary_result = None
+            else:
+                literature_summary_result = _run_step(
+                    "search_and_summarize_literature",
+                    audit_trail,
+                    limitations,
+                    lambda: search_and_summarize_literature(
+                        {
+                            "gene": context.gene_symbol or normalized_variant.gene_symbol or "unknown",
+                            "variant": normalized_variant.hgvs_c
+                            or normalized_variant.hgvs_p
+                            or normalized_variant.variant_id,
+                            "transcript": _variant_transcript_label(normalized_variant),
+                            "disease": context.disease_name,
+                            "inheritance": context.inheritance_mode,
+                            "phenotype": context.phenotype_terms,
+                            "literature_records": options.get("literature_records") or [],
+                            "pmids": options.get("pmids") or [],
+                            "search_query": options.get("search_query"),
+                            "variant_aliases": options.get("variant_aliases") or [],
+                            "use_online_pubmed": bool(options.get("use_online_pubmed")),
+                            "use_online_litvar": bool(options.get("use_online_litvar")),
+                            "provider_cache_dir": options.get("provider_cache_dir"),
+                        }
+                    ),
+                )
             if literature_summary_result is not None:
                 limitations.extend(literature_summary_result.limitations)
                 step_results["search_and_summarize_literature"] = (
@@ -609,6 +677,10 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         classification_result.review_flags = _unique_review_flags(
             [*classification_result.review_flags, *variant_resolution.review_flags]
         )
+    if provider_dependency_review_flags:
+        classification_result.review_flags = _unique_review_flags(
+            [*classification_result.review_flags, *provider_dependency_review_flags]
+        )
     if reviewed_review_flags:
         classification_result.review_flags = _unique_review_flags(
             [*classification_result.review_flags, *reviewed_review_flags]
@@ -680,6 +752,8 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         variant_resolution=variant_resolution,
         explicit_aliases=options.get("provider_identity_aliases"),
     )
+    step_results["provider_identity"] = provider_identity.model_dump(mode="json")
+    step_results["provider_dependency_checks"] = provider_dependency_checks
 
     output = {
         "status": "ok",
@@ -710,6 +784,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             else None
         ),
         "provider_identity": provider_identity.model_dump(mode="json"),
+        "provider_dependency_checks": provider_dependency_checks,
         "normalization_identity": normalization_identity,
         "classification_result": json.loads(classification_result.model_dump_json()),
         "evidence_items": [json.loads(item.model_dump_json()) for item in evidence_items],
@@ -1006,6 +1081,29 @@ def _use_online_literature(options: dict[str, Any]) -> bool:
     return bool(options.get("use_online_pubmed") or options.get("use_online_litvar"))
 
 
+def _online_source(data_sources_config: DataSourcesConfig, source_name: str) -> bool:
+    source = data_sources_config.source(source_name)
+    return source.mode == ProviderMode.ONLINE and bool(source.online_enabled)
+
+
+def _record_dependency_skip(
+    step_name: str,
+    dependency_check: Any,
+    step_results: dict[str, Any],
+    limitations: list[str],
+    review_flags: list[ReviewFlag],
+) -> dict[str, Any]:
+    payload = dependency_skip_payload(dependency_check)
+    step_results[step_name] = payload
+    limitations.extend(payload.get("limitations") or [])
+    review_flags.extend(
+        ReviewFlag.model_validate(flag)
+        for flag in payload.get("review_flags") or []
+        if isinstance(flag, dict)
+    )
+    return payload
+
+
 def _reviewed_evidence_payload(
     arguments: dict[str, Any],
     options: dict[str, Any],
@@ -1065,6 +1163,34 @@ def _computational_predictions(
         for prediction in raw_predictions
         if isinstance(prediction, dict)
     ]
+
+
+def _skip_or_evaluate_computational_step(
+    *,
+    vep_dependency: Any,
+    options: dict[str, Any],
+    variant: Variant,
+    data_sources_config: DataSourcesConfig,
+    annotation: VariantAnnotation | None = None,
+    context_consistency: ContextConsistency | None = None,
+    existing_evidence_items: list[EvidenceItem] | None = None,
+    vcep_override_context: VCEPOverrideContext | None = None,
+) -> Any:
+    if (
+        options.get("computational_predictions") is None
+        and _online_source(data_sources_config, "computational")
+        and not vep_dependency.satisfied
+    ):
+        return dependency_skip_payload(vep_dependency)
+    return _evaluate_computational_step(
+        options,
+        variant,
+        data_sources_config,
+        annotation=annotation,
+        context_consistency=context_consistency,
+        existing_evidence_items=existing_evidence_items,
+        vcep_override_context=vcep_override_context,
+    )
 
 
 def _evaluate_computational_step(

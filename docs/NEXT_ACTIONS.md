@@ -8,7 +8,7 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 ## Recommended Next Task
 
-The recommended next task is `79A-2_resolution_orchestrator`.
+The recommended next task is `79A-3_provider_orchestrator`.
 
 It is the best next step because the 74 real provider pipeline is implemented,
 the 75 live-provider smoke validation layer is available behind explicit
@@ -40,17 +40,21 @@ region fallback, transcript HGVS fallback, minimal consequence fallback after
 predictor failures, timeout-aware diagnostics, and descriptive protein-change
 resolution bridging. Default workflows remain no-network, and online ClinVar,
 gnomAD, Ensembl VEP, PubMed, and LitVar surfaces are opt-in only. The 79A-1
-provider-layer VariantIdentity contract now exposes normalized/resolution
-identity, gnomAD ID validation, provider aliases, conflicts, limitations, and
-review flags without changing provider calls, evidence logic, or
-classification. The next step is to place resolution providers behind this
-identity contract before provider dependency orchestration is introduced.
+provider-layer VariantIdentity contract exposes normalized/resolution identity,
+gnomAD ID validation, provider aliases, conflicts, limitations, and review flags
+without changing evidence logic or classification. The 79A-2 dependency gating
+pass now skips current online provider calls when required identity is missing
+or invalid, especially moving invalid gnomAD identity ahead of GraphQL as
+`skipped` rather than provider `failure` or `no_record`. The next step is a
+fuller provider orchestrator that can route provider dependencies consistently
+without broadening evidence automation.
 
 ## Prioritized Task List
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
-| `79A-2_resolution_orchestrator` | P0 | Route local reviewed fixtures/current resolution JSONL/MANE-style maps through the provider-layer identity contract before provider dependency orchestration. | Medium | Provider identity adapters, resolution layer, docs, focused tests | Yes |
+| `79A-3_provider_orchestrator` | P0 | Introduce a fuller provider orchestrator that routes resolution, annotation, population, clinical assertion, and literature providers through declared dependencies while preserving existing providers. | Medium-high | Provider dependency layer, provider adapters, pipeline wiring, benchmark docs, focused tests | Yes |
+| `79A-2_provider_dependency_gating` | Done | Added provider dependency checks and online-provider preflight skips so invalid gnomAD identity becomes identity limitation plus skipped provider runtime instead of GraphQL failure. | Medium | Provider dependency package, pipeline online provider gates, provider runtime, benchmark metrics, docs, tests | Yes |
 | `79A-1_variant_identity_model_and_adapter` | Done | Added provider-layer VariantIdentity, normalized/resolution adapters, gnomAD ID validation, provider alias helpers, additive rate_variant output, and benchmark identity coverage without changing providers or classification. | Medium | Provider identity package, pipeline output, provider benchmark, docs, tests | Yes |
 | `78F_vep_provider_stabilization` | Done | Stabilized online Ensembl VEP fallback with POST region, alt-only GET region, transcript HGVS, minimal consequence fallback, timeout/error diagnostics, and descriptive protein-change resolution bridging without direct PP3/BP4 application. | Medium | VEP online provider, provider tests, resolution docs, benchmark docs | Yes |
 | `78E_gnomad_graphql_error_body_and_schema_fix` | Done | Fixed gnomAD GraphQL schema drift from optional `populations`/`faf95` fields by adding full/frequency/minimal fallback queries and bounded HTTP/GraphQL diagnostics while preserving no-record/PM2 safety. | Medium | gnomAD online provider, provider tests, provider benchmark docs, safety docs | Yes |
@@ -99,14 +103,14 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 79A-1 provider-layer VariantIdentity:
+Current known gaps after 79A-2 provider dependency gating:
 
-- Provider-layer VariantIdentity is additive output only; existing providers do
-  not yet consume it.
-- Resolution provider orchestration has not yet been moved behind the identity
-  contract.
-- Provider dependency orchestration has not yet gated gnomAD on validated
-  `gnomad_variant_id` or routed VEP/ClinVar/PubMed through centralized aliases.
+- Dependency gating is implemented as a light preflight layer for current online
+  provider paths; a fuller provider orchestrator has not yet been added.
+- Existing provider internals still construct their own provider-specific
+  queries after a dependency check passes.
+- Resolution provider orchestration has not yet been moved behind a provider
+  dependency graph.
 - RuntimeOptions is now the shared option interpretation layer for current
   user-facing entry points, but future new tools must be checked against this
   helper instead of adding new wrapper-local option merge logic.

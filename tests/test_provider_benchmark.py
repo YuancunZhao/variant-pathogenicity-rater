@@ -181,6 +181,38 @@ def test_provider_benchmark_timeout_is_failure_not_crash() -> None:
     assert result.cases[0].status == "error"
 
 
+def test_provider_benchmark_separates_dependency_skip_from_provider_failure() -> None:
+    def runner(payload: dict[str, Any]) -> dict[str, Any]:
+        result = _result(case_id=payload["gene"], gnomad="skipped")
+        result["step_results"]["provider_runtime"]["population"]["attempted"] = False
+        result["step_results"]["provider_runtime"]["population"]["dependency_status"] = {
+            "provider_name": "gnomad",
+            "required_fields": ["gnomad_variant_id"],
+            "satisfied": False,
+            "status": "invalid_identity",
+            "limitations": ["gnomAD provider was skipped before GraphQL."],
+            "review_flags": [],
+            "skip_reason": "invalid identity",
+            "identity_snapshot": {},
+        }
+        result["step_results"]["provider_runtime"]["population"]["limitations"] = [
+            "gnomAD provider was skipped before GraphQL."
+        ]
+        return result
+
+    result = run_provider_benchmark(case_runner=runner)
+
+    assert result.gnomad.skipped == 6
+    assert result.gnomad.failure == 0
+    assert result.gnomad.dependency_skipped == 6
+    assert result.gnomad.invalid_identity == 6
+    diagnostics = result.summary["provider_diagnostics"]["gnomad"]
+    assert diagnostics["dependency_skipped_case_ids"]
+    assert diagnostics["invalid_identity_case_ids"]
+    report = render_provider_benchmark_report(result)
+    assert "gnomAD skipped due to invalid identity" in report
+
+
 def test_provider_benchmark_preserves_classification_as_observed_metric_only() -> None:
     result = run_provider_benchmark(case_runner=lambda payload: _result(case_id=payload["gene"]))
 

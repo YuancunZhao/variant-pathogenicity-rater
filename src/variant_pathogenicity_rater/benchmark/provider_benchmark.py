@@ -25,6 +25,9 @@ class ProviderOutcomeMetrics(SchemaModel):
     failure: int = 0
     partial: int = 0
     skipped: int = 0
+    dependency_skipped: int = 0
+    invalid_identity: int = 0
+    missing_identity: int = 0
 
 
 class ProviderYieldMetrics(SchemaModel):
@@ -119,7 +122,14 @@ def run_provider_benchmark(
     cache_hits: Counter[str] = Counter()
     cache_misses: Counter[str] = Counter()
     provider_diagnostics: dict[str, dict[str, Any]] = {
-        provider: {"failure_case_ids": [], "no_record_case_ids": [], "error_examples": []}
+        provider: {
+            "failure_case_ids": [],
+            "no_record_case_ids": [],
+            "dependency_skipped_case_ids": [],
+            "invalid_identity_case_ids": [],
+            "missing_identity_case_ids": [],
+            "error_examples": [],
+        }
         for provider in PROVIDERS
     }
     case_results: list[ProviderCaseResult] = []
@@ -181,6 +191,14 @@ def run_provider_benchmark(
             runtime_payload = provider_runtime.get(provider) or {}
             outcome = _normalize_outcome(runtime_payload.get("outcome"))
             outcome_counts[provider][outcome] += 1
+            dependency_status = _dependency_status(runtime_payload)
+            if dependency_status and dependency_status.get("satisfied") is False:
+                outcome_counts[provider]["dependency_skipped"] += 1
+                status = str(dependency_status.get("status") or "")
+                if status == "invalid_identity":
+                    outcome_counts[provider]["invalid_identity"] += 1
+                if status == "missing_identity":
+                    outcome_counts[provider]["missing_identity"] += 1
             _record_provider_diagnostic(provider_diagnostics, provider, case["case_id"], outcome, runtime_payload)
             provider_latency, latency_scope = _latency(runtime_payload, elapsed)
             if provider_latency is not None:
@@ -220,7 +238,17 @@ def run_provider_benchmark(
         for provider in PROVIDERS
     }
     provider_outcomes = {
-        provider: ProviderOutcomeMetrics(**{key: outcome_counts[provider][key] for key in OUTCOMES})
+        provider: ProviderOutcomeMetrics(
+            **{
+                key: outcome_counts[provider][key]
+                for key in (
+                    *OUTCOMES,
+                    "dependency_skipped",
+                    "invalid_identity",
+                    "missing_identity",
+                )
+            }
+        )
         for provider in PROVIDERS
     }
     resolution = ResolutionCoverageMetrics(
@@ -285,6 +313,9 @@ def render_provider_benchmark_report(result: ProviderBenchmarkResult) -> str:
                 f"- failure: {metrics.failure}",
                 f"- partial: {metrics.partial}",
                 f"- skipped: {metrics.skipped}",
+                f"- dependency_skipped: {metrics.dependency_skipped}",
+                f"- invalid_identity: {metrics.invalid_identity}",
+                f"- missing_identity: {metrics.missing_identity}",
                 "",
             ]
         )
@@ -320,6 +351,11 @@ def render_provider_benchmark_report(result: ProviderBenchmarkResult) -> str:
         payload = diagnostics.get(provider) or {}
         lines.append(f"- {provider} failures: {', '.join(payload.get('failure_case_ids') or []) or 'none'}")
         lines.append(f"- {provider} no_record: {', '.join(payload.get('no_record_case_ids') or []) or 'none'}")
+        lines.append(f"- {provider} dependency_skipped: {', '.join(payload.get('dependency_skipped_case_ids') or []) or 'none'}")
+        if provider == "gnomad":
+            lines.append(
+                f"- gnomAD skipped due to invalid identity: {', '.join(payload.get('invalid_identity_case_ids') or []) or 'none'}"
+            )
         for example in (payload.get("error_examples") or [])[:3]:
             lines.append(
                 f"- {provider} error example: {example.get('case_id')} {example.get('error_type') or 'ProviderFailure'} - {example.get('error_message_summary') or ''}"
@@ -449,6 +485,16 @@ def _identity_coverage(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _dependency_status(payload: dict[str, Any]) -> dict[str, Any] | None:
+    dependency = payload.get("dependency_status")
+    if isinstance(dependency, dict):
+        return dependency
+    provenance = payload.get("provenance")
+    if isinstance(provenance, dict) and isinstance(provenance.get("provider_dependency"), dict):
+        return provenance["provider_dependency"]
+    return None
+
+
 def _accumulate_yield(
     totals: dict[str, ProviderYieldMetrics],
     observed: dict[str, Any],
@@ -528,6 +574,15 @@ def _record_provider_diagnostic(
     payload: dict[str, Any],
 ) -> None:
     item = diagnostics[provider]
+    dependency_status = _dependency_status(payload)
+    if dependency_status and dependency_status.get("satisfied") is False:
+        if case_id not in item["dependency_skipped_case_ids"]:
+            item["dependency_skipped_case_ids"].append(case_id)
+        status = str(dependency_status.get("status") or "")
+        if status == "invalid_identity" and case_id not in item["invalid_identity_case_ids"]:
+            item["invalid_identity_case_ids"].append(case_id)
+        if status == "missing_identity" and case_id not in item["missing_identity_case_ids"]:
+            item["missing_identity_case_ids"].append(case_id)
     if outcome == "failure":
         if case_id not in item["failure_case_ids"]:
             item["failure_case_ids"].append(case_id)

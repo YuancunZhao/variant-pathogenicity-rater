@@ -1,9 +1,9 @@
 # Provider Architecture
 
-79A-1 adds a provider-layer `VariantIdentity` contract. This is an additive
-identity and alias surface for providers only. It does not generate ACMG
-evidence, does not call online providers, does not change evidence generation,
-and does not modify the ACMG combiner.
+79A-1 adds a provider-layer `VariantIdentity` contract, and 79A-2 adds
+provider dependency gating for the current online provider paths. These are
+additive provider-readiness surfaces only. They do not generate ACMG evidence,
+do not change evidence generation, and do not modify the ACMG combiner.
 
 ## Provider-Layer VariantIdentity
 
@@ -49,9 +49,13 @@ supported genome build, chromosome, position, ref, and alt with basic allele
 grammar.
 
 Invalid or incomplete gnomAD identity becomes an identity limitation. It is not
-a gnomAD provider failure and it is not evidence of population absence. Later
-79A provider orchestration should skip gnomAD before querying when this
-validated ID is unavailable.
+a gnomAD provider failure and it is not evidence of population absence.
+
+79A-2 gates the current online gnomAD path before GraphQL. When a validated
+`gnomad_variant_id` is unavailable, the population provider runtime outcome is
+`skipped` with `attempted=false` and a `dependency_status` payload. This is
+distinct from `no_record`, which is reserved for a valid provider query that
+successfully executes and returns no matching variant.
 
 ## Provider Aliases
 
@@ -64,6 +68,31 @@ Provider alias helpers are offline and deterministic:
 They expose existing gene, transcript HGVS, protein, coordinate, rsID, ClinVar
 Variation ID, and CA ID aliases without querying external databases.
 
+## Dependency Gating
+
+The provider dependency contract lives in
+`src/variant_pathogenicity_rater/providers/dependencies.py`.
+
+It defines:
+
+- `ProviderDependency`
+- `ProviderDependencyCheck`
+- `ProviderDependencyStatus`
+
+Current checks:
+
+- gnomAD requires a validated provider-layer `gnomad_variant_id`.
+- VEP requires either usable coordinate identity or HGVS fallback identity.
+- ClinVar requires at least one query alias such as Variation ID, rsID, HGVS,
+  gene+HGVS, or coordinate.
+- Literature requires a gene, variant alias, search query, or PMID.
+
+The 79A-2 pipeline integration is intentionally light. It gates current online
+provider paths before the provider is constructed, writes dependency skip
+payloads into `step_results`, and lets the existing `ProviderRuntimeResult`
+surface report `outcome=skipped`. It does not replace existing providers or add
+a full orchestrator.
+
 ## Current Integration
 
 `rate_variant` now emits additive `provider_identity` output and mirrors it in
@@ -72,5 +101,7 @@ present, including `normalized_variant`, `resolved_variant`,
 `variant_resolution`, `normalization_identity`, provider runtime summaries, and
 evidence outputs.
 
-79A-1 does not replace existing provider calls. 79A-2 and 79A-3 are the planned
-follow-ups for resolution orchestration and provider dependency orchestration.
+79A-2 does not replace existing provider calls. The planned follow-up is a
+fuller provider orchestrator that can route resolution, annotation, population,
+clinical assertion, and literature providers through the same dependency
+contract.

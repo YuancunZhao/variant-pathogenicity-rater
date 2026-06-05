@@ -152,6 +152,8 @@ def test_rate_variant_pipeline_runs_complete_offline_workflow() -> None:
     assert result["variant"]["normalized"] == result["normalized_variant"]
     assert result["variant"]["resolved"] == result["resolved_variant"]
     assert result["variant"]["resolution_summary"] == result["variant_resolution"]
+    assert result["variant"]["provider_identity"] == result["provider_identity"]
+    assert "provider_dependency_checks" in result
     assert "mock_mode" in result["compatibility"]["legacy_fields"]
 
     completed_steps = {event["tool_name"] for event in result["audit_trail"]}
