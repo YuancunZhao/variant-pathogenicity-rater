@@ -47,6 +47,15 @@ LitVar live smoke is optional/experimental and additionally requires
 `VPR_RUN_LIVE_LITVAR_SMOKE=1`. See
 `docs/LIVE_PROVIDER_SMOKE_VALIDATION.md`.
 
+Real-world HGVS smoke validation is also available through
+`data/real_world_smoke_variants_v1.json` and
+`tests/test_real_world_variant_smoke_validation.py`. This suite checks that six
+real HGVS c. inputs and one natural-language wrapper input return structured,
+auditable results in the default no-network path. It is not a clinical truth
+benchmark and does not define expected classifications. Optional online outcome
+counting is skipped unless `VPR_RUN_REAL_WORLD_ONLINE_SMOKE=1` is set. See
+`docs/REAL_WORLD_VARIANT_SMOKE_VALIDATION.md`.
+
 ## Directory Structure
 
 ```text

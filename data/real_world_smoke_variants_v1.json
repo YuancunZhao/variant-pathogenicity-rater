@@ -1,0 +1,66 @@
+{
+  "dataset_id": "real_world_smoke_variants_v1",
+  "purpose": "Smoke validation for real HGVS-like input handling; not a clinical truth benchmark.",
+  "cases": [
+    {
+      "case_id": "real-world-smoke-pklr-c1403c-g",
+      "original_input": "PKLR;NM_000298.6:c.1403C>G",
+      "gene": "PKLR",
+      "transcript": "NM_000298.6",
+      "hgvs_c": "NM_000298.6:c.1403C>G",
+      "disease": null,
+      "inheritance": null,
+      "notes": "Real HGVS c. input smoke case; final classification accuracy is not evaluated."
+    },
+    {
+      "case_id": "real-world-smoke-myh7-c5347a-t",
+      "original_input": "MYH7;NM_000257.4:c.5347A>T",
+      "gene": "MYH7",
+      "transcript": "NM_000257.4",
+      "hgvs_c": "NM_000257.4:c.5347A>T",
+      "disease": null,
+      "inheritance": null,
+      "notes": "Real HGVS c. input smoke case; final classification accuracy is not evaluated."
+    },
+    {
+      "case_id": "real-world-smoke-flg-c12064a-t",
+      "original_input": "FLG;NM_002016.2:c.12064A>T",
+      "gene": "FLG",
+      "transcript": "NM_002016.2",
+      "hgvs_c": "NM_002016.2:c.12064A>T",
+      "disease": null,
+      "inheritance": null,
+      "notes": "Real HGVS c. input smoke case; final classification accuracy is not evaluated."
+    },
+    {
+      "case_id": "real-world-smoke-aifm1-c1030c-t",
+      "original_input": "AIFM1;NM_004208.4:c.1030C>T",
+      "gene": "AIFM1",
+      "transcript": "NM_004208.4",
+      "hgvs_c": "NM_004208.4:c.1030C>T",
+      "disease": null,
+      "inheritance": null,
+      "notes": "Real HGVS c. input smoke case; final classification accuracy is not evaluated."
+    },
+    {
+      "case_id": "real-world-smoke-gamt-c268g-a",
+      "original_input": "GAMT;NM_000156.6:c.268G>A",
+      "gene": "GAMT",
+      "transcript": "NM_000156.6",
+      "hgvs_c": "NM_000156.6:c.268G>A",
+      "disease": null,
+      "inheritance": null,
+      "notes": "Real HGVS c. input smoke case; final classification accuracy is not evaluated."
+    },
+    {
+      "case_id": "real-world-smoke-hlcs-c1063-1064del",
+      "original_input": "HLCS;NM_001352514.2:c.1063_1064del",
+      "gene": "HLCS",
+      "transcript": "NM_001352514.2",
+      "hgvs_c": "NM_001352514.2:c.1063_1064del",
+      "disease": null,
+      "inheritance": null,
+      "notes": "Deletion smoke case with expected unresolved ref/alt limitations unless a genomic anchor is supplied."
+    }
+  ]
+}

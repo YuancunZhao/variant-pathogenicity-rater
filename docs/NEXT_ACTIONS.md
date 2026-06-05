@@ -21,10 +21,14 @@ contract while preserving raw provider step payloads, and the 77C evidence
 status helper unification centralizes read-only applied/candidate/review-note
 status grouping without changing evidence logic. The 77D RuntimeOptions
 migration now centralizes option interpretation for Python API, CLI, MCP,
-natural-language text, batch, and annotated-batch entry points. Default
-workflows remain no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed,
-and LitVar surfaces are opt-in only.
-Selected real-world case validation should now exercise transcript resolution,
+natural-language text, batch, and annotated-batch entry points. The 78A
+real-world smoke validation layer now verifies that six real HGVS c. inputs and
+one natural-language text wrapper case return structured, auditable results
+without changing classification or evidence logic. Default workflows remain
+no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
+surfaces are opt-in only.
+Selected real-world case validation should now go beyond smoke behavior and
+exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
 summary/draft behavior, duplicate literature/case handling, and report wording
 without changing evidence logic or the combiner.
@@ -33,6 +37,7 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `78A_real_world_smoke_validation` | Done | Added a six-case real HGVS smoke dataset plus offline/default pytest coverage for structured end-to-end returns, canonical/legacy output fields, provider/runtime/evidence auditability, natural-language wrapper smoke, and env-gated online outcome counting without expected classifications. | Medium | Smoke dataset, smoke tests, validation docs, project state docs | Yes |
 | `77D-2_runtime_options_migration` | Done | Migrated CLI, MCP, text, batch, and annotated-batch entry points onto RuntimeOptions while preserving public fields, offline defaults, provider mapping, reviewed evidence precedence, and classification behavior. | Medium | Runtime options helper, CLI adapter, MCP handlers, text wrapper, batch/annotated-batch adapters, canonical runtime snapshot, tests, docs | Yes |
 | `77C_evidence_status_helper_unification` | Done | Added a shared read-only evidence status helper and canonical status summary fields while preserving applied/candidate boundaries, reviewed-evidence validation, and classification. | Medium-high | Evidence status helper, pipeline grouping reads, canonical evidence summary, reports, docs, tests | Yes |
 | `77D-1_runtime_options_foundation` | Done | Added a centralized RuntimeOptions foundation for the Python API `rate_variant` core option path while preserving legacy options, provider mapping semantics, default offline/mock behavior, and reviewed-evidence boundaries. | Medium | Runtime options helper, rate_variant option adapter, focused tests, docs | Yes |
@@ -74,7 +79,7 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 77D-2 RuntimeOptions migration:
+Current known gaps after 78A real-world smoke validation:
 
 - RuntimeOptions is now the shared option interpretation layer for current
   user-facing entry points, but future new tools must be checked against this
@@ -82,8 +87,10 @@ Current known gaps after 77D-2 RuntimeOptions migration:
 - Live provider smoke validation is implemented and remains outside default
   pytest/CI; current live endpoint results still depend on explicit local
   execution under `VPR_RUN_LIVE_PROVIDER_SMOKE=1`.
-- Real-world case validation has not yet exercised the full completed
-  literature-engine plus provider stack on selected cases.
+- Real-world smoke validation now covers six real HGVS inputs for structured
+  output and auditability, but deeper selected-case validation has not yet
+  exercised the full completed literature-engine plus provider stack on
+  selected cases.
 - PubMed/LitVar online adapters are implemented but remain opt-in and
   candidate-only.
 - A selected real VCEP profile pilot has not been implemented.

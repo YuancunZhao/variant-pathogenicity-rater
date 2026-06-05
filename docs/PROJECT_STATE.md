@@ -29,8 +29,8 @@ After VCEP signal/override framework validation, real provider validation,
 benchmark Phase C, the General Literature Search and Summary Engine, the
 74 real provider pipeline, the 76 mock/fixture interface audit activation,
 the 77A output schema unification, the 77B provider interface consolidation,
-the 77C evidence status helper unification, and the 77D RuntimeOptions
-foundation, the
+the 77C evidence status helper unification, the 77D RuntimeOptions
+foundation, and the 78A real-world smoke validation layer, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -48,14 +48,17 @@ single, text, batch, and annotated-batch outputs, a normalized additive
 provider runtime result contract, a shared read-only evidence status view,
 centralized runtime-option normalization for Python API, CLI, MCP,
 natural-language text, batch, and annotated-batch entry points,
-Chinese laboratory reporting, and the unchanged ACMG classification combiner. The 74
-real provider pipeline has passed offline integration review with the default
-no-network safety boundary intact. The next project
+Chinese laboratory reporting, and the unchanged ACMG classification combiner.
+The 74 real provider pipeline has passed offline integration review with the
+default no-network safety boundary intact, and the 78A real-world smoke suite
+now checks six real HGVS c. inputs for structured end-to-end returns without
+asserting clinical truth. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
-cases, or general literature search/summarization; it is selected real-world
-case validation, a narrow real VCEP profile pilot, provider
+cases, general literature search/summarization, or first-pass real-world HGVS
+smoke coverage; it is deeper selected real-world case validation, a narrow
+real VCEP profile pilot, provider
 cache/reproducibility hardening, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
@@ -111,6 +114,12 @@ natural-language text, batch, and annotated-batch option handling, preserving
 legacy options, default mock/offline behavior, online-provider mapping
 semantics, reviewed-evidence precedence, and reviewed-evidence safety
 boundaries.
+78A adds `data/real_world_smoke_variants_v1.json` and an offline pytest smoke
+suite for six real HGVS inputs. This layer verifies structured canonical and
+legacy outputs, provider/runtime/evidence auditability, limitations for
+unresolved normalization/resolution state, and one natural-language text smoke
+case. It does not define expected classifications and does not assess clinical
+truth.
 
 ### Natural Language Input
 
