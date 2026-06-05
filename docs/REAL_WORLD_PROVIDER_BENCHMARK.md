@@ -122,12 +122,43 @@ For each provider:
 
 - `avg_latency_ms`
 - `median_latency_ms`
+- `latency_scope`
+- `provider_latency_count`
+- `case_level_latency_used_count`
 - `timeout_count`
 - `cache_hit_count`
 - `cache_miss_count`
 
+`latency_scope` is `provider` when the pipeline/provider payload contains an
+explicit provider runtime sample, `case` when the benchmark had to fall back to
+the enclosing case runtime, `mixed` when both are present, and `unavailable`
+when no attempted provider runtime can be measured. Case-level fallback latency
+is retained for smoke observability but must not be interpreted as
+provider-specific timing.
+
 Provider failures and timeouts are captured as benchmark results and
 limitations. They must not crash benchmark execution.
+
+## Provider Diagnostics
+
+78D hardens the provider observability path used by this benchmark:
+
+- gnomAD GraphQL `errors` are classified as provider `failure`, not
+  `no_record`; HTTP status/body summaries and request payload hashes are
+  retained in the raw provenance payload.
+- gnomAD `no_record` remains limitation-only and is not treated as population
+  absence or PM2 support.
+- Ensembl VEP tries GET region first, then POST region fallback, then HGVS
+  fallback when an HGVS c. query is available. Attempt failures and the final
+  request method/URL are retained in provenance.
+- VEP missing predictors remain limitations and do not directly generate
+  PP3/BP4.
+- PubMed expands from gene+HGVS to aliases/protein consequence, gene+disease,
+  and the existing query plan; ClinVar/caller-supplied citation PMIDs are used
+  only after search terms return no records.
+
+Benchmark summaries include per-provider failure case IDs, no-record case IDs,
+and the first error examples with `error_type` and `error_message_summary`.
 
 ## Optional Live Benchmark
 
@@ -168,8 +199,8 @@ PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest \
 ```
 
 The offline tests cover success, no-record, partial, failure, timeout,
-cache-hit, cache-miss, CLI Markdown/JSON artifact generation, report
-generation, and classification isolation.
+cache-hit, cache-miss, latency scope, provider diagnostics, CLI Markdown/JSON
+artifact generation, report generation, and classification isolation.
 
 ## Safety
 

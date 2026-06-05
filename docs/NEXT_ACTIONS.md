@@ -29,7 +29,10 @@ provider upgrade now improves local descriptive protein/consequence/coordinate
 coverage for the same smoke dataset while preserving the combiner and evidence
 boundaries. The 78C provider benchmark now measures ClinVar, gnomAD, VEP,
 PubMed, and optional LitVar outcome/yield/runtime/cache behavior for the same
-six cases without modifying pipeline classification output. Default workflows
+six cases without modifying pipeline classification output. The 78D provider
+hardening pass improves gnomAD GraphQL failure/no-record separation, VEP
+GET/POST/HGVS fallback diagnostics, PubMed query/citation fallback behavior,
+and provider benchmark latency-scope/error diagnostics. Default workflows
 remain no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
 surfaces are opt-in only.
 Selected real-world case validation should now go beyond smoke behavior and
@@ -42,6 +45,7 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `78D_provider_hardening` | Done | Hardened gnomAD GraphQL error/no-record handling, VEP GET/POST/HGVS fallback provenance, PubMed query expansion plus citation fallback, and provider benchmark latency-scope/error diagnostics without changing classification or evidence generation. | Medium | Online providers, provider benchmark runner/report, provider tests, docs | Yes |
 | `78C_real_world_online_provider_benchmark` | Done | Added an env-gated real-world provider benchmark dataset/runner/report path for ClinVar, gnomAD, VEP, PubMed, and optional LitVar, with outcome, yield, resolution coverage, runtime, cache, timeout, and failure metrics isolated from classification. | Medium | Benchmark dataset, benchmark runner, provider metrics models, env-gated live test, docs | Yes |
 | `78B_hgvs_resolution_provider_upgrade` | Done | Added resolution-provider contract surfaces, local real-world HGVS resolution fixtures, coordinate inheritance tightening, canonical protein/coordinate/runtime output fields, and real-world resolution validation showing measurable coverage improvement without classification or evidence-generation changes. | Medium-high | Resolution layer, resolution contract facade, local fixtures, canonical output view, tests, docs | Yes |
 | `78A_real_world_smoke_validation` | Done | Added a six-case real HGVS smoke dataset plus offline/default pytest coverage for structured end-to-end returns, canonical/legacy output fields, provider/runtime/evidence auditability, natural-language wrapper smoke, and env-gated online outcome counting without expected classifications. | Medium | Smoke dataset, smoke tests, validation docs, project state docs | Yes |
@@ -86,7 +90,7 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 78C real-world provider benchmark:
+Current known gaps after 78D provider hardening:
 
 - RuntimeOptions is now the shared option interpretation layer for current
   user-facing entry points, but future new tools must be checked against this
@@ -100,8 +104,8 @@ Current known gaps after 78C real-world provider benchmark:
   record or an explicitly gated online HGVS resolver is added.
 - Deeper selected-case validation has not yet exercised the full completed
   literature-engine plus provider stack on selected cases.
-- 78C live provider hit rates remain env-gated and should be run periodically
-  with a controlled cache directory to identify unstable providers and
+- Live provider hit rates remain env-gated and should be run periodically with
+  a controlled cache directory to identify unstable providers and
   endpoint-specific failures.
 - PubMed/LitVar online adapters are implemented but remain opt-in and
   candidate-only.

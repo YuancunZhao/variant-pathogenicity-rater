@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -56,8 +57,12 @@ def _fetch_pubmed(
         "provider": "PubMed",
         "gene": request.gene,
         "variant": request.variant,
+        "transcript": request.transcript,
+        "disease": request.disease,
+        "variant_aliases": request.variant_aliases,
         "search_query": request.search_query,
         "pmids": request.pmids,
+        "citation_pmids": _citation_pmids(request),
     }
     limitations = [
         "PubMed online records are literature search records only; no literature evidence is applied.",
@@ -85,14 +90,23 @@ def _load_pubmed_payload(
     config: DataSourceConfig,
     http_client: Any,
 ) -> dict[str, Any]:
-    ids = list(request.pmids)
+    citation_ids = _citation_pmids(request)
+    ids = _unique(list(request.pmids))
+    selected_term = None
+    searched_terms: list[str] = []
     if not ids:
-        term = request.search_query or " OR ".join(item.query for item in build_query_plan(request)[:3])
-        search = http_client.get_json(
-            f"{EUTILS_BASE}/esearch.fcgi",
-            {"db": "pubmed", "retmode": "json", "retmax": "20", "term": term, **_ncbi_identity(config)},
-        )
-        ids = [str(item) for item in search.get("esearchresult", {}).get("idlist", [])]
+        for term in _pubmed_query_terms(request):
+            searched_terms.append(term)
+            search = http_client.get_json(
+                f"{EUTILS_BASE}/esearch.fcgi",
+                {"db": "pubmed", "retmode": "json", "retmax": "20", "term": term, **_ncbi_identity(config)},
+            )
+            ids = [str(item) for item in search.get("esearchresult", {}).get("idlist", [])]
+            if ids:
+                selected_term = term
+                break
+        if not ids and citation_ids:
+            ids = citation_ids
     summary = {}
     if ids:
         summary = http_client.get_json(
@@ -114,6 +128,12 @@ def _load_pubmed_payload(
             "variant": request.variant,
             "pmids": ids,
             "search_query": request.search_query,
+            "searched_terms": searched_terms,
+            "selected_term": selected_term,
+            "pmid_sources": {
+                "explicit_pmids": list(request.pmids),
+                "citation_pmids": citation_ids,
+            },
         },
         "summary": summary,
     }
@@ -286,3 +306,53 @@ def _record_provenance(
 
 def _ncbi_identity(config: DataSourceConfig) -> dict[str, str]:
     return {"email": config.email} if config.email else {}
+
+
+def _pubmed_query_terms(request: LiteratureSearchInput) -> list[str]:
+    terms = []
+    if request.search_query:
+        terms.append(request.search_query)
+    base_aliases = _unique([request.variant, *(request.variant_aliases or [])])
+    if request.transcript and request.variant and not request.variant.startswith(request.transcript):
+        base_aliases.append(f"{request.transcript}:{request.variant}")
+    for alias in base_aliases:
+        terms.append(f'"{request.gene}" "{alias}"')
+    protein_aliases = [alias for alias in base_aliases if ":p." in alias or "p." in alias]
+    for alias in protein_aliases:
+        terms.append(f'"{request.gene}" "{alias}"')
+    if request.disease:
+        terms.append(f'"{request.gene}" "{request.disease}"')
+    terms.extend(item.query for item in build_query_plan(request)[:5])
+    return _unique(terms)
+
+
+def _citation_pmids(request: LiteratureSearchInput) -> list[str]:
+    values: list[str] = []
+    for record in request.literature_records or []:
+        if not isinstance(record, dict):
+            continue
+        for key in ("pmid", "pubmed_id", "PMID"):
+            value = record.get(key)
+            if value:
+                values.extend(_pmid_values(value))
+        for citation in record.get("citations") or record.get("citation_pmids") or []:
+            values.extend(_pmid_values(citation))
+        clinvar = record.get("clinvar") if isinstance(record.get("clinvar"), dict) else record
+        for citation in clinvar.get("citations") or clinvar.get("references") or []:
+            values.extend(_pmid_values(citation))
+    return _unique(values)
+
+
+def _pmid_values(value: Any) -> list[str]:
+    if isinstance(value, list):
+        output: list[str] = []
+        for item in value:
+            output.extend(_pmid_values(item))
+        return output
+    text = str(value)
+    matches = re.findall(r"(?:PMID[:\s]*)?(\d{6,9})", text, flags=re.IGNORECASE)
+    return matches
+
+
+def _unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(str(value) for value in values if value))

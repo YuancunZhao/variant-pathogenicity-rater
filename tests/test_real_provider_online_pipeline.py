@@ -62,15 +62,25 @@ class MockGnomADClient:
 
 
 class MockVEPClient:
-    def __init__(self, payload: list | Exception) -> None:
+    def __init__(self, payload: list | Exception, post_payload: list | Exception | None = None) -> None:
         self.payload = payload
+        self.post_payload = post_payload
         self.calls = 0
+        self.post_calls = 0
 
     def get_json(self, _url: str, params: dict | None = None) -> list:
         self.calls += 1
         if isinstance(self.payload, Exception):
             raise self.payload
         return self.payload
+
+    def post_json(self, _url: str, _payload: dict) -> list:
+        self.post_calls += 1
+        if isinstance(self.post_payload, Exception):
+            raise self.post_payload
+        if self.post_payload is not None:
+            return self.post_payload
+        raise ProviderHTTPError("Provider HTTP error 503", url=_url, method="POST", status=503)
 
 
 class MockLiteratureClient:
@@ -278,7 +288,11 @@ def test_online_vep_failure_is_provider_summary_failure(monkeypatch, tmp_path: P
     def get_json(_self, _url: str, params: dict | None = None) -> list:
         raise ProviderHTTPError("Provider HTTP error 503", url="https://rest.ensembl.org", status=503)
 
+    def post_json(_self, _url: str, _payload: dict) -> list:
+        raise ProviderHTTPError("Provider HTTP error 503", url="https://rest.ensembl.org", method="POST", status=503)
+
     monkeypatch.setattr(ProviderHTTPClient, "get_json", get_json)
+    monkeypatch.setattr(ProviderHTTPClient, "post_json", post_json)
     result = rate_variant(
         {
             "gene": "GENE1",
@@ -360,6 +374,39 @@ def test_gnomad_no_record_found_does_not_infer_pm2(tmp_path: Path) -> None:
     assert any("not evidence of population absence" in item for item in frequency.limitations)
 
 
+def test_gnomad_graphql_errors_are_failure_diagnostics_not_no_record(tmp_path: Path) -> None:
+    provider = GnomADOnlineProvider(
+        _online_config(tmp_path, "population"),
+        http_client=MockGnomADClient({"errors": [{"message": "Cannot query field genome"}], "data": {"variant": None}}),
+    )
+    frequency = provider.query(_variant())
+
+    assert frequency.source and frequency.source.provenance
+    assert any("GraphQL errors" in item for item in frequency.limitations)
+    assert any("failure" in item.lower() for item in frequency.limitations)
+    assert frequency.source.provenance.raw_record_hash
+    assert frequency.source.provenance.cache_hit is False
+
+
+def test_gnomad_http_400_body_is_retained_as_limitation(tmp_path: Path) -> None:
+    class HTTP400Client:
+        def post_json(self, _url: str, _payload: dict) -> dict:
+            raise ProviderHTTPError(
+                "Provider HTTP error 400",
+                url="https://gnomad.broadinstitute.org/api",
+                method="POST",
+                status=400,
+                response_text='{"errors":[{"message":"bad dataset"}]}',
+            )
+
+    provider = GnomADOnlineProvider(_online_config(tmp_path, "population"), http_client=HTTP400Client())
+    frequency = provider.query(_variant())
+
+    assert any("HTTP status: 400" in item for item in frequency.limitations)
+    assert any("response body summary" in item for item in frequency.limitations)
+    assert frequency.source.provenance.raw_record_hash
+
+
 def test_vep_mocked_rest_maps_predictors_and_transcript_context(tmp_path: Path) -> None:
     provider = EnsemblVEPOnlineProvider(
         _online_config(tmp_path, "computational"),
@@ -406,6 +453,35 @@ def test_vep_timeout_failure_becomes_limitation(tmp_path: Path) -> None:
     assert predictions[0].source.provenance.cache_hit is False
 
 
+def test_vep_get_failure_post_success_records_fallback_provenance(tmp_path: Path) -> None:
+    client = MockVEPClient(
+        ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", status=400),
+        post_payload=[
+            {
+                "most_severe_consequence": "missense_variant",
+                "transcript_consequences": [
+                    {
+                        "transcript_id": "ENST000001",
+                        "hgvsp": "ENSP000001:p.Lys26Arg",
+                        "cadd_phred": 26.0,
+                    }
+                ],
+            }
+        ],
+    )
+    provider = EnsemblVEPOnlineProvider(_online_config(tmp_path, "computational"), http_client=client)
+
+    predictions = provider.query(_variant())
+
+    assert client.calls == 1
+    assert client.post_calls == 1
+    assert any(prediction.method == "CADD" for prediction in predictions)
+    provenance = predictions[0].source.provenance
+    assert provenance.request_method == "POST"
+    assert provenance.request_url == "https://rest.ensembl.org/vep/homo_sapiens/region"
+    assert any("fallback attempts failed" in item for item in predictions[0].limitations)
+
+
 def test_pubmed_litvar_mocked_eutils_maps_literature_records(tmp_path: Path) -> None:
     records, limitations = fetch_online_literature_records(
         LiteratureSearchInput(
@@ -423,6 +499,49 @@ def test_pubmed_litvar_mocked_eutils_maps_literature_records(tmp_path: Path) -> 
     assert {record.source for record in records} == {"PubMed", "LitVar"}
     assert all(record.provenance["raw_record_hash"] for record in records)
     assert any("abstract-only" in item for record in records for item in record.provenance.get("limitations", []))
+    assert all("no literature evidence is applied" in " ".join(limitations).lower() for _ in [0])
+
+
+def test_pubmed_expands_query_and_falls_back_to_citation_pmids(tmp_path: Path) -> None:
+    class PubMedFallbackClient:
+        def __init__(self) -> None:
+            self.search_terms: list[str] = []
+
+        def get_json(self, url: str, params: dict | None = None) -> dict:
+            if url.endswith("esearch.fcgi"):
+                self.search_terms.append(str((params or {}).get("term")))
+                return {"esearchresult": {"idlist": []}}
+            if url.endswith("esummary.fcgi"):
+                assert (params or {}).get("id") == "987654"
+                return {
+                    "result": {
+                        "uids": ["987654"],
+                        "987654": {
+                            "title": "ClinVar cited PKLR record",
+                            "pubdate": "2024",
+                            "pubtype": ["Journal Article"],
+                        },
+                    }
+                }
+            return {}
+
+    client = PubMedFallbackClient()
+    records, limitations = fetch_online_literature_records(
+        LiteratureSearchInput(
+            gene="PKLR",
+            variant="NM_000298.6:c.1403C>G",
+            variant_aliases=["NP_000289.1:p.Arg468Gly"],
+            literature_records=[{"source": "ClinVar", "citations": ["PMID:987654"]}],
+            use_online_pubmed=True,
+            provider_cache_dir=str(tmp_path / "lit-cache"),
+        ),
+        config=_online_config(tmp_path, "literature"),
+        http_client=client,
+    )
+
+    assert records[0].pmid == "987654"
+    assert client.search_terms
+    assert any("NM_000298.6:c.1403C>G" in term for term in client.search_terms)
     assert all("no literature evidence is applied" in " ".join(limitations).lower() for _ in [0])
 
 

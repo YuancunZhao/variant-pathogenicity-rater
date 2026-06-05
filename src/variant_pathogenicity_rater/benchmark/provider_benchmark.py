@@ -42,6 +42,9 @@ class ProviderYieldMetrics(SchemaModel):
 class ProviderRuntimeMetrics(SchemaModel):
     avg_latency_ms: float = 0.0
     median_latency_ms: float = 0.0
+    latency_scope: str = "unavailable"
+    provider_latency_count: int = 0
+    case_level_latency_used_count: int = 0
     timeout_count: int = 0
     cache_hit_count: int = 0
     cache_miss_count: int = 0
@@ -102,9 +105,14 @@ def run_provider_benchmark(
     outcome_counts: dict[str, Counter[str]] = {provider: Counter() for provider in PROVIDERS}
     yield_metrics = {provider: ProviderYieldMetrics() for provider in PROVIDERS}
     latencies: dict[str, list[float]] = {provider: [] for provider in PROVIDERS}
+    latency_scopes: dict[str, Counter[str]] = {provider: Counter() for provider in PROVIDERS}
     timeout_counts: Counter[str] = Counter()
     cache_hits: Counter[str] = Counter()
     cache_misses: Counter[str] = Counter()
+    provider_diagnostics: dict[str, dict[str, Any]] = {
+        provider: {"failure_case_ids": [], "no_record_case_ids": [], "error_examples": []}
+        for provider in PROVIDERS
+    }
     case_results: list[ProviderCaseResult] = []
     limitations: list[str] = []
 
@@ -134,6 +142,14 @@ def run_provider_benchmark(
             for provider in PROVIDERS:
                 outcome_counts[provider]["failure"] += 1
                 latencies[provider].append(elapsed)
+                latency_scopes[provider]["case"] += 1
+                _record_provider_diagnostic(
+                    provider_diagnostics,
+                    provider,
+                    case["case_id"],
+                    "failure",
+                    {"error_type": exc.__class__.__name__, "error_message_summary": str(exc)},
+                )
                 if isinstance(exc, TimeoutError) or "timeout" in str(exc).lower():
                     timeout_counts[provider] += 1
             continue
@@ -150,9 +166,11 @@ def run_provider_benchmark(
             runtime_payload = provider_runtime.get(provider) or {}
             outcome = _normalize_outcome(runtime_payload.get("outcome"))
             outcome_counts[provider][outcome] += 1
-            provider_latency = _latency(runtime_payload, elapsed)
+            _record_provider_diagnostic(provider_diagnostics, provider, case["case_id"], outcome, runtime_payload)
+            provider_latency, latency_scope = _latency(runtime_payload, elapsed)
             if provider_latency is not None:
                 latencies[provider].append(provider_latency)
+                latency_scopes[provider][latency_scope] += 1
             if runtime_payload.get("cache_hit") is True:
                 cache_hits[provider] += 1
             elif runtime_payload.get("cache_hit") is False:
@@ -178,6 +196,7 @@ def run_provider_benchmark(
     runtime = {
         provider: _runtime_metrics(
             latencies[provider],
+            latency_scopes[provider],
             timeout_counts[provider],
             cache_hits[provider],
             cache_misses[provider],
@@ -208,6 +227,7 @@ def run_provider_benchmark(
             or case.status == "error"
         ],
         "classification_benchmark": False,
+        "provider_diagnostics": provider_diagnostics,
     }
     return ProviderBenchmarkResult(
         dataset_id=str(dataset.get("dataset_id") or "provider_benchmark"),
@@ -258,19 +278,23 @@ def render_provider_benchmark_report(result: ProviderBenchmarkResult) -> str:
     )
     for provider, runtime in result.runtime.items():
         lines.append(
-            f"- {provider}: avg={runtime.avg_latency_ms:.2f} ms, median={runtime.median_latency_ms:.2f} ms, timeouts={runtime.timeout_count}"
+            f"- {provider}: avg={runtime.avg_latency_ms:.2f} ms, median={runtime.median_latency_ms:.2f} ms, scope={runtime.latency_scope}, provider_samples={runtime.provider_latency_count}, case_level_samples={runtime.case_level_latency_used_count}, timeouts={runtime.timeout_count}"
         )
     lines.extend(["", "## Cache"])
     for provider, runtime in result.runtime.items():
         lines.append(
             f"- {provider}: hits={runtime.cache_hit_count}, misses={runtime.cache_miss_count}"
         )
-    lines.extend(["", "## Known failures"])
-    failure_cases = result.summary.get("cases_with_failures") or []
-    if failure_cases:
-        lines.extend(f"- {case_id}" for case_id in failure_cases)
-    else:
-        lines.append("- none observed")
+    lines.extend(["", "## Provider diagnostics"])
+    diagnostics = result.summary.get("provider_diagnostics") or {}
+    for provider in PROVIDERS:
+        payload = diagnostics.get(provider) or {}
+        lines.append(f"- {provider} failures: {', '.join(payload.get('failure_case_ids') or []) or 'none'}")
+        lines.append(f"- {provider} no_record: {', '.join(payload.get('no_record_case_ids') or []) or 'none'}")
+        for example in (payload.get("error_examples") or [])[:3]:
+            lines.append(
+                f"- {provider} error example: {example.get('case_id')} {example.get('error_type') or 'ProviderFailure'} - {example.get('error_message_summary') or ''}"
+            )
     lines.extend(
         [
             "",
@@ -410,13 +434,27 @@ def _resolution_flags(result: dict[str, Any]) -> dict[str, bool]:
 
 def _runtime_metrics(
     latencies: list[float],
+    scopes: Counter[str],
     timeout_count: int,
     cache_hit_count: int,
     cache_miss_count: int,
 ) -> ProviderRuntimeMetrics:
+    provider_count = scopes["provider"]
+    case_count = scopes["case"]
+    if provider_count and case_count:
+        latency_scope = "mixed"
+    elif provider_count:
+        latency_scope = "provider"
+    elif case_count:
+        latency_scope = "case"
+    else:
+        latency_scope = "unavailable"
     return ProviderRuntimeMetrics(
         avg_latency_ms=round(statistics.fmean(latencies), 3) if latencies else 0.0,
         median_latency_ms=round(statistics.median(latencies), 3) if latencies else 0.0,
+        latency_scope=latency_scope,
+        provider_latency_count=provider_count,
+        case_level_latency_used_count=case_count,
         timeout_count=timeout_count,
         cache_hit_count=cache_hit_count,
         cache_miss_count=cache_miss_count,
@@ -432,11 +470,37 @@ def _normalize_outcome(value: Any) -> str:
     return text if text in OUTCOMES else "failure"
 
 
-def _latency(payload: dict[str, Any], fallback: float) -> float | None:
+def _latency(payload: dict[str, Any], fallback: float) -> tuple[float | None, str]:
+    if not payload.get("attempted"):
+        return None, "unavailable"
     for key in ("latency_ms", "runtime_ms", "elapsed_ms"):
         if payload.get(key) is not None:
-            return float(payload[key])
-    return fallback if payload.get("attempted") else None
+            return float(payload[key]), "provider"
+    return fallback, "case"
+
+
+def _record_provider_diagnostic(
+    diagnostics: dict[str, dict[str, Any]],
+    provider: str,
+    case_id: str,
+    outcome: str,
+    payload: dict[str, Any],
+) -> None:
+    item = diagnostics[provider]
+    if outcome == "failure":
+        if case_id not in item["failure_case_ids"]:
+            item["failure_case_ids"].append(case_id)
+        if len(item["error_examples"]) < 3:
+            item["error_examples"].append(
+                {
+                    "case_id": case_id,
+                    "error_type": payload.get("error_type"),
+                    "error_message_summary": payload.get("error_message_summary")
+                    or "; ".join(str(value) for value in (payload.get("limitations") or [])[:2]),
+                }
+            )
+    elif outcome == "no_record" and case_id not in item["no_record_case_ids"]:
+        item["no_record_case_ids"].append(case_id)
 
 
 def _is_timeout(payload: dict[str, Any]) -> bool:

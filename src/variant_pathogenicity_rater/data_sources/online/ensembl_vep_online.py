@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import quote
 
 from variant_pathogenicity_rater.data_sources.cache import DiskCache
 from variant_pathogenicity_rater.data_sources.config import DataSourceConfig
@@ -20,6 +21,7 @@ from variant_pathogenicity_rater.schemas.variant import Variant
 
 
 ENSEMBL_VEP_ENDPOINT = "https://rest.ensembl.org/vep/homo_sapiens/region"
+ENSEMBL_VEP_HGVS_ENDPOINT = "https://rest.ensembl.org/vep/human/hgvs"
 SUPPORTED_PREDICTORS = {
     "CADD": ("cadd_phred", "cadd_raw"),
     "REVEL": ("revel_score",),
@@ -63,14 +65,16 @@ class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
                 cache_hit=cache_hit,
             )
         except Exception as exc:  # noqa: BLE001 - provider failure must degrade.
+            raw_error = _error_payload(exc)
             source = _source(
                 config=self.config,
                 source_version=self._source_version(),
                 query=query,
-                raw_payload={"query": query, "error": f"{exc.__class__.__name__}: {exc}"},
+                raw_payload={"query": query, "error": raw_error},
                 cache_hit=False,
                 limitations=[
                     f"Ensembl VEP online query failed: {exc.__class__.__name__}: {exc}",
+                    *_error_limitations("Ensembl VEP", raw_error),
                     "VEP online failure was captured as a limitation; interpretation continued.",
                 ],
             )
@@ -89,19 +93,52 @@ class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
             ]
 
     def _load_payload(self, query: dict[str, Any]) -> dict[str, Any]:
-        params = {
-            "CADD": "1",
-            "SpliceAI": "1",
-            "AlphaMissense": "1",
-        }
+        params = _vep_params()
         region = f"{query['chrom']}:{query['pos']}-{query['pos']}:1/{query['ref']}/{query['alt']}"
-        payload = self.http_client.get_json(f"{ENSEMBL_VEP_ENDPOINT}/{region}", params=params)
+        attempts: list[dict[str, Any]] = []
+        get_url = f"{ENSEMBL_VEP_ENDPOINT}/{region}"
+        try:
+            payload = self.http_client.get_json(get_url, params=params)
+            method = "GET"
+            request_url = get_url
+        except Exception as get_exc:  # noqa: BLE001 - POST/HGVS fallback remains provider-local.
+            attempts.append(_attempt_error("GET", get_url, get_exc))
+            post_payload = {"variants": [_vcf_variant_line(query)]}
+            try:
+                payload = self.http_client.post_json(ENSEMBL_VEP_ENDPOINT, post_payload)
+                method = "POST"
+                request_url = ENSEMBL_VEP_ENDPOINT
+                attempts.append(
+                    {
+                        "method": "POST",
+                        "request_url": ENSEMBL_VEP_ENDPOINT,
+                        "request_payload": post_payload,
+                        "outcome": "success",
+                    }
+                )
+            except Exception as post_exc:  # noqa: BLE001
+                attempts.append(_attempt_error("POST", ENSEMBL_VEP_ENDPOINT, post_exc, payload=post_payload))
+                hgvs = query.get("hgvs_c")
+                if not hgvs:
+                    raise _chained_provider_error(get_exc, post_exc) from post_exc
+                hgvs_url = f"{ENSEMBL_VEP_HGVS_ENDPOINT}/{quote(str(hgvs), safe='')}"
+                try:
+                    payload = self.http_client.get_json(hgvs_url, params=params)
+                    method = "GET"
+                    request_url = hgvs_url
+                    attempts.append({"method": "GET", "request_url": hgvs_url, "outcome": "success"})
+                except Exception as hgvs_exc:  # noqa: BLE001
+                    attempts.append(_attempt_error("GET", hgvs_url, hgvs_exc))
+                    raise _chained_provider_error(get_exc, post_exc, hgvs_exc) from hgvs_exc
         return {
             "provider": "EnsemblVEPOnlineProvider",
             "source_version": self._source_version(),
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "endpoint": ENSEMBL_VEP_ENDPOINT,
             "query": query,
+            "attempts": attempts,
+            "request_method": method,
+            "request_url": request_url,
             "payload": payload,
         }
 
@@ -125,6 +162,8 @@ def parse_vep_payload(
     limitations: list[str] = [
         "Ensembl VEP online source supplies computational and consequence facts only; PP3/BP4 require existing evaluator gates.",
     ]
+    if any(item.get("outcome") == "failure" for item in payload.get("attempts") or [] if isinstance(item, dict)):
+        limitations.append("One or more VEP fallback attempts failed before a usable response was parsed.")
     for record in records:
         if not isinstance(record, dict):
             continue
@@ -142,7 +181,15 @@ def parse_vep_payload(
                 config=config,
                 source_version=source_version,
                 query=query,
-                raw_payload={"record": record, "transcript_consequence": consequence},
+                raw_payload={
+                    "record": record,
+                    "transcript_consequence": consequence,
+                    "retrieved_at": payload.get("retrieved_at"),
+                    "endpoint": payload.get("endpoint"),
+                    "request_method": payload.get("request_method"),
+                    "request_url": payload.get("request_url"),
+                    "attempts": payload.get("attempts") or [],
+                },
                 cache_hit=cache_hit,
                 limitations=consequence_limitations,
             )
@@ -315,8 +362,8 @@ def _source(
         endpoint=raw_payload.get("endpoint") or ENSEMBL_VEP_ENDPOINT,
         provider_mode=str(config.mode),
         cache_hit=cache_hit,
-        request_method="GET",
-        request_url=ENSEMBL_VEP_ENDPOINT,
+        request_method=raw_payload.get("request_method") or "GET",
+        request_url=raw_payload.get("request_url") or ENSEMBL_VEP_ENDPOINT,
         raw_payload_kind="rest_json",
         limitations=limitations,
     )
@@ -365,3 +412,58 @@ def _prediction_from_score(method: str, score: float | None) -> str:
     if method in {"REVEL", "AlphaMissense"}:
         return "deleterious" if score >= 0.5 else "benign_or_uncertain"
     return "score_available"
+
+
+def _vep_params() -> dict[str, str]:
+    return {
+        "CADD": "1",
+        "SpliceAI": "1",
+        "AlphaMissense": "1",
+    }
+
+
+def _vcf_variant_line(query: dict[str, Any]) -> str:
+    return f"{query['chrom']} {query['pos']} . {query['ref']} {query['alt']} . . ."
+
+
+def _attempt_error(
+    method: str,
+    request_url: str,
+    exc: Exception,
+    *,
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    item = {
+        "method": method,
+        "request_url": request_url,
+        "outcome": "failure",
+        "error": _error_payload(exc),
+    }
+    if payload:
+        item["request_payload"] = payload
+    return item
+
+
+def _chained_provider_error(*errors: Exception) -> RuntimeError:
+    messages = " | ".join(f"{error.__class__.__name__}: {error}" for error in errors)
+    return RuntimeError(f"VEP provider attempts failed: {messages}")
+
+
+def _error_payload(exc: Exception) -> dict[str, Any]:
+    if hasattr(exc, "to_payload"):
+        payload = exc.to_payload()
+        if isinstance(payload, dict):
+            return payload
+    return {
+        "message": str(exc),
+        "cause_type": exc.__class__.__name__,
+    }
+
+
+def _error_limitations(provider: str, payload: dict[str, Any]) -> list[str]:
+    details = []
+    if payload.get("status") is not None:
+        details.append(f"{provider} HTTP status: {payload['status']}.")
+    if payload.get("response_text"):
+        details.append(f"{provider} HTTP response body summary: {str(payload['response_text'])[:240]}")
+    return details

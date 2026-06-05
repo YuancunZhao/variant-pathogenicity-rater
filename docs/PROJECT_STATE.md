@@ -30,8 +30,9 @@ benchmark Phase C, the General Literature Search and Summary Engine, the
 74 real provider pipeline, the 76 mock/fixture interface audit activation,
 the 77A output schema unification, the 77B provider interface consolidation,
 the 77C evidence status helper unification, the 77D RuntimeOptions
-foundation, the 78A real-world smoke validation layer, and the 78B HGVS
-resolution provider upgrade, and the 78C real-world provider benchmark, the
+foundation, the 78A real-world smoke validation layer, the 78B HGVS
+resolution provider upgrade, the 78C real-world provider benchmark, and the
+78D provider hardening pass, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -51,6 +52,9 @@ centralized runtime-option normalization for Python API, CLI, MCP,
 natural-language text, batch, and annotated-batch entry points,
 HGVS-to-protein/coordinate resolution-provider contract output,
 provider benchmark metrics for ClinVar/gnomAD/VEP/PubMed/LitVar,
+gnomAD GraphQL failure/no-record separation, VEP GET/POST/HGVS fallback
+diagnostics, PubMed expanded query/citation fallback behavior, provider
+benchmark latency-scope/error diagnostics,
 Chinese laboratory reporting, and the unchanged ACMG classification combiner.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
@@ -59,14 +63,17 @@ asserting clinical truth. The 78B resolution upgrade improves offline
 descriptive resolution for the real-world smoke dataset without changing
 classification or evidence generation. The 78C provider benchmark adds
 provider-yield, runtime, cache, timeout, and failure observability for the same
-six cases without changing `rate_variant` output or classification. The next project
+six cases without changing `rate_variant` output or classification. The 78D
+provider hardening pass improves online provider failure degradation and
+benchmark diagnostics without changing classification, applied evidence, or
+default no-network behavior. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
 cases, general literature search/summarization, first-pass real-world HGVS
-smoke coverage, or first-pass HGVS resolution provider output; it is deeper
-selected real-world case validation, live provider hardening based on 78C
-metrics, a narrow real VCEP profile pilot, provider
+smoke coverage, first-pass HGVS resolution provider output, or first-pass
+provider hardening after 78C; it is deeper selected real-world case validation,
+a narrow real VCEP profile pilot, provider
 cache/reproducibility hardening, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity

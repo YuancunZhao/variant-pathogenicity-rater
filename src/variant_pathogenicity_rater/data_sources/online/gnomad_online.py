@@ -9,6 +9,7 @@ from variant_pathogenicity_rater.data_sources.http import ProviderHTTPClient
 from variant_pathogenicity_rater.data_sources.provenance import (
     attach_provenance_to_source,
     provenance_from_raw_record,
+    raw_record_hash,
 )
 from variant_pathogenicity_rater.evidence.population import PopulationFrequencyProvider
 from variant_pathogenicity_rater.schemas.evidence import EvidenceSource, PopulationFrequency
@@ -84,6 +85,8 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
                 cache_hit=cache_hit,
             )
         except Exception as exc:  # noqa: BLE001 - provider failure must degrade.
+            raw_error = _error_payload(exc)
+            request_payload = _request_payload(query["variant_id"], self.dataset)
             return _empty_frequency(
                 variant=variant,
                 query=query,
@@ -92,10 +95,13 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
                 raw_payload={
                     "provider": "gnomAD",
                     "query": query,
-                    "error": f"{exc.__class__.__name__}: {exc}",
+                    "request_payload": request_payload,
+                    "request_payload_hash": raw_record_hash(request_payload),
+                    "error": raw_error,
                 },
                 limitations=[
                     f"gnomAD online query failed: {exc.__class__.__name__}: {exc}",
+                    *_error_limitations(raw_error),
                     "gnomAD online failure was captured as a limitation; interpretation continued.",
                     "Provider failure is not evidence of population absence and cannot trigger PM2_Supporting.",
                 ],
@@ -103,19 +109,16 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
             )
 
     def _load_payload(self, query: dict[str, Any]) -> dict[str, Any]:
-        payload = self.http_client.post_json(
-            GNOMAD_GRAPHQL_ENDPOINT,
-            {
-                "query": GNOMAD_QUERY,
-                "variables": {"variantId": query["variant_id"], "dataset": self.dataset},
-            },
-        )
+        request_payload = _request_payload(query["variant_id"], self.dataset)
+        payload = self.http_client.post_json(GNOMAD_GRAPHQL_ENDPOINT, request_payload)
         return {
             "provider": "GnomADOnlineProvider",
             "source_version": self._source_version(),
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "endpoint": GNOMAD_GRAPHQL_ENDPOINT,
             "query": query,
+            "request_payload": request_payload,
+            "request_payload_hash": raw_record_hash(request_payload),
             "payload": payload,
         }
 
@@ -137,6 +140,22 @@ def _frequency_from_payload(
     dataset: str,
     cache_hit: bool,
 ) -> PopulationFrequency:
+    errors = (payload.get("payload") or {}).get("errors")
+    if errors:
+        error_summary = _graphql_error_summary(errors)
+        return _empty_frequency(
+            variant=variant,
+            query=query,
+            config=config,
+            source_version=source_version,
+            raw_payload=payload,
+            cache_hit=cache_hit,
+            limitations=[
+                f"gnomAD online query failed: GraphQL errors: {error_summary}",
+                "gnomAD GraphQL error payload was captured for provider diagnostics.",
+                "Provider failure is not evidence of population absence and cannot trigger PM2_Supporting.",
+            ],
+        )
     raw = (payload.get("payload") or {}).get("data", {}).get("variant")
     if not isinstance(raw, dict):
         return _empty_frequency(
@@ -148,6 +167,7 @@ def _frequency_from_payload(
             cache_hit=cache_hit,
             limitations=[
                 "No gnomAD online record matched the supplied query; this is not evidence of population absence.",
+                "gnomAD no_record is not treated as population absence and cannot trigger PM2_Supporting.",
             ],
         )
     genome = raw.get("genome") if isinstance(raw.get("genome"), dict) else {}
@@ -295,3 +315,42 @@ def _int(value: Any) -> int | None:
     if isinstance(value, str) and value.isdigit():
         return int(value)
     return None
+
+
+def _request_payload(variant_id: str, dataset: str) -> dict[str, Any]:
+    return {
+        "query": GNOMAD_QUERY,
+        "variables": {"variantId": variant_id, "dataset": dataset},
+    }
+
+
+def _graphql_error_summary(errors: Any) -> str:
+    if isinstance(errors, list):
+        messages = []
+        for item in errors[:3]:
+            if isinstance(item, dict):
+                messages.append(str(item.get("message") or item))
+            else:
+                messages.append(str(item))
+        return "; ".join(messages) or "unspecified GraphQL error"
+    return str(errors)
+
+
+def _error_payload(exc: Exception) -> dict[str, Any]:
+    if hasattr(exc, "to_payload"):
+        payload = exc.to_payload()
+        if isinstance(payload, dict):
+            return payload
+    return {
+        "message": str(exc),
+        "cause_type": exc.__class__.__name__,
+    }
+
+
+def _error_limitations(payload: dict[str, Any]) -> list[str]:
+    details = []
+    if payload.get("status") is not None:
+        details.append(f"gnomAD HTTP status: {payload['status']}.")
+    if payload.get("response_text"):
+        details.append(f"gnomAD HTTP response body summary: {str(payload['response_text'])[:240]}")
+    return details

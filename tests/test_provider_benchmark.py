@@ -19,7 +19,11 @@ def _result(
     literature: str = "success",
     cache_hit: bool | None = None,
     latency_ms: float = 10.0,
+    include_provider_latency: bool = True,
 ) -> dict[str, Any]:
+    def latency(value: float) -> dict[str, float]:
+        return {"latency_ms": value} if include_provider_latency else {}
+
     return {
         "status": "ok",
         "final_classification": "vus",
@@ -44,21 +48,25 @@ def _result(
                     "records_count": 1 if clinvar == "success" else 0,
                     "attempted": clinvar != "skipped",
                     "cache_hit": cache_hit,
-                    "latency_ms": latency_ms,
+                    **latency(latency_ms),
                 },
                 "population": {
                     "outcome": gnomad,
                     "records_count": 1 if gnomad == "success" else 0,
                     "attempted": gnomad != "skipped",
                     "cache_hit": cache_hit,
-                    "latency_ms": latency_ms + 1,
+                    "error_type": "gnomAD_online_query" if gnomad == "failure" else None,
+                    "error_message_summary": "gnomAD online query failed: mocked" if gnomad == "failure" else None,
+                    **latency(latency_ms + 1),
                 },
                 "computational": {
                     "outcome": vep,
                     "records_count": 2 if vep in {"success", "partial"} else 0,
                     "attempted": vep != "skipped",
                     "cache_hit": cache_hit,
-                    "latency_ms": latency_ms + 2,
+                    "error_type": "Ensembl_VEP_online_query" if vep == "failure" else None,
+                    "error_message_summary": "Ensembl VEP online query failed: mocked" if vep == "failure" else None,
+                    **latency(latency_ms + 2),
                     "limitations": ["partial predictor payload"] if vep == "partial" else [],
                 },
                 "literature": {
@@ -66,7 +74,7 @@ def _result(
                     "records_count": 2 if literature == "success" else 0,
                     "attempted": literature != "skipped",
                     "cache_hit": cache_hit,
-                    "latency_ms": latency_ms + 3,
+                    **latency(latency_ms + 3),
                 },
             },
             "query_clinvar": {
@@ -119,6 +127,8 @@ def test_provider_benchmark_counts_outcomes_yield_runtime_and_cache(tmp_path: Pa
     assert result.vep.failure == 4
     assert result.runtime["clinvar"].cache_hit_count == 1
     assert result.runtime["clinvar"].cache_miss_count == 1
+    assert result.runtime["clinvar"].latency_scope == "provider"
+    assert result.runtime["clinvar"].provider_latency_count == 2
     assert result.provider_yield["clinvar"].records_found == 1
     assert result.provider_yield["gnomad"].af_records_found == 1
     assert result.provider_yield["vep"].predictor_records_returned >= 2
@@ -128,6 +138,9 @@ def test_provider_benchmark_counts_outcomes_yield_runtime_and_cache(tmp_path: Pa
     report = render_provider_benchmark_report(result)
     assert "Dataset: 6 variants" in report
     assert "## Runtime" in report
+    assert "scope=provider" in report
+    assert "## Provider diagnostics" in report
+    assert "gnomad error example" in report
     output = write_provider_benchmark_report(result, tmp_path / "provider_benchmark.md")
     assert output.exists()
 
@@ -143,6 +156,8 @@ def test_provider_benchmark_timeout_is_failure_not_crash() -> None:
     assert result.gnomad.failure == 6
     assert result.vep.failure == 6
     assert result.runtime["clinvar"].timeout_count == 6
+    assert result.runtime["clinvar"].latency_scope == "case"
+    assert result.runtime["clinvar"].case_level_latency_used_count == 6
     assert result.limitations
     assert result.cases[0].status == "error"
 
@@ -153,3 +168,15 @@ def test_provider_benchmark_preserves_classification_as_observed_metric_only() -
     assert all(case.classification_unchanged_by_benchmark for case in result.cases)
     assert result.summary["classification_benchmark"] is False
     assert "classification_result" not in result.model_dump(mode="json")
+
+
+def test_provider_benchmark_marks_case_level_latency_when_provider_runtime_lacks_samples() -> None:
+    result = run_provider_benchmark(
+        case_runner=lambda payload: _result(case_id=payload["gene"], include_provider_latency=False)
+    )
+
+    assert result.runtime["clinvar"].latency_scope == "case"
+    assert result.runtime["clinvar"].provider_latency_count == 0
+    assert result.runtime["clinvar"].case_level_latency_used_count == 6
+    report = render_provider_benchmark_report(result)
+    assert "scope=case" in report

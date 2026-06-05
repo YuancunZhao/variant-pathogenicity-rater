@@ -70,6 +70,10 @@ classification. Live execution is env-gated with
 writes stable Markdown/JSON artifacts for review. See
 `docs/REAL_WORLD_PROVIDER_BENCHMARK.md`.
 
+78D hardens the same provider path with gnomAD GraphQL failure/no-record
+separation, VEP GET/POST/HGVS fallback diagnostics, PubMed expanded
+query/citation fallback, and benchmark latency-scope/error diagnostics.
+
 ## Directory Structure
 
 ```text
