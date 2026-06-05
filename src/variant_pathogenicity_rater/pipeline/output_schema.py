@@ -258,6 +258,7 @@ def _variant_section(result: dict[str, Any]) -> dict[str, Any]:
     return {
         "normalized": _json_copy(result.get("normalized_variant")),
         "resolved": _json_copy(result.get("resolved_variant")),
+        "provider_identity": _json_copy(result.get("provider_identity")),
         "resolution_summary": _json_copy(resolution),
         "transcript_validation": _json_copy(result.get("transcript_validation")),
         "protein_resolution": _json_copy(

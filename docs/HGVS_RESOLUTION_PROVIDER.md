@@ -60,6 +60,12 @@ The 77A canonical `variant` section now includes additive resolution fields:
 Legacy fields such as `variant_resolution`, `normalized_variant`, and
 `resolved_variant` remain present.
 
+79A-1 also emits additive provider-layer identity under `provider_identity` and
+canonical `variant.provider_identity`. This contract can combine normalized
+variant fields and resolution facts into provider aliases such as HGVS,
+coordinate, protein change, and validated gnomAD variant ID. It remains
+provider-readiness metadata only and is not ACMG evidence.
+
 ## Safety
 
 - Resolution facts are descriptive facts, not ACMG criteria.
@@ -71,3 +77,5 @@ Legacy fields such as `variant_resolution`, `normalized_variant`, and
   This bridge remains resolution-only and does not directly apply PP3/BP4.
 - Structured user coordinates are preserved in `resolved_coordinate`.
 - Missing or conflicting resolution becomes limitations and review flags.
+- Provider-layer identity conflicts are review flags and limitations; they do
+  not silently overwrite normalized or resolution identity.

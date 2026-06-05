@@ -28,6 +28,16 @@ def _result(
         "status": "ok",
         "final_classification": "vus",
         "variant": {
+            "provider_identity": {
+                "gnomad_variant_id": "1-100-A-G",
+                "identity_conflicts": [],
+                "genome_build": "GRCh38",
+                "chrom": "1",
+                "pos": 100,
+                "ref": "A",
+                "alt": "G",
+                "hgvs_p": "NP_000001.1:p.Ala1Gly",
+            },
             "protein_resolution": {
                 "hgvs_p": "NP_000001.1:p.Ala1Gly",
                 "consequence": "missense_variant",
@@ -56,7 +66,11 @@ def _result(
                     "attempted": gnomad != "skipped",
                     "cache_hit": cache_hit,
                     "error_type": "gnomAD_online_query" if gnomad == "failure" else None,
-                    "error_message_summary": "gnomAD online query failed: mocked" if gnomad == "failure" else None,
+                    "error_message_summary": (
+                        'gnomAD online query failed: HTTP 400 {"errors":[{"message":"Cannot query field populations"}]}'
+                        if gnomad == "failure"
+                        else None
+                    ),
                     **latency(latency_ms + 1),
                 },
                 "computational": {
@@ -134,13 +148,18 @@ def test_provider_benchmark_counts_outcomes_yield_runtime_and_cache(tmp_path: Pa
     assert result.provider_yield["vep"].predictor_records_returned >= 2
     assert result.provider_yield["pubmed"].articles_found >= 2
     assert result.provider_yield["litvar"].citations_found >= 2
+    assert result.identity_coverage.gnomad_variant_id_available == 6
+    assert result.identity_coverage.coordinate_available == 6
+    assert result.identity_coverage.protein_available == 6
 
     report = render_provider_benchmark_report(result)
     assert "Dataset: 6 variants" in report
+    assert "## Provider identity coverage" in report
     assert "## Runtime" in report
     assert "scope=provider" in report
     assert "## Provider diagnostics" in report
     assert "gnomad error example" in report
+    assert "Cannot query field populations" in report
     output = write_provider_benchmark_report(result, tmp_path / "provider_benchmark.md")
     assert output.exists()
 

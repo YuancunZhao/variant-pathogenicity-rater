@@ -61,6 +61,13 @@ class ResolutionCoverageMetrics(SchemaModel):
     protein_available_after: int = 0
 
 
+class IdentityCoverageMetrics(SchemaModel):
+    gnomad_variant_id_available: int = 0
+    identity_conflict_count: int = 0
+    coordinate_available: int = 0
+    protein_available: int = 0
+
+
 class ProviderCaseResult(SchemaModel):
     case_id: str
     gene: str
@@ -70,6 +77,7 @@ class ProviderCaseResult(SchemaModel):
     provider_runtime: dict[str, Any] = Field(default_factory=dict)
     provider_yield: dict[str, Any] = Field(default_factory=dict)
     resolution_after: dict[str, bool] = Field(default_factory=dict)
+    identity_coverage: dict[str, Any] = Field(default_factory=dict)
     runtime_ms: float = 0.0
     limitations: list[str] = Field(default_factory=list)
 
@@ -85,6 +93,7 @@ class ProviderBenchmarkResult(SchemaModel):
     provider_yield: dict[str, ProviderYieldMetrics]
     runtime: dict[str, ProviderRuntimeMetrics]
     resolution_coverage: ResolutionCoverageMetrics
+    identity_coverage: IdentityCoverageMetrics = Field(default_factory=IdentityCoverageMetrics)
     cases: list[ProviderCaseResult]
     summary: dict[str, Any] = Field(default_factory=dict)
     limitations: list[str] = Field(default_factory=list)
@@ -120,6 +129,7 @@ def run_provider_benchmark(
     before_protein = sum(1 for case in cases if case["expected_resolution"]["protein_available"])
     after_coordinate = 0
     after_protein = 0
+    identity_totals = Counter()
 
     for case in cases:
         payload = _payload(case, use_online, include_litvar, provider_cache_dir, provider_timeout)
@@ -156,6 +166,11 @@ def run_provider_benchmark(
 
         elapsed = float(result.get("benchmark_latency_ms", (time.perf_counter() - started) * 1000))
         resolution = _resolution_flags(result)
+        identity_coverage = _identity_coverage(result)
+        identity_totals["gnomad_variant_id_available"] += int(identity_coverage["gnomad_variant_id_available"])
+        identity_totals["identity_conflict_count"] += int(identity_coverage["identity_conflict_count"])
+        identity_totals["coordinate_available"] += int(identity_coverage["coordinate_available"])
+        identity_totals["protein_available"] += int(identity_coverage["protein_available"])
         after_coordinate += int(resolution["coordinate_available"])
         after_protein += int(resolution["protein_available"])
         provider_runtime = _provider_runtime(result, include_litvar=include_litvar)
@@ -188,6 +203,7 @@ def run_provider_benchmark(
                 provider_runtime=provider_runtime,
                 provider_yield=provider_yield,
                 resolution_after=resolution,
+                identity_coverage=identity_coverage,
                 runtime_ms=round(elapsed, 3),
                 limitations=list(result.get("limitations") or []),
             )
@@ -240,6 +256,12 @@ def run_provider_benchmark(
         provider_yield=yield_metrics,
         runtime=runtime,
         resolution_coverage=resolution,
+        identity_coverage=IdentityCoverageMetrics(
+            gnomad_variant_id_available=identity_totals["gnomad_variant_id_available"],
+            identity_conflict_count=identity_totals["identity_conflict_count"],
+            coordinate_available=identity_totals["coordinate_available"],
+            protein_available=identity_totals["protein_available"],
+        ),
         cases=case_results,
         summary=summary,
         limitations=_unique(limitations),
@@ -267,11 +289,18 @@ def render_provider_benchmark_report(result: ProviderBenchmarkResult) -> str:
             ]
         )
     resolution = result.resolution_coverage
+    identity = result.identity_coverage
     lines.extend(
         [
             "## Resolution improvement",
             f"- coordinate: {resolution.coordinate_available_before}/{result.dataset_size} -> {resolution.coordinate_available_after}/{result.dataset_size}",
             f"- protein: {resolution.protein_available_before}/{result.dataset_size} -> {resolution.protein_available_after}/{result.dataset_size}",
+            "",
+            "## Provider identity coverage",
+            f"- gnomad_variant_id_available: {identity.gnomad_variant_id_available}/{result.dataset_size}",
+            f"- identity_conflict_count: {identity.identity_conflict_count}",
+            f"- coordinate_available: {identity.coordinate_available}/{result.dataset_size}",
+            f"- protein_available: {identity.protein_available}/{result.dataset_size}",
             "",
             "## Runtime",
         ]
@@ -405,6 +434,18 @@ def _provider_yield(result: dict[str, Any]) -> dict[str, Any]:
         "litvar": {
             "citations_found": sum(1 for record in literature_records if _source_name(record) == "litvar"),
         },
+    }
+
+
+def _identity_coverage(result: dict[str, Any]) -> dict[str, Any]:
+    identity = result.get("provider_identity") or ((result.get("variant") or {}).get("provider_identity") or {})
+    if not isinstance(identity, dict):
+        identity = {}
+    return {
+        "gnomad_variant_id_available": bool(identity.get("gnomad_variant_id")),
+        "identity_conflict_count": len(identity.get("identity_conflicts") or []),
+        "coordinate_available": all(identity.get(field) for field in ("genome_build", "chrom", "pos", "ref", "alt")),
+        "protein_available": bool(identity.get("hgvs_p") or identity.get("protein_change")),
     }
 
 

@@ -42,11 +42,17 @@ The result is `ProviderBenchmarkResult` and includes:
 - provider-yield metrics
 - provider runtime/cache/timeout metrics
 - resolution coverage before/after provider execution
+- provider identity coverage metrics:
+  `gnomad_variant_id_available`, `identity_conflict_count`,
+  `coordinate_available`, and `protein_available`
 - per-case provider runtime payloads
 - summary and limitations
 
 The benchmark reads provider runtime output from the pipeline but does not
 write to `rate_variant` output, `classification_result`, or evidence items.
+79A-1 additionally reads additive provider-layer `provider_identity` output for
+identity coverage. These metrics are provider-readiness audit fields only and
+do not change provider calls, classification, or evidence generation.
 
 CLI:
 

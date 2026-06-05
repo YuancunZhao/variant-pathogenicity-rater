@@ -60,6 +60,7 @@ from variant_pathogenicity_rater.literature_agent import (
 from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.normalization import NormalizationError, normalize_variant
 from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
+from variant_pathogenicity_rater.providers import build_variant_identity
 from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.runtime.options import (
     normalize_runtime_options,
@@ -674,6 +675,11 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         step_results,
         options,
     )
+    provider_identity = build_variant_identity(
+        normalized_variant=original_normalized_variant,
+        variant_resolution=variant_resolution,
+        explicit_aliases=options.get("provider_identity_aliases"),
+    )
 
     output = {
         "status": "ok",
@@ -703,6 +709,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
             if variant_resolution is not None
             else None
         ),
+        "provider_identity": provider_identity.model_dump(mode="json"),
         "normalization_identity": normalization_identity,
         "classification_result": json.loads(classification_result.model_dump_json()),
         "evidence_items": [json.loads(item.model_dump_json()) for item in evidence_items],
