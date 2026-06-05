@@ -74,6 +74,11 @@ writes stable Markdown/JSON artifacts for review. See
 separation, VEP GET/POST/HGVS fallback diagnostics, PubMed expanded
 query/citation fallback, and benchmark latency-scope/error diagnostics.
 
+78F further stabilizes Ensembl VEP with POST-first region lookup, alt-only GET
+region fallback, transcript HGVS fallback, minimal consequence fallback after
+predictor failures, timeout-aware diagnostics, and descriptive protein-change
+resolution bridging without direct PP3/BP4 application.
+
 ## Directory Structure
 
 ```text

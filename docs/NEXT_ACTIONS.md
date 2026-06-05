@@ -32,9 +32,14 @@ PubMed, and optional LitVar outcome/yield/runtime/cache behavior for the same
 six cases without modifying pipeline classification output. The 78D provider
 hardening pass improves gnomAD GraphQL failure/no-record separation, VEP
 GET/POST/HGVS fallback diagnostics, PubMed query/citation fallback behavior,
-and provider benchmark latency-scope/error diagnostics. Default workflows
-remain no-network, and online ClinVar, gnomAD, Ensembl VEP, PubMed, and LitVar
-surfaces are opt-in only.
+and provider benchmark latency-scope/error diagnostics. The 78E gnomAD schema
+fix replaces systematic live GraphQL failure with staged full/frequency/minimal
+query fallback and bounded HTTP/GraphQL body diagnostics. The 78F VEP
+stabilization pass switches VEP to POST-first region lookup, alt-only GET
+region fallback, transcript HGVS fallback, minimal consequence fallback after
+predictor failures, timeout-aware diagnostics, and descriptive protein-change
+resolution bridging. Default workflows remain no-network, and online ClinVar,
+gnomAD, Ensembl VEP, PubMed, and LitVar surfaces are opt-in only.
 Selected real-world case validation should now go beyond smoke behavior and
 exercise transcript resolution,
 provider gaps, ClinVar comparator ambiguity, ERepo review notes, literature
@@ -45,6 +50,8 @@ without changing evidence logic or the combiner.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `78F_vep_provider_stabilization` | Done | Stabilized online Ensembl VEP fallback with POST region, alt-only GET region, transcript HGVS, minimal consequence fallback, timeout/error diagnostics, and descriptive protein-change resolution bridging without direct PP3/BP4 application. | Medium | VEP online provider, provider tests, resolution docs, benchmark docs | Yes |
+| `78E_gnomad_graphql_error_body_and_schema_fix` | Done | Fixed gnomAD GraphQL schema drift from optional `populations`/`faf95` fields by adding full/frequency/minimal fallback queries and bounded HTTP/GraphQL diagnostics while preserving no-record/PM2 safety. | Medium | gnomAD online provider, provider tests, provider benchmark docs, safety docs | Yes |
 | `78D_provider_hardening` | Done | Hardened gnomAD GraphQL error/no-record handling, VEP GET/POST/HGVS fallback provenance, PubMed query expansion plus citation fallback, and provider benchmark latency-scope/error diagnostics without changing classification or evidence generation. | Medium | Online providers, provider benchmark runner/report, provider tests, docs | Yes |
 | `78C_real_world_online_provider_benchmark` | Done | Added an env-gated real-world provider benchmark dataset/runner/report path for ClinVar, gnomAD, VEP, PubMed, and optional LitVar, with outcome, yield, resolution coverage, runtime, cache, timeout, and failure metrics isolated from classification. | Medium | Benchmark dataset, benchmark runner, provider metrics models, env-gated live test, docs | Yes |
 | `78B_hgvs_resolution_provider_upgrade` | Done | Added resolution-provider contract surfaces, local real-world HGVS resolution fixtures, coordinate inheritance tightening, canonical protein/coordinate/runtime output fields, and real-world resolution validation showing measurable coverage improvement without classification or evidence-generation changes. | Medium-high | Resolution layer, resolution contract facade, local fixtures, canonical output view, tests, docs | Yes |
@@ -90,7 +97,7 @@ Do not start CNV/SV, repeat, mitochondrial, methylation, trio/family-aware,
 wet-lab/RNA, or clinical sign-out tasks as implementation work in the current
 stage. Those belong in design or future validated tracks.
 
-Current known gaps after 78D provider hardening:
+Current known gaps after 78F VEP provider stabilization:
 
 - RuntimeOptions is now the shared option interpretation layer for current
   user-facing entry points, but future new tools must be checked against this

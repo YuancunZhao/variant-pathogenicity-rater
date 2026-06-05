@@ -65,5 +65,9 @@ Legacy fields such as `variant_resolution`, `normalized_variant`, and
 - Resolution facts are descriptive facts, not ACMG criteria.
 - VEP consequence parsing is resolution-only unless existing computational
   evaluator gates separately use provider predictions.
+- 78F allows online Ensembl VEP transcript consequences to supply descriptive
+  protein-change context from `hgvsp` when present or from
+  `protein_start`/`amino_acids`/`consequence_terms` when `hgvsp` is absent.
+  This bridge remains resolution-only and does not directly apply PP3/BP4.
 - Structured user coordinates are preserved in `resolved_coordinate`.
 - Missing or conflicting resolution becomes limitations and review flags.

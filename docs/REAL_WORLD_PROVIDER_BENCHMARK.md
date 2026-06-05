@@ -141,16 +141,28 @@ limitations. They must not crash benchmark execution.
 
 ## Provider Diagnostics
 
-78D hardens the provider observability path used by this benchmark:
+78D/78E harden the provider observability path used by this benchmark:
 
 - gnomAD GraphQL `errors` are classified as provider `failure`, not
   `no_record`; HTTP status/body summaries and request payload hashes are
   retained in the raw provenance payload.
+- 78E identifies current gnomAD schema drift in the legacy optional
+  `populations` and `faf95` fields. The provider now attempts a full query,
+  falls back to a stable exome/genome frequency query, and finally falls back
+  to a minimal identity query.
+- gnomAD provenance records the dataset, variant ID, endpoint, GraphQL query
+  name/version, request payload hash, HTTP status, and bounded response-body or
+  GraphQL-error summaries for failed attempts.
 - gnomAD `no_record` remains limitation-only and is not treated as population
   absence or PM2 support.
-- Ensembl VEP tries GET region first, then POST region fallback, then HGVS
-  fallback when an HGVS c. query is available. Attempt failures and the final
-  request method/URL are retained in provenance.
+- 78F stabilizes Ensembl VEP by trying POST region first for normalized
+  coordinates, then GET region with the alt-only allele representation, then
+  transcript HGVS fallback when an HGVS c. query is available. Each
+  representation tries predictor-enriched parameters before a minimal
+  consequence-only fallback.
+- VEP attempt diagnostics retain method, endpoint, request URL or payload hash,
+  HTTP status, bounded response-body summaries, timeout state, selected variant
+  representation, transcript/HGVS context, and the final fallback outcome.
 - VEP missing predictors remain limitations and do not directly generate
   PP3/BP4.
 - PubMed expands from gene+HGVS to aliases/protein consequence, gene+disease,

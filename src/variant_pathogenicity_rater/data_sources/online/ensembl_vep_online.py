@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from variant_pathogenicity_rater.data_sources.cache import DiskCache
 from variant_pathogenicity_rater.data_sources.config import DataSourceConfig
@@ -10,6 +10,7 @@ from variant_pathogenicity_rater.data_sources.http import ProviderHTTPClient
 from variant_pathogenicity_rater.data_sources.provenance import (
     attach_provenance_to_source,
     provenance_from_raw_record,
+    raw_record_hash,
 )
 from variant_pathogenicity_rater.evidence.computational import ComputationalPredictionProvider
 from variant_pathogenicity_rater.schemas.evidence import (
@@ -30,6 +31,45 @@ SUPPORTED_PREDICTORS = {
     "MutationTaster": ("mutationtaster_score", "mutationtaster_prediction"),
     "AlphaMissense": ("alphamissense_score", "alphamissense_prediction"),
 }
+AA_THREE_LETTER = {
+    "A": "Ala",
+    "R": "Arg",
+    "N": "Asn",
+    "D": "Asp",
+    "C": "Cys",
+    "Q": "Gln",
+    "E": "Glu",
+    "G": "Gly",
+    "H": "His",
+    "I": "Ile",
+    "L": "Leu",
+    "K": "Lys",
+    "M": "Met",
+    "F": "Phe",
+    "P": "Pro",
+    "S": "Ser",
+    "T": "Thr",
+    "W": "Trp",
+    "Y": "Tyr",
+    "V": "Val",
+    "X": "Ter",
+    "*": "Ter",
+}
+
+
+class VEPProviderAttemptsError(RuntimeError):
+    def __init__(self, message: str, *, attempts: list[dict[str, Any]], query: dict[str, Any]) -> None:
+        super().__init__(message)
+        self.attempts = attempts
+        self.query = query
+
+    def to_payload(self) -> dict[str, Any]:
+        return {
+            "message": str(self),
+            "attempts": self.attempts,
+            "query": self.query,
+            "cause_type": self.__class__.__name__,
+        }
 
 
 class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
@@ -70,11 +110,16 @@ class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
                 config=self.config,
                 source_version=self._source_version(),
                 query=query,
-                raw_payload={"query": query, "error": raw_error},
+                raw_payload={
+                    "query": query,
+                    "error": raw_error,
+                    "attempts": raw_error.get("attempts") if isinstance(raw_error, dict) else None,
+                },
                 cache_hit=False,
                 limitations=[
                     f"Ensembl VEP online query failed: {exc.__class__.__name__}: {exc}",
                     *_error_limitations("Ensembl VEP", raw_error),
+                    *_attempt_limitations(raw_error.get("attempts") if isinstance(raw_error, dict) else None),
                     "VEP online failure was captured as a limitation; interpretation continued.",
                 ],
             )
@@ -87,49 +132,44 @@ class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
                     candidate_only=True,
                     limitations=[
                         f"Ensembl VEP online query failed: {exc.__class__.__name__}: {exc}",
+                        *_attempt_limitations(raw_error.get("attempts") if isinstance(raw_error, dict) else None),
                         "No PP3/BP4 evidence is generated directly by VEP provider failure.",
                     ],
                 )
             ]
 
     def _load_payload(self, query: dict[str, Any]) -> dict[str, Any]:
-        params = _vep_params()
-        region = f"{query['chrom']}:{query['pos']}-{query['pos']}:1/{query['ref']}/{query['alt']}"
         attempts: list[dict[str, Any]] = []
-        get_url = f"{ENSEMBL_VEP_ENDPOINT}/{region}"
-        try:
-            payload = self.http_client.get_json(get_url, params=params)
-            method = "GET"
-            request_url = get_url
-        except Exception as get_exc:  # noqa: BLE001 - POST/HGVS fallback remains provider-local.
-            attempts.append(_attempt_error("GET", get_url, get_exc))
-            post_payload = {"variants": [_vcf_variant_line(query)]}
+        payload: list[dict[str, Any]] | None = None
+        selected_stage: dict[str, Any] | None = None
+        for full_stage, minimal_stage in _stage_groups(query):
+            full_timeout = False
             try:
-                payload = self.http_client.post_json(ENSEMBL_VEP_ENDPOINT, post_payload)
-                method = "POST"
-                request_url = ENSEMBL_VEP_ENDPOINT
-                attempts.append(
-                    {
-                        "method": "POST",
-                        "request_url": ENSEMBL_VEP_ENDPOINT,
-                        "request_payload": post_payload,
-                        "outcome": "success",
-                    }
-                )
-            except Exception as post_exc:  # noqa: BLE001
-                attempts.append(_attempt_error("POST", ENSEMBL_VEP_ENDPOINT, post_exc, payload=post_payload))
-                hgvs = query.get("hgvs_c")
-                if not hgvs:
-                    raise _chained_provider_error(get_exc, post_exc) from post_exc
-                hgvs_url = f"{ENSEMBL_VEP_HGVS_ENDPOINT}/{quote(str(hgvs), safe='')}"
-                try:
-                    payload = self.http_client.get_json(hgvs_url, params=params)
-                    method = "GET"
-                    request_url = hgvs_url
-                    attempts.append({"method": "GET", "request_url": hgvs_url, "outcome": "success"})
-                except Exception as hgvs_exc:  # noqa: BLE001
-                    attempts.append(_attempt_error("GET", hgvs_url, hgvs_exc))
-                    raise _chained_provider_error(get_exc, post_exc, hgvs_exc) from hgvs_exc
+                payload = self._execute_stage(full_stage)
+                attempts.append(_attempt_success(full_stage, payload))
+                selected_stage = full_stage
+                break
+            except Exception as full_exc:  # noqa: BLE001 - fallback is provider-local.
+                full_timeout = _is_timeout_error(full_exc)
+                attempts.append(_attempt_error(full_stage, full_exc))
+            try:
+                payload = self._execute_stage(minimal_stage)
+                attempts.append(_attempt_success(minimal_stage, payload))
+                selected_stage = minimal_stage
+                break
+            except Exception as minimal_exc:  # noqa: BLE001
+                attempts.append(_attempt_error(minimal_stage, minimal_exc))
+                if full_timeout or _is_timeout_error(minimal_exc):
+                    break
+        else:
+            payload = None
+            selected_stage = None
+        if payload is None or selected_stage is None:
+            raise VEPProviderAttemptsError(
+                "VEP provider attempts failed.",
+                attempts=attempts,
+                query=query,
+            )
         return {
             "provider": "EnsemblVEPOnlineProvider",
             "source_version": self._source_version(),
@@ -137,13 +177,26 @@ class EnsemblVEPOnlineProvider(ComputationalPredictionProvider):
             "endpoint": ENSEMBL_VEP_ENDPOINT,
             "query": query,
             "attempts": attempts,
-            "request_method": method,
-            "request_url": request_url,
+            "selected_variant_representation": selected_stage["variant_representation"],
+            "selected_fallback_outcome": "minimal_consequence" if selected_stage["params_mode"] == "minimal" else "full_predictor",
+            "request_method": selected_stage["method"],
+            "request_url": selected_stage["request_url"],
             "payload": payload,
         }
 
     def _source_version(self) -> str:
         return self.config.source_version or "Ensembl REST VEP live"
+
+    def _execute_stage(self, stage: dict[str, Any]) -> list[dict[str, Any]]:
+        if stage["method"] == "POST":
+            payload = self.http_client.post_json(stage["request_url"], stage["request_payload"])
+        else:
+            payload = self.http_client.get_json(stage["request_url"], params=stage["params"])
+        if isinstance(payload, dict) and payload.get("error"):
+            raise RuntimeError(f"VEP response error: {payload.get('error')}")
+        if not isinstance(payload, list):
+            raise RuntimeError(f"VEP response was not a JSON array: {type(payload).__name__}")
+        return payload
 
 
 def parse_vep_payload(
@@ -164,6 +217,11 @@ def parse_vep_payload(
     ]
     if any(item.get("outcome") == "failure" for item in payload.get("attempts") or [] if isinstance(item, dict)):
         limitations.append("One or more VEP fallback attempts failed before a usable response was parsed.")
+        limitations.extend(_attempt_limitations(payload.get("attempts") or []))
+    if payload.get("selected_fallback_outcome") == "minimal_consequence":
+        limitations.append(
+            "VEP predictor-enriched request failed or was skipped; minimal consequence response was used."
+        )
     for record in records:
         if not isinstance(record, dict):
             continue
@@ -188,6 +246,8 @@ def parse_vep_payload(
                     "endpoint": payload.get("endpoint"),
                     "request_method": payload.get("request_method"),
                     "request_url": payload.get("request_url"),
+                    "selected_variant_representation": payload.get("selected_variant_representation"),
+                    "selected_fallback_outcome": payload.get("selected_fallback_outcome"),
                     "attempts": payload.get("attempts") or [],
                 },
                 cache_hit=cache_hit,
@@ -204,6 +264,7 @@ def parse_vep_payload(
             if splice is not None:
                 predictions.append(splice)
             if not predictions:
+                protein_change = consequence.get("hgvsp") or _protein_change_from_consequence(consequence)
                 predictions.append(
                     ComputationalPrediction(
                         source=source,
@@ -215,7 +276,7 @@ def parse_vep_payload(
                         ),
                         transcript=consequence.get("transcript_id"),
                         hgvs_p=consequence.get("hgvsp"),
-                        protein_change=consequence.get("hgvsp"),
+                        protein_change=protein_change,
                         genome_build=str(variant.genome_build),
                         candidate_only=True,
                         limitations=[
@@ -253,6 +314,7 @@ def _predictors_from_consequence(
     limitations: list[str],
 ) -> list[ComputationalPrediction]:
     predictions: list[ComputationalPrediction] = []
+    protein_change = _protein_change_from_consequence(consequence)
     for method, keys in SUPPORTED_PREDICTORS.items():
         score = _first_float(*(consequence.get(key) for key in keys))
         label = _first_text(
@@ -268,7 +330,7 @@ def _predictors_from_consequence(
                 prediction=label or _prediction_from_score(method, score),
                 transcript=consequence.get("transcript_id"),
                 hgvs_p=consequence.get("hgvsp"),
-                protein_change=consequence.get("hgvsp"),
+                protein_change=consequence.get("hgvsp") or protein_change,
                 genome_build=str(variant.genome_build),
                 candidate_only=False,
                 limitations=limitations,
@@ -380,6 +442,7 @@ def _variant_query(variant: Variant) -> dict[str, Any]:
         "ref": variant.ref,
         "alt": variant.alt,
         "gene": variant.gene_symbol,
+        "transcript": variant.transcript.accession if variant.transcript else None,
         "hgvs_c": variant.hgvs_c,
         "hgvs_p": variant.hgvs_p,
     }
@@ -422,31 +485,180 @@ def _vep_params() -> dict[str, str]:
     }
 
 
+def _minimal_params() -> dict[str, str]:
+    return {}
+
+
 def _vcf_variant_line(query: dict[str, Any]) -> str:
     return f"{query['chrom']} {query['pos']} . {query['ref']} {query['alt']} . . ."
 
 
-def _attempt_error(
+def _stage_groups(query: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    groups = []
+    if _has_coordinate(query):
+        post_payload = {"variants": [_vcf_variant_line(query)]}
+        groups.append(
+            (
+                _stage(
+                    name="POST region full predictors",
+                    method="POST",
+                    request_url=_url_with_params(ENSEMBL_VEP_ENDPOINT, _vep_params()),
+                    request_payload=post_payload,
+                    params={},
+                    query=query,
+                    variant_representation="vcf_line",
+                    params_mode="full",
+                ),
+                _stage(
+                    name="POST region minimal consequence",
+                    method="POST",
+                    request_url=ENSEMBL_VEP_ENDPOINT,
+                    request_payload=post_payload,
+                    params={},
+                    query=query,
+                    variant_representation="vcf_line",
+                    params_mode="minimal",
+                ),
+            )
+        )
+        get_region = _get_region(query)
+        groups.append(
+            (
+                _stage(
+                    name="GET region full predictors",
+                    method="GET",
+                    request_url=f"{ENSEMBL_VEP_ENDPOINT}/{get_region}",
+                    request_payload=None,
+                    params=_vep_params(),
+                    query=query,
+                    variant_representation="region_alt_only",
+                    params_mode="full",
+                ),
+                _stage(
+                    name="GET region minimal consequence",
+                    method="GET",
+                    request_url=f"{ENSEMBL_VEP_ENDPOINT}/{get_region}",
+                    request_payload=None,
+                    params=_minimal_params(),
+                    query=query,
+                    variant_representation="region_alt_only",
+                    params_mode="minimal",
+                ),
+            )
+        )
+    hgvs = query.get("hgvs_c")
+    if hgvs:
+        hgvs_url = f"{ENSEMBL_VEP_HGVS_ENDPOINT}/{quote(str(hgvs), safe='')}"
+        groups.append(
+            (
+                _stage(
+                    name="HGVS full predictors",
+                    method="GET",
+                    request_url=hgvs_url,
+                    request_payload=None,
+                    params=_vep_params(),
+                    query=query,
+                    variant_representation="transcript_hgvs",
+                    params_mode="full",
+                ),
+                _stage(
+                    name="HGVS minimal consequence",
+                    method="GET",
+                    request_url=hgvs_url,
+                    request_payload=None,
+                    params=_minimal_params(),
+                    query=query,
+                    variant_representation="transcript_hgvs",
+                    params_mode="minimal",
+                ),
+            )
+        )
+    return groups
+
+
+def _stage(
+    *,
+    name: str,
     method: str,
     request_url: str,
-    exc: Exception,
-    *,
-    payload: dict[str, Any] | None = None,
+    request_payload: dict[str, Any] | None,
+    params: dict[str, str],
+    query: dict[str, Any],
+    variant_representation: str,
+    params_mode: str,
 ) -> dict[str, Any]:
-    item = {
+    return {
+        "name": name,
         "method": method,
         "request_url": request_url,
-        "outcome": "failure",
-        "error": _error_payload(exc),
+        "request_payload": request_payload,
+        "params": params,
+        "query": query,
+        "variant_representation": variant_representation,
+        "params_mode": params_mode,
+        "hgvs_c": query.get("hgvs_c"),
+        "transcript": query.get("transcript"),
     }
-    if payload:
-        item["request_payload"] = payload
+
+
+def _has_coordinate(query: dict[str, Any]) -> bool:
+    return all(query.get(key) not in {None, ""} for key in ("chrom", "pos", "ref", "alt"))
+
+
+def _get_region(query: dict[str, Any]) -> str:
+    return f"{query['chrom']}:{query['pos']}-{query['pos']}:1/{quote(str(query['alt']), safe='')}"
+
+
+def _url_with_params(url: str, params: dict[str, str]) -> str:
+    if not params:
+        return url
+    return f"{url}?{urlencode(params)}"
+
+
+def _attempt_success(stage: dict[str, Any], payload: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        **_attempt_base(stage),
+        "outcome": "success",
+        "records_count": len(payload),
+    }
+
+
+def _attempt_error(
+    stage: dict[str, Any],
+    exc: Exception,
+) -> dict[str, Any]:
+    error = _error_payload(exc)
+    item = {
+        **_attempt_base(stage),
+        "outcome": "failure",
+        "http_status": error.get("status"),
+        "timeout": _is_timeout_error(exc),
+        "error": error,
+        "error_summary": _provider_error_summary(error),
+    }
     return item
 
 
-def _chained_provider_error(*errors: Exception) -> RuntimeError:
-    messages = " | ".join(f"{error.__class__.__name__}: {error}" for error in errors)
-    return RuntimeError(f"VEP provider attempts failed: {messages}")
+def _attempt_base(stage: dict[str, Any]) -> dict[str, Any]:
+    request_payload = stage.get("request_payload")
+    request_fingerprint = {
+        "method": stage["method"],
+        "request_url": stage["request_url"],
+        "request_payload": request_payload,
+        "params": stage.get("params") or {},
+    }
+    return {
+        "name": stage["name"],
+        "method": stage["method"],
+        "endpoint": ENSEMBL_VEP_ENDPOINT if stage["variant_representation"] != "transcript_hgvs" else ENSEMBL_VEP_HGVS_ENDPOINT,
+        "request_url": stage["request_url"],
+        "request_payload": request_payload,
+        "request_payload_hash": raw_record_hash(request_fingerprint),
+        "variant_representation": stage["variant_representation"],
+        "params_mode": stage["params_mode"],
+        "hgvs_c": stage.get("hgvs_c"),
+        "transcript": stage.get("transcript"),
+    }
 
 
 def _error_payload(exc: Exception) -> dict[str, Any]:
@@ -462,8 +674,69 @@ def _error_payload(exc: Exception) -> dict[str, Any]:
 
 def _error_limitations(provider: str, payload: dict[str, Any]) -> list[str]:
     details = []
+    if payload.get("attempts"):
+        details.extend(_attempt_limitations(payload.get("attempts")))
     if payload.get("status") is not None:
         details.append(f"{provider} HTTP status: {payload['status']}.")
     if payload.get("response_text"):
         details.append(f"{provider} HTTP response body summary: {str(payload['response_text'])[:240]}")
     return details
+
+
+def _attempt_limitations(attempts: Any) -> list[str]:
+    limitations = []
+    for attempt in attempts or []:
+        if not isinstance(attempt, dict) or attempt.get("outcome") != "failure":
+            continue
+        limitations.append(
+            "VEP failed attempt: "
+            f"{attempt.get('name')} via {attempt.get('method')} {attempt.get('variant_representation')} "
+            f"status={attempt.get('http_status')} timeout={attempt.get('timeout')} "
+            f"summary={attempt.get('error_summary')}"
+        )
+        error = attempt.get("error") if isinstance(attempt.get("error"), dict) else {}
+        if error.get("response_text"):
+            limitations.append(f"Ensembl VEP HTTP response body summary: {str(error['response_text'])[:240]}")
+    return limitations
+
+
+def _provider_error_summary(payload: dict[str, Any]) -> str:
+    parts = []
+    if payload.get("status") is not None:
+        parts.append(f"HTTP {payload['status']}")
+    if payload.get("message"):
+        parts.append(str(payload["message"]))
+    if payload.get("response_text"):
+        parts.append(str(payload["response_text"])[:240])
+    if payload.get("cause_type"):
+        parts.append(str(payload["cause_type"]))
+    return " | ".join(parts) or str(payload)[:240]
+
+
+def _is_timeout_error(exc: Exception) -> bool:
+    payload = _error_payload(exc)
+    text = " ".join(
+        str(item)
+        for item in [payload.get("cause_type"), payload.get("message"), payload.get("response_text")]
+        if item
+    ).lower()
+    return isinstance(exc, TimeoutError) or "timeout" in text or "timed out" in text
+
+
+def _protein_change_from_consequence(consequence: dict[str, Any]) -> str | None:
+    if consequence.get("hgvsp"):
+        return str(consequence["hgvsp"])
+    amino_acids = consequence.get("amino_acids")
+    protein_start = consequence.get("protein_start")
+    if not amino_acids or protein_start is None:
+        return None
+    parts = str(amino_acids).split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return None
+    ref = AA_THREE_LETTER.get(parts[0], parts[0])
+    alt = AA_THREE_LETTER.get(parts[1], parts[1])
+    if "frameshift_variant" in (consequence.get("consequence_terms") or []):
+        return f"p.{ref}{protein_start}fs"
+    if alt == "Ter":
+        return f"p.{ref}{protein_start}Ter"
+    return f"p.{ref}{protein_start}{alt}"

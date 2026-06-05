@@ -32,7 +32,7 @@ the 77A output schema unification, the 77B provider interface consolidation,
 the 77C evidence status helper unification, the 77D RuntimeOptions
 foundation, the 78A real-world smoke validation layer, the 78B HGVS
 resolution provider upgrade, the 78C real-world provider benchmark, and the
-78D provider hardening pass, the
+78D/78E/78F provider hardening passes, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -53,8 +53,11 @@ natural-language text, batch, and annotated-batch entry points,
 HGVS-to-protein/coordinate resolution-provider contract output,
 provider benchmark metrics for ClinVar/gnomAD/VEP/PubMed/LitVar,
 gnomAD GraphQL failure/no-record separation, VEP GET/POST/HGVS fallback
-diagnostics, PubMed expanded query/citation fallback behavior, provider
-benchmark latency-scope/error diagnostics,
+diagnostics, PubMed expanded query/citation fallback behavior, gnomAD
+full/frequency/minimal GraphQL fallback for schema drift, provider benchmark
+latency-scope/error diagnostics, Ensembl VEP POST-first/alt-only GET/HGVS
+fallback stabilization, VEP timeout/error diagnostics, VEP minimal consequence
+fallback, descriptive protein-change bridge from VEP transcript consequences,
 Chinese laboratory reporting, and the unchanged ACMG classification combiner.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
@@ -65,8 +68,12 @@ classification or evidence generation. The 78C provider benchmark adds
 provider-yield, runtime, cache, timeout, and failure observability for the same
 six cases without changing `rate_variant` output or classification. The 78D
 provider hardening pass improves online provider failure degradation and
-benchmark diagnostics without changing classification, applied evidence, or
-default no-network behavior. The next project
+benchmark diagnostics, and the 78E gnomAD fix handles legacy
+`populations`/`faf95` schema drift through staged GraphQL fallback and bounded
+HTTP/GraphQL diagnostics. The 78F VEP provider stabilization improves live VEP
+request representation, fallback, timeout diagnostics, and descriptive
+protein/consequence resolution bridging without changing classification,
+applied evidence, or default no-network behavior. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed

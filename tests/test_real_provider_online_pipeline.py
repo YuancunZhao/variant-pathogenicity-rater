@@ -61,6 +61,19 @@ class MockGnomADClient:
         return self.payload
 
 
+class SequenceGnomADClient:
+    def __init__(self, responses: list[dict | Exception]) -> None:
+        self.responses = list(responses)
+        self.calls: list[dict] = []
+
+    def post_json(self, _url: str, payload: dict) -> dict:
+        self.calls.append(payload)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
 class MockVEPClient:
     def __init__(self, payload: list | Exception, post_payload: list | Exception | None = None) -> None:
         self.payload = payload
@@ -81,6 +94,33 @@ class MockVEPClient:
         if self.post_payload is not None:
             return self.post_payload
         raise ProviderHTTPError("Provider HTTP error 503", url=_url, method="POST", status=503)
+
+
+class SequenceVEPClient:
+    def __init__(
+        self,
+        *,
+        post_responses: list[list | Exception] | None = None,
+        get_responses: list[list | Exception] | None = None,
+    ) -> None:
+        self.post_responses = list(post_responses or [])
+        self.get_responses = list(get_responses or [])
+        self.post_calls: list[tuple[str, dict]] = []
+        self.get_calls: list[tuple[str, dict | None]] = []
+
+    def post_json(self, url: str, payload: dict) -> list:
+        self.post_calls.append((url, payload))
+        response = self.post_responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    def get_json(self, url: str, params: dict | None = None) -> list:
+        self.get_calls.append((url, params))
+        response = self.get_responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
 
 class MockLiteratureClient:
@@ -233,7 +273,7 @@ def test_explicit_online_gnomad_flag_uses_mocked_provider_path(monkeypatch, tmp_
         }
     )
 
-    assert calls["count"] == 1
+    assert calls["count"] == 3
     assert result["data_source_modes"]["population"] == "online"
     assert result["step_results"]["query_population_frequency"]["source"]["provenance"]["cache_hit"] is False
     assert result["step_results"]["query_population_frequency"]["source"]["version"] == "gnomAD gnomad_r4 live GraphQL"
@@ -353,6 +393,61 @@ def test_gnomad_mocked_graphql_maps_population_frequency_and_cache(tmp_path: Pat
     assert second.source and second.source.provenance.cache_hit is True
 
 
+def test_gnomad_full_query_400_falls_back_to_minimal_success(tmp_path: Path) -> None:
+    client = SequenceGnomADClient(
+        [
+            ProviderHTTPError(
+                "Provider HTTP error 400",
+                url="https://gnomad.broadinstitute.org/api",
+                method="POST",
+                status=400,
+                response_text='{"errors":[{"message":"Cannot query field populations"}]}',
+            ),
+            ProviderHTTPError(
+                "Provider HTTP error 400",
+                url="https://gnomad.broadinstitute.org/api",
+                method="POST",
+                status=400,
+                response_text='{"errors":[{"message":"temporary frequency schema drift"}]}',
+            ),
+            {"data": {"variant": {"variantId": "1-21563117-A-C", "chrom": "1", "pos": 21563117, "ref": "A", "alt": "C"}}},
+        ]
+    )
+    provider = GnomADOnlineProvider(_online_config(tmp_path, "population"), http_client=client)
+
+    frequency = provider.query(_variant())
+
+    assert len(client.calls) == 3
+    assert [call["operationName"] for call in client.calls] == [
+        "VariantFullWithOptionalPopulation",
+        "VariantFrequency",
+        "VariantMinimal",
+    ]
+    assert frequency.source.provenance.query["variant_id"] == "1-21563117-A-C"
+    assert frequency.source.provenance.dataset == "gnomad_r4"
+    assert frequency.source.provenance.raw_record_hash
+    assert any("stable exome/genome fields" in item for item in frequency.limitations)
+    assert any("HTTP 400" in item for item in frequency.limitations)
+    assert not any("query failed" in item.lower() for item in frequency.limitations)
+
+
+def test_gnomad_minimal_query_null_is_no_record_not_failure(tmp_path: Path) -> None:
+    client = SequenceGnomADClient(
+        [
+            {"errors": [{"message": "Cannot query field populations"}], "data": {"variant": None}},
+            {"errors": [{"message": "Cannot query field exome"}], "data": {"variant": None}},
+            {"errors": [{"message": "Variant not found"}], "data": {"variant": None}},
+        ]
+    )
+    provider = GnomADOnlineProvider(_online_config(tmp_path, "population"), http_client=client)
+    frequency = provider.query(_variant())
+
+    assert len(client.calls) == 3
+    assert frequency.overall_af is None
+    assert any("No gnomAD online record matched" in item for item in frequency.limitations)
+    assert not any("query failed" in item.lower() for item in frequency.limitations)
+
+
 def test_gnomad_no_record_found_does_not_infer_pm2(tmp_path: Path) -> None:
     provider = GnomADOnlineProvider(_online_config(tmp_path, "population"), http_client=MockGnomADClient({"data": {"variant": None}}))
     frequency = provider.query(_variant())
@@ -377,7 +472,13 @@ def test_gnomad_no_record_found_does_not_infer_pm2(tmp_path: Path) -> None:
 def test_gnomad_graphql_errors_are_failure_diagnostics_not_no_record(tmp_path: Path) -> None:
     provider = GnomADOnlineProvider(
         _online_config(tmp_path, "population"),
-        http_client=MockGnomADClient({"errors": [{"message": "Cannot query field genome"}], "data": {"variant": None}}),
+        http_client=SequenceGnomADClient(
+            [
+                {"errors": [{"message": "Cannot query field populations"}], "data": {"variant": None}},
+                {"errors": [{"message": "Cannot query field exome"}], "data": {"variant": None}},
+                {"errors": [{"message": "Cannot query field chrom"}], "data": {"variant": None}},
+            ]
+        ),
     )
     frequency = provider.query(_variant())
 
@@ -404,6 +505,8 @@ def test_gnomad_http_400_body_is_retained_as_limitation(tmp_path: Path) -> None:
 
     assert any("HTTP status: 400" in item for item in frequency.limitations)
     assert any("response body summary" in item for item in frequency.limitations)
+    assert any("bad dataset" in item for item in frequency.limitations)
+    assert frequency.source.provenance.dataset == "gnomad_r4"
     assert frequency.source.provenance.raw_record_hash
 
 
@@ -453,33 +556,143 @@ def test_vep_timeout_failure_becomes_limitation(tmp_path: Path) -> None:
     assert predictions[0].source.provenance.cache_hit is False
 
 
-def test_vep_get_failure_post_success_records_fallback_provenance(tmp_path: Path) -> None:
-    client = MockVEPClient(
-        ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", status=400),
-        post_payload=[
-            {
-                "most_severe_consequence": "missense_variant",
-                "transcript_consequences": [
-                    {
-                        "transcript_id": "ENST000001",
-                        "hgvsp": "ENSP000001:p.Lys26Arg",
-                        "cadd_phred": 26.0,
-                    }
-                ],
-            }
+def test_vep_post_failure_get_success_records_fallback_provenance(tmp_path: Path) -> None:
+    client = SequenceVEPClient(
+        post_responses=[
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", method="POST", status=400),
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", method="POST", status=400),
+        ],
+        get_responses=[
+            [
+                {
+                    "most_severe_consequence": "missense_variant",
+                    "transcript_consequences": [
+                        {
+                            "transcript_id": "ENST000001",
+                            "hgvsp": "ENSP000001:p.Lys26Arg",
+                            "cadd_phred": 26.0,
+                        }
+                    ],
+                }
+            ]
         ],
     )
     provider = EnsemblVEPOnlineProvider(_online_config(tmp_path, "computational"), http_client=client)
 
     predictions = provider.query(_variant())
 
-    assert client.calls == 1
-    assert client.post_calls == 1
+    assert len(client.post_calls) == 2
+    assert len(client.get_calls) == 1
+    assert "1:21563117-21563117:1/C" in client.get_calls[0][0]
     assert any(prediction.method == "CADD" for prediction in predictions)
     provenance = predictions[0].source.provenance
-    assert provenance.request_method == "POST"
-    assert provenance.request_url == "https://rest.ensembl.org/vep/homo_sapiens/region"
+    assert provenance.request_method == "GET"
+    assert provenance.request_url.endswith("/1:21563117-21563117:1/C")
     assert any("fallback attempts failed" in item for item in predictions[0].limitations)
+
+
+def test_vep_post_full_predictor_failure_minimal_success_is_partial_limitation(tmp_path: Path) -> None:
+    client = SequenceVEPClient(
+        post_responses=[
+            ProviderHTTPError(
+                "Provider HTTP error 400",
+                url="https://rest.ensembl.org/vep/homo_sapiens/region",
+                method="POST",
+                status=400,
+                response_text='{"error":"CADD option unavailable"}',
+            ),
+            [
+                {
+                    "most_severe_consequence": "missense_variant",
+                    "transcript_consequences": [
+                        {
+                            "transcript_id": "ENST000001",
+                            "consequence_terms": ["missense_variant"],
+                            "protein_start": 26,
+                            "protein_end": 26,
+                            "amino_acids": "K/R",
+                            "codons": "aAa/aGa",
+                        }
+                    ],
+                }
+            ],
+        ]
+    )
+    provider = EnsemblVEPOnlineProvider(_online_config(tmp_path, "computational"), http_client=client)
+
+    predictions = provider.query(_variant())
+
+    assert len(client.post_calls) == 2
+    assert predictions[0].method == "EnsemblVEP"
+    assert predictions[0].protein_change == "p.Lys26Arg"
+    assert predictions[0].candidate_only is True
+    assert any("minimal consequence" in item for item in predictions[0].limitations)
+    assert any("response body summary" in item for item in predictions[0].limitations)
+
+
+def test_vep_hgvs_deletion_fallback_without_coordinate_does_not_crash(tmp_path: Path) -> None:
+    variant = _variant().model_copy(
+        update={
+            "chrom": "unknown",
+            "pos": 1,
+            "ref": "N",
+            "alt": "-",
+            "hgvs_c": "NM_001352514.2:c.1063_1064del",
+        }
+    )
+    client = SequenceVEPClient(
+        post_responses=[
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", method="POST", status=400),
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", method="POST", status=400),
+        ],
+        get_responses=[
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", method="GET", status=400),
+            ProviderHTTPError("Provider HTTP error 400", url="https://rest.ensembl.org", method="GET", status=400),
+            [
+                {
+                    "most_severe_consequence": "frameshift_variant",
+                    "transcript_consequences": [
+                        {
+                            "transcript_id": "ENST00000674895",
+                            "consequence_terms": ["frameshift_variant"],
+                            "protein_start": 355,
+                            "protein_end": 355,
+                            "amino_acids": "D/X",
+                            "codons": "GAc/c",
+                        }
+                    ],
+                }
+            ],
+        ],
+    )
+    provider = EnsemblVEPOnlineProvider(_online_config(tmp_path, "computational"), http_client=client)
+
+    predictions = provider.query(variant)
+
+    assert predictions
+    assert predictions[0].protein_change == "p.Asp355fs"
+    assert predictions[0].source.provenance.request_url.endswith("NM_001352514.2%3Ac.1063_1064del")
+    assert any("fallback attempts failed" in item for item in predictions[0].limitations)
+
+
+def test_vep_timeout_stops_repeated_fallbacks_and_becomes_limitation(tmp_path: Path) -> None:
+    client = SequenceVEPClient(
+        post_responses=[
+            TimeoutError("VEP provider timed out"),
+            TimeoutError("VEP minimal provider timed out"),
+        ],
+        get_responses=[],
+    )
+    provider = EnsemblVEPOnlineProvider(_online_config(tmp_path, "computational"), http_client=client)
+
+    predictions = provider.query(_variant())
+
+    assert predictions[0].candidate_only is True
+    assert predictions[0].prediction == "unavailable"
+    assert len(client.post_calls) == 2
+    assert client.get_calls == []
+    assert any("timeout=True" in item for item in predictions[0].limitations)
+    assert any("query failed" in item for item in predictions[0].limitations)
 
 
 def test_pubmed_litvar_mocked_eutils_maps_literature_records(tmp_path: Path) -> None:
@@ -635,7 +848,7 @@ def test_clinvar_online_provenance_and_no_pp5_bp6_applied(tmp_path: Path) -> Non
 def test_alpl_online_provider_flow_with_slash_clinvar_date_is_review_gated(
     monkeypatch, tmp_path: Path
 ) -> None:
-    calls: dict[str, Any] = {"gnomad_payloads": [], "vep_urls": [], "clinvar": 0}
+    calls: dict[str, Any] = {"gnomad_payloads": [], "vep_urls": [], "vep_posts": [], "clinvar": 0}
 
     def clinvar_http_get(_self, endpoint: str, params: dict[str, str]) -> dict:
         calls["clinvar"] += 1
@@ -663,14 +876,29 @@ def test_alpl_online_provider_flow_with_slash_clinvar_date_is_review_gated(
         }
 
     def post_json(_self, url: str, payload: dict) -> dict:
-        calls["gnomad_payloads"].append(payload)
-        assert "gnomad" in url.lower()
-        assert payload["variables"]["variantId"] == "1-21563117-A-C"
-        return {"data": {"variant": None}}
+        if "gnomad" in url.lower():
+            calls["gnomad_payloads"].append(payload)
+            assert payload["variables"]["variantId"] == "1-21563117-A-C"
+            return {"data": {"variant": None}}
+        if "ensembl" in url.lower():
+            calls["vep_posts"].append((url, payload))
+            assert payload["variants"] == ["1 21563117 . A C . . ."]
+            return [
+                {
+                    "most_severe_consequence": "missense_variant",
+                    "transcript_consequences": [
+                        {
+                            "transcript_id": "NM_000478.6",
+                            "hgvsp": "NP_000469.3:p.Thr102Pro",
+                        }
+                    ],
+                }
+            ]
+        raise AssertionError(f"unexpected POST URL: {url}")
 
     def get_json(_self, url: str, params: dict | None = None) -> list:
         calls["vep_urls"].append(url)
-        assert "1:21563117-21563117:1/A/C" in url
+        assert "1:21563117-21563117:1/C" in url
         return [
             {
                 "most_severe_consequence": "missense_variant",
@@ -768,7 +996,7 @@ def test_alpl_online_provider_flow_with_slash_clinvar_date_is_review_gated(
     assert result["providers"]["summary"] == provider_summary
     assert calls["clinvar"] == 2
     assert calls["gnomad_payloads"]
-    assert calls["vep_urls"]
+    assert calls["vep_posts"]
     assert "Invalid isoformat" not in " ".join(result["limitations"])
 
     clinvar_step = result["step_results"]["query_clinvar"]

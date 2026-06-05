@@ -102,6 +102,10 @@ Ensembl VEP transcript consequences can fill descriptive
 `resolved_hgvs_p.hgvs_p` and consequence fields in `variant_resolution`. This
 is a review/context bridge only: VEP predictor records still reach ACMG
 classification only through the existing PP3/BP4 computational evaluator.
+78F also supports descriptive protein-change synthesis from VEP
+`protein_start`, `amino_acids`, and consequence terms when `hgvsp` is absent,
+including frameshift-like deletion consequences such as HLCS
+`NM_001352514.2:c.1063_1064del`.
 
 ## Pipeline Output
 
