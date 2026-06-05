@@ -16,6 +16,11 @@ from variant_pathogenicity_rater.annotation import (
     evaluate_annotation_safety,
     select_transcript,
 )
+from variant_pathogenicity_rater.benchmark import (
+    render_provider_benchmark_report,
+    run_provider_benchmark,
+    write_provider_benchmark_report,
+)
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
 from variant_pathogenicity_rater.pipeline.real_world import run_annotation_batch_workflow
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
@@ -235,6 +240,31 @@ def build_parser() -> argparse.ArgumentParser:
     literature_search.add_argument("--output", help="Optional output file path.")
     literature_search.add_argument("--output-format", choices=["json", "markdown"], default="json")
     literature_search.set_defaults(handler=_cmd_literature_search)
+
+    provider_benchmark = subparsers.add_parser(
+        "provider-benchmark",
+        help="Run the real-world provider benchmark and optionally write Markdown/JSON artifacts.",
+    )
+    provider_benchmark.add_argument(
+        "--dataset",
+        default="data/provider_benchmark/provider_benchmark_v1.json",
+        help="Provider benchmark dataset JSON path.",
+    )
+    provider_benchmark.add_argument("--output-md", help="Markdown report output path.")
+    provider_benchmark.add_argument("--output-json", help="JSON result output path.")
+    provider_benchmark.add_argument(
+        "--online",
+        action="store_true",
+        help="Opt in to live online provider benchmark execution.",
+    )
+    provider_benchmark.add_argument("--provider-cache-dir", help="Provider cache root directory.")
+    provider_benchmark.add_argument("--timeout", type=float, help="Provider timeout in seconds.")
+    provider_benchmark.add_argument(
+        "--include-litvar",
+        action="store_true",
+        help="Include LitVar in the online literature benchmark path.",
+    )
+    provider_benchmark.set_defaults(handler=_cmd_provider_benchmark)
 
     check_env = subparsers.add_parser("check-env", help="Print local environment diagnostics.")
     check_env.set_defaults(handler=_cmd_check_env)
@@ -542,6 +572,53 @@ def _cmd_literature_search(args: argparse.Namespace) -> int:
             print(text)
         return 0
     _write_result(dumped, args.output, "json")
+    return 0
+
+
+def _cmd_provider_benchmark(args: argparse.Namespace) -> int:
+    result = run_provider_benchmark(
+        dataset_path=args.dataset,
+        use_online=bool(args.online),
+        include_litvar=bool(args.include_litvar),
+        provider_cache_dir=args.provider_cache_dir,
+        provider_timeout=args.timeout,
+    )
+    if args.output_md:
+        write_provider_benchmark_report(result, args.output_md)
+    if args.output_json:
+        Path(args.output_json).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.output_json).write_text(
+            result.model_dump_json(indent=2) + "\n",
+            encoding="utf-8",
+        )
+    summary = {
+        "status": "ok",
+        "tool": "provider_benchmark",
+        "dataset_id": result.dataset_id,
+        "dataset_size": result.dataset_size,
+        "online": bool(args.online),
+        "include_litvar": bool(args.include_litvar),
+        "outputs": {
+            "markdown": args.output_md,
+            "json": args.output_json,
+        },
+        "providers": {
+            "clinvar": result.clinvar.model_dump(mode="json"),
+            "gnomad": result.gnomad.model_dump(mode="json"),
+            "vep": result.vep.model_dump(mode="json"),
+            "pubmed": result.pubmed.model_dump(mode="json"),
+            "litvar": result.litvar.model_dump(mode="json"),
+        },
+        "resolution_coverage": result.resolution_coverage.model_dump(mode="json"),
+        "runtime": {
+            provider: metrics.model_dump(mode="json")
+            for provider, metrics in result.runtime.items()
+        },
+        "limitations": result.limitations,
+        "human_review_required": True,
+        "classification_benchmark": False,
+    }
+    print(_json_dumps(summary))
     return 0
 
 

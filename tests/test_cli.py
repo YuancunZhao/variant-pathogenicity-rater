@@ -75,6 +75,41 @@ def test_resolve_json_smoke(capsys) -> None:
     assert payload["variant_resolution"]["nmd_context"]["status"] == "NMD_expected"
 
 
+def test_provider_benchmark_cli_writes_markdown_and_json_offline(capsys, tmp_path) -> None:
+    output_md = tmp_path / "provider_benchmark_report.md"
+    output_json = tmp_path / "provider_benchmark_result.json"
+
+    exit_code = main(
+        [
+            "provider-benchmark",
+            "--output-md",
+            str(output_md),
+            "--output-json",
+            str(output_json),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    summary = json.loads(captured.out)
+    payload = json.loads(output_json.read_text())
+    report = output_md.read_text()
+    assert exit_code == 0
+    assert summary["status"] == "ok"
+    assert summary["online"] is False
+    assert summary["dataset_size"] == 6
+    assert summary["outputs"]["markdown"] == str(output_md)
+    assert summary["outputs"]["json"] == str(output_json)
+    assert payload["dataset_id"] == "provider_benchmark_v1"
+    assert payload["dataset_size"] == 6
+    assert "clinvar" in payload
+    assert "resolution_coverage" in payload
+    assert "runtime" in payload
+    assert "cases" in payload
+    assert "# Real-World Provider Benchmark Report" in report
+    assert "Dataset: 6 variants" in report
+    assert "## clinvar" in report
+
+
 def test_single_rate_markdown_shows_pvs1_decision_path(capsys) -> None:
     exit_code = main(
         [

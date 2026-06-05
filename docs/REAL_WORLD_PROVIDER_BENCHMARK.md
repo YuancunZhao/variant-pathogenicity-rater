@@ -48,6 +48,31 @@ The result is `ProviderBenchmarkResult` and includes:
 The benchmark reads provider runtime output from the pipeline but does not
 write to `rate_variant` output, `classification_result`, or evidence items.
 
+CLI:
+
+```bash
+vpr provider-benchmark \
+  --dataset data/provider_benchmark/provider_benchmark_v1.json \
+  --output-md /tmp/vpr_provider_benchmark_reports/provider_benchmark_report.md \
+  --output-json /tmp/vpr_provider_benchmark_reports/provider_benchmark_result.json
+```
+
+The CLI is offline by default. Add `--online` only when a live benchmark is
+intended:
+
+```bash
+vpr provider-benchmark \
+  --online \
+  --provider-cache-dir /tmp/vpr_provider_benchmark_cache \
+  --timeout 15 \
+  --include-litvar \
+  --output-md /tmp/vpr_provider_benchmark_reports/provider_benchmark_report.md \
+  --output-json /tmp/vpr_provider_benchmark_reports/provider_benchmark_result.json
+```
+
+The command prints a compact JSON summary to stdout and writes optional
+Markdown/JSON artifacts when output paths are provided.
+
 ## Provider Metrics
 
 Each provider records:
@@ -111,10 +136,16 @@ environment gate:
 
 ```bash
 VPR_RUN_PROVIDER_BENCHMARK=1 \
+VPR_PROVIDER_BENCHMARK_OUTPUT_DIR=/tmp/vpr_provider_benchmark_reports \
 VPR_PROVIDER_BENCHMARK_TIMEOUT=10 \
 PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache \
 .venv/bin/python -m pytest tests/test_real_world_provider_benchmark.py -q
 ```
+
+When `VPR_PROVIDER_BENCHMARK_OUTPUT_DIR` is set, the env-gated test writes:
+
+- `provider_benchmark_report.md`
+- `provider_benchmark_result.json`
 
 LitVar can be included explicitly:
 
@@ -137,7 +168,8 @@ PYTHONPYCACHEPREFIX=/private/tmp/vpr_pycache .venv/bin/python -m pytest \
 ```
 
 The offline tests cover success, no-record, partial, failure, timeout,
-cache-hit, cache-miss, report generation, and classification isolation.
+cache-hit, cache-miss, CLI Markdown/JSON artifact generation, report
+generation, and classification isolation.
 
 ## Safety
 

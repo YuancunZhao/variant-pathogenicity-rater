@@ -65,7 +65,10 @@ or the ACMG combiner. See `docs/HGVS_RESOLUTION_PROVIDER.md`.
 ClinVar, gnomAD, VEP, PubMed, and optional LitVar outcomes, yield, runtime,
 cache, and timeout behavior without changing `rate_variant` outputs or
 classification. Live execution is env-gated with
-`VPR_RUN_PROVIDER_BENCHMARK=1`. See `docs/REAL_WORLD_PROVIDER_BENCHMARK.md`.
+`VPR_RUN_PROVIDER_BENCHMARK=1`. The CLI command
+`vpr provider-benchmark --output-md report.md --output-json result.json`
+writes stable Markdown/JSON artifacts for review. See
+`docs/REAL_WORLD_PROVIDER_BENCHMARK.md`.
 
 ## Directory Structure
 
