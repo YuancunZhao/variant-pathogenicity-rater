@@ -25,11 +25,10 @@ from variant_pathogenicity_rater.reporting.templates import (
     ZH_SPLICEAI_CAUTION,
     ZH_VUS_NOTE,
 )
-from variant_pathogenicity_rater.evidence.status import is_applied_evidence
+from variant_pathogenicity_rater.reporting.view_model_builder import build_report_view_model
+from variant_pathogenicity_rater.reporting.view_models import EvidenceReportEntryView, ReportViewModel
 from variant_pathogenicity_rater.schemas.classification import ClassificationResult
-from variant_pathogenicity_rater.schemas.evidence import EvidenceItem
 from variant_pathogenicity_rater.schemas.report import (
-    DataSourceSummary,
     EvidenceReportEntry,
     ReportFormat,
     ReportLanguage,
@@ -38,15 +37,6 @@ from variant_pathogenicity_rater.schemas.report import (
     VariantReportSummary,
 )
 from variant_pathogenicity_rater.literature_agent.schema import LiteratureAgentResult
-
-
-CLASSIFICATION_LABELS = {
-    "pathogenic": "Pathogenic",
-    "likely_pathogenic": "Likely Pathogenic",
-    "vus": "Variant of Uncertain Significance",
-    "likely_benign": "Likely Benign",
-    "benign": "Benign",
-}
 
 
 def generate_report(
@@ -66,15 +56,16 @@ def generate_report(
     report_format = ReportFormat(output_format)
     report_mode = ReportMode(mode)
     report_language = ReportLanguage(language)
-    summary = _summary(result)
+    view_model = build_report_view_model(result)
+    summary = view_model.summary
     if report_language == ReportLanguage.CHINESE:
         summary.classification_label = _zh_classification_label(summary.final_classification)
         summary.human_review_note = ZH_HUMAN_REVIEW_NOTE
 
     if report_format == ReportFormat.JSON:
-        content: str | dict[str, Any] = _json_content(result, summary, report_mode, report_language)
+        content: str | dict[str, Any] = _json_content(view_model, report_mode, report_language)
     else:
-        content = _text_content(result, summary, report_mode, report_language)
+        content = _text_content(view_model, report_mode, report_language)
         if report_format == ReportFormat.PLAIN_TEXT:
             content = _plain_text(content)
 
@@ -186,139 +177,17 @@ def render_literature_search_summary_section(
     return "\n".join(lines)
 
 
-def _summary(result: ClassificationResult) -> VariantReportSummary:
-    variant = result.variant
-    applied_entries = [
-        _evidence_entry(item) for item in result.evidence_items if _is_applied_evidence(item)
-    ]
-    candidate_entries = [
-        _evidence_entry(item) for item in result.evidence_items if not _is_applied_evidence(item)
-    ]
-    return VariantReportSummary(
-        variant_id=variant.variant_id,
-        gene_symbol=variant.gene_symbol,
-        transcript=_transcript_label(variant),
-        hgvs_c=variant.hgvs_c,
-        hgvs_p=variant.hgvs_p,
-        genomic_location=(
-            f"{variant.genome_build}:{variant.chrom}:{variant.pos}:"
-            f"{variant.ref}>{variant.alt}"
-        ),
-        final_classification=str(result.final_classification),
-        classification_label=CLASSIFICATION_LABELS.get(
-            str(result.final_classification),
-            str(result.final_classification),
-        ),
-        confidence=result.confidence,
-        applied_combination_rule=result.applied_combination_rule,
-        triggered_acmg_evidence=applied_entries,
-        candidate_acmg_evidence=candidate_entries,
-        pathogenic_evidence_summary=result.pathogenic_evidence_summary,
-        benign_evidence_summary=result.benign_evidence_summary,
-        conflicting_evidence=result.conflicting_evidence,
-        clinvar_conflict_detected=_clinvar_conflict_detected(result),
-        limitations=result.limitations,
-        human_review_note=HUMAN_REVIEW_NOTE,
-        data_source_summary=_data_source_summary(result.evidence_items),
-        review_flags=result.review_flags,
-        transcript_selection=result.transcript_selection,
-        transcript_validation=result.transcript_validation,
-        variant_resolution=result.variant_resolution,
-        context_consistency=result.context_consistency,
-        vcep_profile_context=result.vcep_profile_context,
-    )
-
-
-def _evidence_entry(item: EvidenceItem) -> EvidenceReportEntry:
-    pvs1_decision = item.supporting_data.get("pvs1_decision") or {}
-    population_decision = item.supporting_data.get("population_evidence_decision") or {}
-    computational_decision = item.supporting_data.get("computational_evidence_decision") or {}
-    ps1_pm5_decision = item.supporting_data.get("ps1_pm5_decision") or {}
-    ps1_pm5_generation = item.supporting_data.get("evidence_generation") or {}
-    reviewed = item.supporting_data.get("reviewed_evidence") or {}
-    clingen_match = item.supporting_data.get("clingen_erepo_match")
-    clingen_record = item.supporting_data.get("clingen_erepo_record")
-    return EvidenceReportEntry(
-        evidence_id=item.evidence_id,
-        code=str(item.code),
-        strength=str(item.strength),
-        direction=str(item.direction),
-        rationale=item.reason,
-        source=item.source.name,
-        confidence=item.confidence,
-        requires_review=item.requires_review,
-        triggered_by=item.triggered_by,
-        citation=item.supporting_data.get("citation"),
-        provenance=item.source.provenance,
-        limitations=list(item.supporting_data.get("limitations") or []),
-        review_flags=item.review_flags,
-        pvs1_decision_path=list(item.supporting_data.get("decision_path") or pvs1_decision.get("decision_path") or []),
-        pvs1_downgrade_reasons=list(item.supporting_data.get("downgrade_reasons") or pvs1_decision.get("downgrade_reasons") or []),
-        pvs1_blocking_reasons=list(item.supporting_data.get("blocking_reasons") or pvs1_decision.get("blocking_reasons") or []),
-        population_decision_path=list(population_decision.get("decision_path") or []),
-        population_thresholds=dict(population_decision.get("thresholds_used") or {}),
-        population_quality_checks=list(population_decision.get("quality_checks") or []),
-        population_blocking_reasons=list(population_decision.get("blocking_reasons") or []),
-        computational_predictor_summary=list(item.supporting_data.get("predictor_summary") or computational_decision.get("predictor_summary") or []),
-        computational_thresholds=dict(item.supporting_data.get("thresholds_used") or computational_decision.get("thresholds_used") or {}),
-        computational_quality_checks=list(item.supporting_data.get("quality_checks") or computational_decision.get("quality_checks") or []),
-        computational_conflict_reasons=list(item.supporting_data.get("conflict_reasons") or computational_decision.get("conflict_reasons") or []),
-        computational_consensus_direction=str(item.supporting_data.get("consensus_direction") or computational_decision.get("consensus_direction") or "") or None,
-        ps1_pm5_decision_path=list(ps1_pm5_generation.get("decision_path") or []),
-        ps1_pm5_quality_checks=list(ps1_pm5_decision.get("quality_checks") or []),
-        ps1_pm5_blocking_reasons=list(ps1_pm5_decision.get("blocking_reasons") or []),
-        ps1_pm5_downgrade_reasons=list(ps1_pm5_decision.get("downgrade_reasons") or []),
-        ps1_pm5_review_note=item.supporting_data.get("review_note"),
-        curator_decision=item.supporting_data.get("curator_decision") or reviewed.get("curator_decision"),
-        curator_name=item.supporting_data.get("curator_name") or reviewed.get("curator_name"),
-        review_date=item.supporting_data.get("review_date") or reviewed.get("review_date"),
-        override_reason=item.supporting_data.get("override_reason") or reviewed.get("override_reason"),
-        source_candidate_evidence_id=(
-            item.supporting_data.get("source_candidate_evidence_id")
-            or reviewed.get("source_candidate_evidence_id")
-        ),
-        reviewed_evidence_status=item.supporting_data.get("evidence_status") or reviewed.get("evidence_status"),
-        reviewed_provenance=item.supporting_data.get("provenance") or reviewed.get("provenance"),
-        clingen_erepo_match=clingen_match if isinstance(clingen_match, dict) else None,
-        clingen_erepo_record=clingen_record if isinstance(clingen_record, dict) else None,
-        clingen_erepo_criteria=list(item.supporting_data.get("criteria_applied") or []),
-        clingen_erepo_summaries=list(item.supporting_data.get("evidence_summaries") or []),
-        vcep_override=(
-            item.supporting_data.get("vcep_override")
-            if isinstance(item.supporting_data.get("vcep_override"), dict)
-            else None
-        ),
-    )
-
-
-def _data_source_summary(items: list[EvidenceItem]) -> list[DataSourceSummary]:
-    by_source: dict[tuple[str, str | None], DataSourceSummary] = {}
-    for item in items:
-        key = (item.source.name, item.source.version)
-        if key not in by_source:
-            by_source[key] = DataSourceSummary(
-                name=item.source.name,
-                version=item.source.version,
-                retrieval_timestamp=item.source.retrieval_timestamp,
-                evidence_ids=[],
-                query=item.source.query,
-                raw_snapshot_ref=item.source.raw_snapshot_ref,
-            )
-        by_source[key].evidence_ids.append(item.evidence_id)
-    return list(by_source.values())
-
-
 def _json_content(
-    result: ClassificationResult,
-    summary: VariantReportSummary,
+    view_model: ReportViewModel,
     mode: ReportMode,
     language: ReportLanguage,
 ) -> dict[str, Any]:
-    cautions = _cautions(result, summary)
+    summary = view_model.summary
+    cautions = _cautions(view_model, summary)
     if language == ReportLanguage.CHINESE:
-        cautions = _zh_cautions(result, summary)
-    applied_items = [entry.model_dump(mode="json") for entry in summary.triggered_acmg_evidence]
-    candidate_items = [entry.model_dump(mode="json") for entry in summary.candidate_acmg_evidence]
+        cautions = _zh_cautions(view_model, summary)
+    counted_items = _entry_payloads(view_model.evidence_sections.counted)
+    review_note_items = _entry_payloads(view_model.evidence_sections.review_note)
     context_consistency = (
         summary.context_consistency.model_dump(mode="json")
         if summary.context_consistency
@@ -342,7 +211,7 @@ def _json_content(
     return {
         "mode": mode,
         "language": language,
-        "executive_summary": _executive_summary(summary),
+        "executive_summary": _executive_summary(view_model),
         "variant": {
             "variant_id": summary.variant_id,
             "gene_symbol": summary.gene_symbol,
@@ -365,7 +234,7 @@ def _json_content(
                 "Only these ACMG evidence items were treated as applied evidence in the supplied classification result.",
                 "仅此处列出的 ACMG 证据条目在 supplied classification result 中被作为已计入证据处理。",
             ),
-            "items": applied_items,
+            "items": counted_items,
         },
         "review_note_evidence": {
             "note": _localized_text(
@@ -373,7 +242,7 @@ def _json_content(
                 "Candidate/review-note evidence was not counted by the classification combiner.",
                 ZH_CANDIDATE_EVIDENCE_CAUTION,
             ),
-            "items": candidate_items,
+            "items": review_note_items,
         },
         "clingen_erepo": {
             "note": _localized_text(
@@ -382,9 +251,8 @@ def _json_content(
                 ZH_EXTERNAL_SOURCE_CAUTION,
             ),
             "items": [
-                item
-                for item in candidate_items
-                if item.get("source") == "ClinGen Evidence Repository"
+                item.entry.model_dump(mode="json")
+                for item in view_model.evidence_sections.clingen_erepo
             ],
         },
         "vcep_profile": summary.vcep_profile_context,
@@ -392,8 +260,8 @@ def _json_content(
             "pathogenic": summary.pathogenic_evidence_summary,
             "benign": summary.benign_evidence_summary,
             "conflicting": summary.conflicting_evidence,
-            "applied_items": applied_items,
-            "candidate_items": candidate_items,
+            "applied_items": counted_items,
+            "candidate_items": review_note_items,
         },
         "context_consistency": {
             "note": _localized_text(
@@ -452,13 +320,13 @@ def _json_content(
 
 
 def _text_content(
-    result: ClassificationResult,
-    summary: VariantReportSummary,
+    view_model: ReportViewModel,
     mode: ReportMode,
     language: ReportLanguage,
 ) -> str:
+    summary = view_model.summary
     if language == ReportLanguage.CHINESE:
-        return _zh_text_content(result, summary, mode)
+        return _zh_text_content(view_model, mode)
 
     template = MODE_TEMPLATES[mode]
     lines = [
@@ -469,8 +337,8 @@ def _text_content(
         "## Executive Summary",
         f"- Final machine proposal: {summary.classification_label}",
         "- This is not a final clinical or laboratory assertion.",
-        f"- Applied ACMG evidence items: {len(summary.triggered_acmg_evidence)}",
-        f"- Candidate/review-note evidence items: {len(summary.candidate_acmg_evidence)}",
+        f"- Applied ACMG evidence items: {len(view_model.evidence_sections.counted)}",
+        f"- Candidate/review-note evidence items: {len(view_model.evidence_sections.review_note)}",
         f"- Human review required: true",
         "",
         "## Variant Summary",
@@ -497,16 +365,16 @@ def _text_content(
     if summary.benign_evidence_summary:
         lines.append("- Applied benign evidence summary: " + "; ".join(summary.benign_evidence_summary))
 
-    lines.extend(_caution_lines(result, summary, language))
+    lines.extend(_caution_lines(view_model, summary, language))
     lines.extend(_variant_resolution_lines(summary))
     lines.extend(_transcript_selection_lines(summary))
     lines.extend(_transcript_validation_lines(summary))
     lines.extend(_context_consistency_lines(summary))
-    lines.extend(_clingen_erepo_section(summary))
+    lines.extend(_clingen_erepo_section(view_model))
     lines.extend(_vcep_profile_section(summary))
 
-    lines.extend(_evidence_chain_lines(summary, include_details=template.include_evidence_table))
-    lines.extend(_manual_reviewed_evidence_section(summary))
+    lines.extend(_evidence_chain_lines(view_model, include_details=template.include_evidence_table))
+    lines.extend(_manual_reviewed_evidence_section(view_model))
     lines.extend(_conflicting_evidence_lines(summary))
 
     lines.extend(["", "## Limitations"])
@@ -521,7 +389,7 @@ def _text_content(
     lines.extend(_data_source_lines(summary, include_details=template.include_audit_details))
 
     lines.extend(["", "## Safety Notes"])
-    for note in _cautions(result, summary):
+    for note in _cautions(view_model, summary):
         lines.append(f"- {note}")
     lines.append(f"- {HUMAN_REVIEW_NOTE}")
 
@@ -536,12 +404,12 @@ def _text_content(
             ]
         )
 
-    if template.include_audit_details and result.audit_trail:
+    if template.include_audit_details and view_model.audit_trail:
         lines.extend(["", "## Audit Trail"])
         lines.extend(
             f"- {event.event_type} via {event.tool_name or 'system'} at "
             f"{event.timestamp.isoformat()}"
-            for event in result.audit_trail
+            for event in view_model.audit_trail
         )
 
     lines.extend(["", "## Human Review Note", HUMAN_REVIEW_NOTE])
@@ -549,10 +417,10 @@ def _text_content(
 
 
 def _zh_text_content(
-    result: ClassificationResult,
-    summary: VariantReportSummary,
+    view_model: ReportViewModel,
     mode: ReportMode,
 ) -> str:
+    summary = view_model.summary
     template = MODE_TEMPLATES[mode]
     lines = [
         "# 变异致病性机器辅助判读报告",
@@ -563,8 +431,8 @@ def _zh_text_content(
         f"- 最终机器辅助分类建议: {summary.classification_label}",
         f"- 原始分类值: {summary.final_classification}",
         "- 本报告不是最终临床结论，不应作为独立的临床签发或诊断依据。",
-        f"- 已计入证据数量: {len(summary.triggered_acmg_evidence)}",
-        f"- 候选/复核证据数量: {len(summary.candidate_acmg_evidence)}",
+        f"- 已计入证据数量: {len(view_model.evidence_sections.counted)}",
+        f"- 候选/复核证据数量: {len(view_model.evidence_sections.review_note)}",
         "- 人工复核必需: true",
         f"- 报告模式: {template.opening_label}",
         "",
@@ -595,14 +463,14 @@ def _zh_text_content(
         lines.append("- 已计入良性方向证据摘要: " + "; ".join(summary.benign_evidence_summary))
 
     lines.extend(["", "## 安全提示"])
-    for note in _zh_cautions(result, summary):
+    for note in _zh_cautions(view_model, summary):
         lines.append(f"- {note}")
     lines.append(f"- {ZH_HUMAN_REVIEW_NOTE}")
 
-    lines.extend(_zh_applied_evidence_lines(summary, include_details=template.include_evidence_table))
-    lines.extend(_zh_candidate_evidence_lines(summary, include_details=template.include_evidence_table))
-    lines.extend(_zh_manual_reviewed_evidence_section(summary))
-    lines.extend(_zh_external_evidence_section(summary))
+    lines.extend(_zh_applied_evidence_lines(view_model, include_details=template.include_evidence_table))
+    lines.extend(_zh_candidate_evidence_lines(view_model, include_details=template.include_evidence_table))
+    lines.extend(_zh_manual_reviewed_evidence_section(view_model))
+    lines.extend(_zh_external_evidence_section(view_model))
     lines.extend(_zh_variant_resolution_section(summary))
     lines.extend(_zh_transcript_and_mane_section(summary))
     lines.extend(_zh_vcep_section(summary))
@@ -689,27 +557,28 @@ def _zh_text_content(
         ]
     )
 
-    if template.include_audit_details and result.audit_trail:
+    if template.include_audit_details and view_model.audit_trail:
         lines.extend(["", "## Audit Trail"])
         lines.extend(
             f"- {event.event_type} via {event.tool_name or 'system'} at "
             f"{event.timestamp.isoformat()}"
-            for event in result.audit_trail
+            for event in view_model.audit_trail
         )
 
     return "\n".join(lines)
 
 
 def _zh_applied_evidence_lines(
-    summary: VariantReportSummary,
+    view_model: ReportViewModel,
     *,
     include_details: bool,
 ) -> list[str]:
     lines = ["", "## 已计入 ACMG 证据", "- 仅此 section 列出 supplied classification result 中已计入的证据。"]
-    if not summary.triggered_acmg_evidence:
+    if not view_model.evidence_sections.counted:
         lines.append("- 未提供已计入 ACMG 证据。")
         return lines
-    for entry in summary.triggered_acmg_evidence:
+    for item in view_model.evidence_sections.counted:
+        entry = item.entry
         lines.append(
             f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
             f"{entry.direction}; source: {entry.source}; rationale: {entry.rationale}"
@@ -717,7 +586,7 @@ def _zh_applied_evidence_lines(
         if include_details:
             lines.append(f"  - Confidence: {entry.confidence:.2f}")
             lines.append(f"  - Requires review: {str(entry.requires_review).lower()}")
-            lines.extend(_zh_manual_review_lines(entry))
+            lines.extend(_zh_manual_review_lines(item))
             if entry.triggered_by:
                 lines.append(f"  - Triggered by: {', '.join(entry.triggered_by)}")
             if entry.pvs1_decision_path:
@@ -734,15 +603,16 @@ def _zh_applied_evidence_lines(
 
 
 def _zh_candidate_evidence_lines(
-    summary: VariantReportSummary,
+    view_model: ReportViewModel,
     *,
     include_details: bool,
 ) -> list[str]:
     lines = ["", "## 候选/复核证据", f"- {ZH_CANDIDATE_EVIDENCE_CAUTION}"]
-    if not summary.candidate_acmg_evidence:
+    if not view_model.evidence_sections.review_note:
         lines.append("- 未提供候选/复核证据。")
         return lines
-    for entry in summary.candidate_acmg_evidence:
+    for item in view_model.evidence_sections.review_note:
+        entry = item.entry
         lines.append(
             f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
             f"{entry.direction}; status: 候选/复核证据，未计入分类组合器; "
@@ -751,7 +621,7 @@ def _zh_candidate_evidence_lines(
         if include_details:
             lines.append(f"  - Confidence: {entry.confidence:.2f}")
             lines.append("  - Status: candidate/review-note only; not used in classification")
-            lines.extend(_zh_manual_review_lines(entry))
+            lines.extend(_zh_manual_review_lines(item))
             if entry.citation:
                 lines.append(f"  - Citation: {entry.citation}")
             if entry.provenance:
@@ -773,12 +643,13 @@ def _zh_candidate_evidence_lines(
     return lines
 
 
-def _zh_manual_review_lines(entry: EvidenceReportEntry) -> list[str]:
+def _zh_manual_review_lines(item: EvidenceReportEntryView) -> list[str]:
+    entry, review_status_label = _entry_and_review_status(item)
     if entry.source != "manual_reviewed_evidence" and not entry.curator_decision:
         return []
     lines = ["  - Manual reviewed evidence: true"]
-    if entry.reviewed_evidence_status:
-        lines.append(f"  - Reviewed evidence status: {entry.reviewed_evidence_status}")
+    if review_status_label:
+        lines.append(f"  - Reviewed evidence status: {review_status_label}")
     if entry.curator_decision:
         lines.append(f"  - Curator decision: {entry.curator_decision}")
     if entry.curator_name:
@@ -794,13 +665,8 @@ def _zh_manual_review_lines(entry: EvidenceReportEntry) -> list[str]:
     return lines
 
 
-def _zh_manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str]:
-    entries = [*summary.triggered_acmg_evidence, *summary.candidate_acmg_evidence]
-    reviewed_entries = [
-        entry
-        for entry in entries
-        if entry.source == "manual_reviewed_evidence" or entry.curator_decision
-    ]
+def _zh_manual_reviewed_evidence_section(view_model: ReportViewModel) -> list[str]:
+    reviewed_entries = view_model.evidence_sections.manual_reviewed
     lines = [
         "",
         "## 人工审核证据",
@@ -809,22 +675,18 @@ def _zh_manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[
     if not reviewed_entries:
         lines.append("- 未提供人工审核证据记录。")
         return lines
-    for entry in reviewed_entries:
+    for item in reviewed_entries:
+        entry = item.entry
         lines.append(
-            f"- {entry.evidence_id}: {entry.code} / {entry.reviewed_evidence_status or 'reviewed'}; "
+            f"- {entry.evidence_id}: {entry.code} / {item.review_status_label or 'reviewed'}; "
             f"rationale: {entry.rationale}"
         )
-        lines.extend(_zh_manual_review_lines(entry))
+        lines.extend(_zh_manual_review_lines(item))
     return lines
 
 
-def _zh_external_evidence_section(summary: VariantReportSummary) -> list[str]:
-    external_sources = {"ClinVar", "ClinGen Evidence Repository", "Literature"}
-    entries = [
-        entry
-        for entry in [*summary.triggered_acmg_evidence, *summary.candidate_acmg_evidence]
-        if entry.source in external_sources
-    ]
+def _zh_external_evidence_section(view_model: ReportViewModel) -> list[str]:
+    entries = view_model.evidence_sections.external_source
     lines = [
         "",
         "## ClinVar / ClinGen ERepo / 文献证据",
@@ -834,8 +696,9 @@ def _zh_external_evidence_section(summary: VariantReportSummary) -> list[str]:
     if not entries:
         lines.append("- 未提供 ClinVar、ClinGen ERepo 或文献证据条目。")
         return lines
-    for entry in entries:
-        status = "已计入" if entry in summary.triggered_acmg_evidence else "候选/复核，未计入"
+    for item in entries:
+        entry = item.entry
+        status = "已计入" if item.counted_by_classifier else "候选/复核，未计入"
         lines.append(
             f"- {entry.evidence_id}: source={entry.source}; status={status}; "
             f"code={entry.code}; rationale: {entry.rationale}"
@@ -977,15 +840,16 @@ def _zh_vcep_section(summary: VariantReportSummary) -> list[str]:
 
 
 def _evidence_chain_lines(
-    summary: VariantReportSummary,
+    view_model: ReportViewModel,
     *,
     include_details: bool,
 ) -> list[str]:
     lines = ["", "## Applied ACMG Evidence", "- Only this section lists evidence counted by the supplied classification result."]
-    if not summary.triggered_acmg_evidence:
+    if not view_model.evidence_sections.counted:
         lines.append("- No ACMG evidence items were supplied.")
     else:
-        for entry in summary.triggered_acmg_evidence:
+        for item in view_model.evidence_sections.counted:
+            entry = item.entry
             lines.append(
                 f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
                 f"{entry.direction}; source: {entry.source}; rationale: {entry.rationale}"
@@ -993,7 +857,7 @@ def _evidence_chain_lines(
             if include_details:
                 lines.append(f"  - Confidence: {entry.confidence:.2f}")
                 lines.append(f"  - Requires review: {str(entry.requires_review).lower()}")
-                lines.extend(_manual_review_lines(entry))
+                lines.extend(_manual_review_lines(item))
                 if entry.triggered_by:
                     lines.append(f"  - Triggered by: {', '.join(entry.triggered_by)}")
                 if entry.pvs1_decision_path:
@@ -1028,11 +892,12 @@ def _evidence_chain_lines(
                 if entry.vcep_override:
                     lines.append("  - VCEP override: " + _vcep_override_fragment(entry.vcep_override))
     lines.extend(["", "## Candidate / Review-Note Evidence", f"- {CANDIDATE_EVIDENCE_CAUTION}"])
-    if not summary.candidate_acmg_evidence:
+    if not view_model.evidence_sections.review_note:
         lines.append("- No candidate-only ACMG evidence items were supplied.")
         return lines
 
-    for entry in summary.candidate_acmg_evidence:
+    for item in view_model.evidence_sections.review_note:
+        entry = item.entry
         lines.append(
             f"- {entry.evidence_id}: {entry.code} / {entry.strength} / "
             f"{entry.direction}; status: candidate/review-note only; source: {entry.source}; "
@@ -1041,7 +906,7 @@ def _evidence_chain_lines(
         if include_details:
             lines.append(f"  - Confidence: {entry.confidence:.2f}")
             lines.append("  - Status: candidate/review-note only; not used in classification")
-            lines.extend(_manual_review_lines(entry))
+            lines.extend(_manual_review_lines(item))
             if entry.citation:
                 lines.append(f"  - Citation: {entry.citation}")
             if entry.provenance:
@@ -1126,10 +991,8 @@ def _vcep_profile_section(summary: VariantReportSummary) -> list[str]:
     return lines
 
 
-def _clingen_erepo_section(summary: VariantReportSummary) -> list[str]:
-    entries = [
-        entry for entry in summary.candidate_acmg_evidence if entry.source == "ClinGen Evidence Repository"
-    ]
+def _clingen_erepo_section(view_model: ReportViewModel) -> list[str]:
+    entries = view_model.evidence_sections.clingen_erepo
     if not entries:
         return []
     lines = [
@@ -1137,7 +1000,8 @@ def _clingen_erepo_section(summary: VariantReportSummary) -> list[str]:
         "## ClinGen Evidence Repository Match",
         "- ClinGen ERepo results are curated external assertions for review only; they were not automatically applied and were not counted as applied ACMG evidence.",
     ]
-    for entry in entries:
+    for item in entries:
+        entry = item.entry
         record = entry.clingen_erepo_record or {}
         match = entry.clingen_erepo_match or {}
         lines.append(
@@ -1175,12 +1039,13 @@ def _clingen_erepo_section(summary: VariantReportSummary) -> list[str]:
     return lines
 
 
-def _manual_review_lines(entry: EvidenceReportEntry) -> list[str]:
+def _manual_review_lines(item: EvidenceReportEntryView) -> list[str]:
+    entry, review_status_label = _entry_and_review_status(item)
     if entry.source != "manual_reviewed_evidence" and not entry.curator_decision:
         return []
     lines = ["  - Manual reviewed evidence: true"]
-    if entry.reviewed_evidence_status:
-        lines.append(f"  - Reviewed evidence status: {entry.reviewed_evidence_status}")
+    if review_status_label:
+        lines.append(f"  - Reviewed evidence status: {review_status_label}")
     if entry.curator_decision:
         lines.append(f"  - Curator decision: {entry.curator_decision}")
     if entry.curator_name:
@@ -1194,16 +1059,8 @@ def _manual_review_lines(entry: EvidenceReportEntry) -> list[str]:
     return lines
 
 
-def _manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str]:
-    entries = [
-        *summary.triggered_acmg_evidence,
-        *summary.candidate_acmg_evidence,
-    ]
-    reviewed_entries = [
-        entry
-        for entry in entries
-        if entry.source == "manual_reviewed_evidence" or entry.curator_decision
-    ]
+def _manual_reviewed_evidence_section(view_model: ReportViewModel) -> list[str]:
+    reviewed_entries = view_model.evidence_sections.manual_reviewed
     if not reviewed_entries:
         return []
     lines = [
@@ -1211,9 +1068,10 @@ def _manual_reviewed_evidence_section(summary: VariantReportSummary) -> list[str
         "## Manual Reviewed Evidence",
         "- These records reflect explicit curator decisions; rejected and needs-more-info records are not counted by the classification combiner.",
     ]
-    for entry in reviewed_entries:
+    for item in reviewed_entries:
+        entry = item.entry
         lines.append(
-            f"- {entry.evidence_id}: {entry.code} / {entry.reviewed_evidence_status or 'reviewed'}; "
+            f"- {entry.evidence_id}: {entry.code} / {item.review_status_label or 'reviewed'}; "
             f"rationale: {entry.rationale}"
         )
         if entry.curator_decision:
@@ -1417,6 +1275,16 @@ def _json_fragment(value: Any) -> str:
     return json.dumps(value, ensure_ascii=True, sort_keys=True, default=str)
 
 
+def _entry_payloads(items: list[EvidenceReportEntryView]) -> list[dict[str, Any]]:
+    return [item.entry.model_dump(mode="json") for item in items]
+
+
+def _entry_and_review_status(
+    item: EvidenceReportEntryView,
+) -> tuple[EvidenceReportEntry, str | None]:
+    return item.entry, item.review_status_label
+
+
 def _vcep_override_fragment(value: dict[str, Any]) -> str:
     profile = value.get("profile") or {}
     notes = value.get("notes") or []
@@ -1447,42 +1315,42 @@ def _computational_predictor_fragment(calls: list[dict[str, Any]]) -> str:
 
 
 def _caution_lines(
-    result: ClassificationResult,
+    view_model: ReportViewModel,
     summary: VariantReportSummary,
     language: ReportLanguage,
 ) -> list[str]:
     lines: list[str] = []
-    cautions = _cautions(result, summary)
+    cautions = _cautions(view_model, summary)
     if cautions:
         lines.extend(["", "## Cautions"])
         lines.extend(f"- {item}" for item in cautions)
     return lines
 
 
-def _cautions(result: ClassificationResult, summary: VariantReportSummary) -> list[str]:
+def _cautions(view_model: ReportViewModel, summary: VariantReportSummary) -> list[str]:
     cautions: list[str] = []
     if summary.final_classification == "vus":
         cautions.append(VUS_NOTE)
-    if any(str(item.code) in {"PP3", "BP4"} for item in result.evidence_items):
+    if view_model.has_computational_evidence:
         cautions.append(COMPUTATIONAL_CAUTION)
-    if any("spliceai" in trigger.lower() for item in result.evidence_items for trigger in item.triggered_by):
+    if view_model.has_spliceai_evidence:
         cautions.append(SPLICEAI_CAUTION)
-    if summary.candidate_acmg_evidence:
+    if view_model.evidence_sections.review_note:
         cautions.append(CANDIDATE_EVIDENCE_CAUTION)
     if summary.clinvar_conflict_detected:
         cautions.append(CLINVAR_CONFLICT_ALERT)
     return cautions
 
 
-def _zh_cautions(result: ClassificationResult, summary: VariantReportSummary) -> list[str]:
+def _zh_cautions(view_model: ReportViewModel, summary: VariantReportSummary) -> list[str]:
     cautions: list[str] = [ZH_MACHINE_PROPOSAL_NOTE, ZH_NOT_FINAL_ASSERTION]
     if summary.final_classification == "vus":
         cautions.append(ZH_VUS_NOTE)
-    if any(str(item.code) in {"PP3", "BP4"} for item in result.evidence_items):
+    if view_model.has_computational_evidence:
         cautions.append(ZH_COMPUTATIONAL_CAUTION)
-    if any("spliceai" in trigger.lower() for item in result.evidence_items for trigger in item.triggered_by):
+    if view_model.has_spliceai_evidence:
         cautions.append(ZH_SPLICEAI_CAUTION)
-    if summary.candidate_acmg_evidence:
+    if view_model.evidence_sections.review_note:
         cautions.append(ZH_CANDIDATE_EVIDENCE_CAUTION)
     if summary.clinvar_conflict_detected:
         cautions.append(ZH_CLINVAR_CONFLICT_ALERT)
@@ -1490,13 +1358,14 @@ def _zh_cautions(result: ClassificationResult, summary: VariantReportSummary) ->
     return list(dict.fromkeys(cautions))
 
 
-def _executive_summary(summary: VariantReportSummary) -> dict[str, Any]:
+def _executive_summary(view_model: ReportViewModel) -> dict[str, Any]:
+    summary = view_model.summary
     return {
         "final_machine_proposal": summary.final_classification,
         "classification_label": summary.classification_label,
         "human_review_required": True,
-        "applied_evidence_count": len(summary.triggered_acmg_evidence),
-        "candidate_review_note_count": len(summary.candidate_acmg_evidence),
+        "applied_evidence_count": len(view_model.evidence_sections.counted),
+        "candidate_review_note_count": len(view_model.evidence_sections.review_note),
         "context_consistency_status": (
             summary.context_consistency.status if summary.context_consistency else None
         ),
@@ -1554,30 +1423,6 @@ def _missing_data(summary: VariantReportSummary) -> list[str]:
     return missing or ["No additional missing-data notes were generated by the report renderer."]
 
 
-def _clinvar_conflict_detected(result: ClassificationResult) -> bool:
-    if result.conflicting_evidence:
-        return any("clinvar" in item.lower() for item in result.conflicting_evidence)
-    return any(
-        item.source.name.lower() == "clinvar"
-        and (
-            str(item.direction) == "conflicting"
-            or bool(item.supporting_data.get("conflicting_interpretations"))
-        )
-        for item in result.evidence_items
-    )
-
-
-def _is_applied_evidence(item: EvidenceItem) -> bool:
-    return is_applied_evidence(item)
-
-
-def _transcript_label(result_variant: Any) -> str | None:
-    transcript = result_variant.transcript
-    if transcript is None:
-        return None
-    if transcript.version:
-        return f"{transcript.accession}.{transcript.version}"
-    return transcript.accession
 
 
 def _plain_text(markdown: str) -> str:
