@@ -367,11 +367,11 @@ def _providers_section(result: dict[str, Any]) -> dict[str, Any]:
         provider_runtime = {}
     providers = {
         "summary": summary,
-        "clinvar": _provider_entry(provider_runtime.get("clinvar") or summary.get("clinvar")),
-        "population": _provider_entry(provider_runtime.get("population") or summary.get("population")),
-        "computational": _provider_entry(provider_runtime.get("computational") or summary.get("computational")),
-        "literature": _provider_entry(provider_runtime.get("literature") or summary.get("literature")),
-        "clingen_erepo": _provider_entry(provider_runtime.get("clingen_erepo") or summary.get("clingen_erepo")),
+        "clinvar": _provider_entry(provider_runtime.get("clinvar")),
+        "population": _provider_entry(provider_runtime.get("population")),
+        "computational": _provider_entry(provider_runtime.get("computational")),
+        "literature": _provider_entry(provider_runtime.get("literature")),
+        "clingen_erepo": _provider_entry(provider_runtime.get("clingen_erepo")),
         "transcript": _transcript_provider_entry(result),
         "vcep": _vcep_provider_entry(result),
     }
@@ -380,7 +380,7 @@ def _providers_section(result: dict[str, Any]) -> dict[str, Any]:
 
 def _provider_entry(value: Any) -> dict[str, Any]:
     payload = value if isinstance(value, dict) else {}
-    outcome = payload.get("actual_outcome") or payload.get("outcome") or "skipped"
+    outcome = payload.get("outcome") or "skipped"
     provenance = _json_copy(payload.get("provenance") or {})
     raw_hash = payload.get("raw_record_hash") or payload.get("raw_hash")
     provider_mode = provenance.get("provider_mode") or payload.get("provider_mode")
