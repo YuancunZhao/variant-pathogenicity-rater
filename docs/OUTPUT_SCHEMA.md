@@ -8,6 +8,26 @@ The canonical view is an output schema only. It does not change variant
 normalization, provider retrieval, evidence generation, ACMG classification,
 report rendering, or default offline/network behavior.
 
+## 81A Output Phase Boundary
+
+81A-3 moved final output generation into
+`src/variant_pathogenicity_rater/pipeline/output_phase.py`.
+
+`output_phase` is responsible for:
+
+- generating the report from the supplied classification result;
+- assigning `classification_result.report_text`;
+- constructing normalized provider runtime results;
+- constructing `provider_mode_summary`;
+- assembling legacy top-level output fields;
+- applying the additive canonical schema through
+  `add_rate_variant_canonical_fields(...)`.
+
+Canonical output behavior did not change during 81A. The phase extraction only
+changed where output assembly lives; it did not rename fields, remove legacy
+fields, alter provider runtime semantics, or change classification/evidence
+behavior.
+
 ## Top-Level Canonical Sections
 
 New clients should prefer these sections:

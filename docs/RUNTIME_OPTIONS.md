@@ -8,11 +8,32 @@ normalization, provider retrieval semantics, evidence generation, reviewed
 evidence validation, the ACMG combiner, final classification, report rendering,
 or default offline behavior.
 
+Current execution flow after 81A-3 is:
+
+```text
+CLI / MCP / Python API
+  -> RuntimeOptions
+  -> rate_variant
+  -> normalization_phase
+  -> resolution_phase
+  -> provider_phase
+  -> evidence_phase
+  -> classification_phase
+  -> output_phase
+```
+
+RuntimeOptions still produces the legacy-compatible option dictionary consumed
+by the pipeline phases. The phase decomposition did not change option
+precedence, online-provider mapping, default mock/offline behavior, or
+reviewed-evidence precedence.
+
 ## Scope
 
 77D-1 introduced the foundation and wired the `rate_variant` core `_options()`
 path. 77D-2 migrates CLI, MCP, natural-language text, batch, and annotated-batch
-entry points onto the same RuntimeOptions interpretation layer.
+entry points onto the same RuntimeOptions interpretation layer. After 81A-3,
+`rate_variant` remains the orchestration entry point and passes normalized
+options into the dedicated phase modules.
 
 All public CLI arguments, MCP schemas, Python API fields, and legacy option keys
 remain available. RuntimeOptions returns legacy-compatible dictionaries to the

@@ -10,6 +10,11 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 The recommended next task is `79A-3_provider_orchestrator`.
 
+Documentation note after 81A-3: `81A-3_phase_decomposition` is complete.
+`rate_variant.py` has been reduced to a phase orchestration layer. The
+decomposition preserved final classification, evidence generation, public API,
+default offline behavior, provider behavior, and legacy output fields.
+
 It is the best next step because the 74 real provider pipeline is implemented,
 the 75 live-provider smoke validation layer is available behind explicit
 environment gates, the 76 mock/fixture interface audit activation makes
@@ -53,6 +58,7 @@ without broadening evidence automation.
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `81A-3_phase_decomposition` | Done | Decomposed `rate_variant.py` into normalization, resolution, provider, evidence, classification, and output phases; `rate_variant.py` is now an orchestration layer. | Medium | Pipeline phase modules, documentation, regression tests | Yes |
 | `79A-3_provider_orchestrator` | P0 | Introduce a fuller provider orchestrator that routes resolution, annotation, population, clinical assertion, and literature providers through declared dependencies while preserving existing providers. | Medium-high | Provider dependency layer, provider adapters, pipeline wiring, benchmark docs, focused tests | Yes |
 | `79A-2_provider_dependency_gating` | Done | Added provider dependency checks and online-provider preflight skips so invalid gnomAD identity becomes identity limitation plus skipped provider runtime instead of GraphQL failure. | Medium | Provider dependency package, pipeline online provider gates, provider runtime, benchmark metrics, docs, tests | Yes |
 | `79A-1_variant_identity_model_and_adapter` | Done | Added provider-layer VariantIdentity, normalized/resolution adapters, gnomAD ID validation, provider alias helpers, additive rate_variant output, and benchmark identity coverage without changing providers or classification. | Medium | Provider identity package, pipeline output, provider benchmark, docs, tests | Yes |
@@ -133,6 +139,10 @@ Current known gaps after 79A-2 provider dependency gating:
   provider runtime outcomes and raw-hash/cache-hit fields are visible.
 - Raw `step_results` are still a legacy compatibility/debug payload; migration
   into a canonical step-state model remains future work.
+- Future slimming work should target provider runtime duplication, report
+  generator/view model overlap, MCP schema centralization, and benchmark
+  runtime reuse. These are candidate cleanup tracks only and should not be
+  started automatically from this document refresh.
 - Larger real-world hospital annotation validation has not been completed.
 - CNV/SV interpretation is not supported; only framework planning is currently
   appropriate.

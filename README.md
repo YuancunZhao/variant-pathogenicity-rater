@@ -6,10 +6,12 @@ Codex Plugin plus MCP server framework for SNV/small indel ACMG variant interpre
 Variant Pathogenicity Rater is a semi-automated ACMG interpretation assistant,
 not a clinical sign-out system. The current v0.3.0 workflow supports
 an offline, mock-backed end-to-end `rate_variant` loop: natural-language input
-wrappers, normalization, variant resolution, annotation/context consistency,
-automatic applied evidence generation,
+wrappers, normalization, variant resolution, provider querying,
+annotation/context consistency, automatic applied evidence generation,
 candidate/suggested evidence, manual reviewed evidence, ACMG classification
-combining, and report generation.
+combining, and report generation. The `rate_variant` entry point now
+orchestrates dedicated pipeline phase modules rather than carrying the full
+implementation inline.
 
 Current automatic applied evidence generation covers PVS1, BA1, BS1,
 PM2_Supporting, PP3, BP4, PS1, and PM5. Curator-reviewed `reviewed_applied`
@@ -78,6 +80,19 @@ query/citation fallback, and benchmark latency-scope/error diagnostics.
 region fallback, transcript HGVS fallback, minimal consequence fallback after
 predictor failures, timeout-aware diagnostics, and descriptive protein-change
 resolution bridging without direct PP3/BP4 application.
+
+## Architecture Overview
+
+The single-variant pipeline is decomposed into phases:
+
+```text
+Normalization -> Resolution -> Provider -> Evidence -> Classification -> Output
+```
+
+This 81A decomposition reduced `rate_variant.py` to orchestration logic while
+preserving behavior: final classification, evidence generation, public API,
+default offline behavior, and legacy output fields remain unchanged. See
+`docs/PIPELINE_ARCHITECTURE.md` for the detailed phase map.
 
 ## Directory Structure
 

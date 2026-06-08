@@ -33,7 +33,8 @@ the 77C evidence status helper unification, the 77D RuntimeOptions
 foundation, the 78A real-world smoke validation layer, the 78B HGVS
 resolution provider upgrade, the 78C real-world provider benchmark, the
 78D/78E/78F provider hardening passes, the 79A-1 provider-layer
-VariantIdentity model/adapter, and 79A-2 provider dependency gating, the
+VariantIdentity model/adapter, 79A-2 provider dependency gating, and the
+81A-3 pipeline phase decomposition, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -63,8 +64,8 @@ provider-layer VariantIdentity output, validated gnomAD ID construction,
 provider alias helpers for ClinVar/VEP/literature, additive provider identity
 benchmark coverage, provider dependency checks, identity-gated online provider
 skips, gnomAD invalid-identity skip reporting, dependency-status runtime
-payloads,
-Chinese laboratory reporting, and the unchanged ACMG classification combiner.
+payloads, Chinese laboratory reporting, a phase-decomposed `rate_variant`
+orchestration layer, and the unchanged ACMG classification combiner.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
 now checks six real HGVS c. inputs for structured end-to-end returns without
@@ -86,7 +87,10 @@ provider calls, evidence generation, classification, or default no-network
 behavior. The 79A-2 dependency gating pass moves missing or invalid online
 provider identity into pre-provider skipped runtime results, especially for
 gnomAD, where invalid identity no longer needs to reach GraphQL as provider
-failure. The next project
+failure. The 81A-3 pipeline decomposition reduced `rate_variant.py` from a
+monolithic implementation to an orchestration-only layer while preserving final
+classification, evidence generation, the public API, default offline behavior,
+and legacy output fields. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
@@ -110,13 +114,32 @@ The current complete interpretation workflow is:
 ```text
 variant input
   -> optional natural-language parsing
-  -> normalization / variant resolution / annotation / context consistency
-  -> automatic applied evidence generation
-  -> candidate/suggested evidence
-  -> manual reviewed evidence
-  -> combiner
-  -> report
+  -> rate_variant orchestration
+  -> normalization_phase
+  -> resolution_phase
+  -> provider_phase
+  -> evidence_phase
+  -> classification_phase
+  -> output_phase
 ```
+
+Current pipeline phase responsibilities are:
+
+- `rate_variant.py`: orchestrates pipeline phases and preserves the public
+  `rate_variant(arguments)` API.
+- `normalization_phase.py`: normalization plus initial gene-disease context
+  bootstrap.
+- `resolution_phase.py`: variant resolution and resolved context/variant
+  updates.
+- `provider_phase.py`: provider identity bootstrap.
+- `evidence_phase.py`: provider querying, evidence generation, candidate and
+  review-note collection, reviewed evidence integration, and evidence combine
+  bookkeeping.
+- `classification_phase.py`: ACMG classification and classification-level
+  review-flag aggregation.
+- `output_phase.py`: report generation, provider runtime serialization,
+  provider summary construction, final legacy output assembly, and canonical
+  output schema application.
 
 ## Current Capabilities
 

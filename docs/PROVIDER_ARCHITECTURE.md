@@ -5,6 +5,25 @@ provider dependency gating for the current online provider paths. These are
 additive provider-readiness surfaces only. They do not generate ACMG evidence,
 do not change evidence generation, and do not modify the ACMG combiner.
 
+81A-3 decomposed the single-variant pipeline into phase modules. Provider
+architecture now sits inside this phase flow:
+
+```text
+rate_variant
+  -> normalization_phase
+  -> resolution_phase
+  -> provider_phase
+  -> evidence_phase
+  -> classification_phase
+  -> output_phase
+```
+
+`provider_phase` prepares provider identity. `evidence_phase` executes provider
+queries, applies dependency gating for current provider paths, and passes
+provider-derived facts into the existing evidence-generation and review-note
+boundaries. `classification_phase` and `output_phase` consume the resulting
+state; they do not run provider queries.
+
 ## Provider-Layer VariantIdentity
 
 The provider-layer model lives in:
@@ -95,11 +114,23 @@ a full orchestrator.
 
 ## Current Integration
 
-`rate_variant` now emits additive `provider_identity` output and mirrors it in
-the canonical `variant.provider_identity` section. Existing fields remain
-present, including `normalized_variant`, `resolved_variant`,
-`variant_resolution`, `normalization_identity`, provider runtime summaries, and
-evidence outputs.
+`rate_variant` now orchestrates phase modules. It emits additive
+`provider_identity` output through `provider_phase` and mirrors it in the
+canonical `variant.provider_identity` section. Existing fields remain present,
+including `normalized_variant`, `resolved_variant`, `variant_resolution`,
+`normalization_identity`, provider runtime summaries, and evidence outputs.
+
+`VariantIdentity`, `ProviderDependency`, and `ProviderRuntimeResult` are
+phase-level contracts:
+
+- `VariantIdentity` is prepared in `provider_phase` from normalized and
+  resolved variant state.
+- `ProviderDependency` checks are applied in `evidence_phase` before online
+  provider calls that require usable identity.
+- `ProviderRuntimeResult` is constructed in `output_phase` from provider step
+  payloads and dependency skip payloads, then serialized into
+  `step_results.provider_runtime`, `provider_mode_summary`, and canonical
+  provider sections.
 
 79A-2 does not replace existing provider calls. The planned follow-up is a
 fuller provider orchestrator that can route resolution, annotation, population,
