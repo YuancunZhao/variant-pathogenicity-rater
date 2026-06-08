@@ -28,6 +28,12 @@ from variant_pathogenicity_rater.providers.dependencies import (
     check_vep_dependency,
     dependency_skip_payload,
 )
+from variant_pathogenicity_rater.providers.orchestrator import (
+    ProviderExecutionNode,
+    ProviderExecutionPlan,
+    ProviderNodeKind,
+    build_provider_execution_plan,
+)
 
 __all__ = [
     "VariantIdentity",
@@ -48,4 +54,8 @@ __all__ = [
     "check_clinvar_dependency",
     "check_literature_dependency",
     "dependency_skip_payload",
+    "ProviderNodeKind",
+    "ProviderExecutionNode",
+    "ProviderExecutionPlan",
+    "build_provider_execution_plan",
 ]

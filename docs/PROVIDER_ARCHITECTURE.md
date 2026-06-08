@@ -138,3 +138,50 @@ phase-level contracts:
 fuller provider orchestrator that can route resolution, annotation, population,
 clinical assertion, and literature providers through the same dependency
 contract.
+
+## 79A-3A — Provider Orchestrator Contract Scaffold
+
+`src/variant_pathogenicity_rater/providers/orchestrator.py` defines an
+additive observability contract for the current provider dependency graph.
+It does **not** replace, route, or schedule provider execution.
+
+Key models:
+
+- ``ProviderNodeKind`` — categorises nodes (identity, population,
+  computational, clinical_assertion, literature, runtime_observability).
+- ``ProviderExecutionNode`` — describes one provider node:
+  * ``enabled`` — controlled by ``include_*`` flags (default true for
+    population/computational/clinvar/literature; default false for
+    clingen_erepo).
+  * ``dependency_check`` — result of the relevant ``check_*_dependency``.
+  * ``planned_attempt`` — whether the current pipeline would **enter/execute**
+    this step.  Includes mock, local-file, and inline-prediction paths; it is
+    NOT limited to online request attempts.
+- ``ProviderExecutionPlan`` — the complete execution plan with all nodes,
+  the provider identity snapshot, and three distinct skip lists:
+  * ``dependency_unsatisfied`` — nodes whose dependency check fails,
+    regardless of whether the pipeline actually skips them.
+  * ``dependency_skip_planned`` — nodes the pipeline would actually skip
+    because the source is online and the dependency gate is enforced.
+  * ``dependency_skipped`` — legacy alias for ``dependency_skip_planned``.
+
+Semantics mirror ``evidence_phase``:
+- Mock/local providers attempt regardless of dependency; only online sources
+  enforce the dependency gate.
+- Inline ``computational_predictions`` bypass the online VEP dependency gate.
+- Online literature (PubMed/LitVar) uses ``search_and_summarize_literature``;
+  offline uses ``search_literature_evidence``.  Only one literature node is
+  attempted per plan.
+- Invalid gnomAD identity in mock mode is ``dependency_unsatisfied``
+  (check-level) but NOT ``dependency_skip_planned`` — the pipeline
+  still executes the step via the mock provider.  Dependency-skips
+  only occur when the source is online and the gate is enforced.
+
+``build_provider_execution_plan(identity, options, config)`` reuses the
+existing ``check_gnomad_dependency``, ``check_vep_dependency``,
+``check_clinvar_dependency``, and ``check_literature_dependency`` functions
+plus ``evidence_phase``-equivalent helpers (``_online_source``,
+``_use_online_literature``).  It is pure and side-effect free.
+
+The plan is **additive observability only**. No consumer (report, benchmark,
+classification) consumes ``ProviderExecutionPlan`` at this stage.
