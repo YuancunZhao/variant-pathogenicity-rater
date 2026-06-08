@@ -434,8 +434,6 @@ def _provider_runtime(result: dict[str, Any], *, include_litvar: bool) -> dict[s
 def _literature_runtime(value: Any, provider_name: str) -> dict[str, Any]:
     payload = dict(value or {})
     payload["provider_name"] = provider_name
-    if payload.get("outcome") == "success" and payload.get("records_count", 0) == 0:
-        payload["outcome"] = "no_record"
     return payload
 
 

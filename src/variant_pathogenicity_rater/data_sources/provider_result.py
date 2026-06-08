@@ -305,18 +305,35 @@ def build_provider_runtime_results(
     }
 
 
+def provider_summary_from_runtime_results(
+    runtime_results: dict[str, ProviderRuntimeResult],
+) -> dict[str, Any]:
+    return {
+        name: _legacy_summary_item(result)
+        for name, result in runtime_results.items()
+    }
+
+
 def build_provider_summary(
     data_sources_config: DataSourcesConfig,
     step_results: dict[str, Any],
     options: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
-        name: _legacy_summary_item(result)
-        for name, result in build_provider_runtime_results(
+    return provider_summary_from_runtime_results(
+        build_provider_runtime_results(
             data_sources_config,
             step_results,
             options,
-        ).items()
+        )
+    )
+
+
+def provider_runtime_results_to_json(
+    runtime_results: dict[str, ProviderRuntimeResult],
+) -> dict[str, Any]:
+    return {
+        name: result.model_dump(mode="json")
+        for name, result in runtime_results.items()
     }
 
 
@@ -325,14 +342,13 @@ def provider_runtime_results_json(
     step_results: dict[str, Any],
     options: dict[str, Any],
 ) -> dict[str, Any]:
-    return {
-        name: result.model_dump(mode="json")
-        for name, result in build_provider_runtime_results(
+    return provider_runtime_results_to_json(
+        build_provider_runtime_results(
             data_sources_config,
             step_results,
             options,
-        ).items()
-    }
+        )
+    )
 
 
 def _legacy_summary_item(result: ProviderRuntimeResult) -> dict[str, Any]:

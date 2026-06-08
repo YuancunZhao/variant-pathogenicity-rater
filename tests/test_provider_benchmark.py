@@ -213,6 +213,36 @@ def test_provider_benchmark_separates_dependency_skip_from_provider_failure() ->
     assert "gnomAD skipped due to invalid identity" in report
 
 
+def test_provider_benchmark_outcomes_come_from_provider_runtime_not_raw_steps() -> None:
+    def runner(payload: dict[str, Any]) -> dict[str, Any]:
+        result = _result(case_id=payload["gene"], clinvar="skipped", gnomad="skipped", vep="skipped", literature="skipped")
+        result["step_results"]["query_clinvar"] = {
+            "records": [{"id": payload["gene"]}],
+            "candidate_evidence_items": [{"code": "PP5"}],
+        }
+        result["step_results"]["query_population_frequency"] = {
+            "data_source": "gnomAD",
+            "overall_af": 0.001,
+        }
+        result["step_results"]["evaluate_computational_evidence"] = {
+            "summary": {"predictor_calls": [{"method": "CADD"}]},
+        }
+        result["step_results"]["search_and_summarize_literature"] = {
+            "literature_records": [{"source": "PubMed", "pmid": "1"}],
+            "criterion_summaries": [{"criterion": "PS4"}],
+        }
+        return result
+
+    result = run_provider_benchmark(case_runner=runner)
+
+    assert result.clinvar.skipped == 6
+    assert result.gnomad.skipped == 6
+    assert result.vep.skipped == 6
+    assert result.pubmed.skipped == 6
+    assert result.provider_yield["clinvar"].records_found == 6
+    assert result.provider_yield["gnomad"].af_records_found == 6
+
+
 def test_provider_benchmark_preserves_classification_as_observed_metric_only() -> None:
     result = run_provider_benchmark(case_runner=lambda payload: _result(case_id=payload["gene"]))
 

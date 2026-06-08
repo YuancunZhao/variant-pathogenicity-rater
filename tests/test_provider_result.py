@@ -7,11 +7,14 @@ from variant_pathogenicity_rater.data_sources.config import (
 )
 from variant_pathogenicity_rater.data_sources.provider_result import (
     ProviderOutcome,
+    build_provider_runtime_results,
     build_provider_summary,
+    provider_runtime_results_to_json,
     provider_result_from_failure,
     provider_result_from_no_record,
     provider_result_from_skipped,
     provider_result_from_source,
+    provider_summary_from_runtime_results,
 )
 from variant_pathogenicity_rater.data_sources.provenance import provenance_from_raw_record
 from variant_pathogenicity_rater.schemas.evidence import EvidenceSource
@@ -151,3 +154,35 @@ def test_build_provider_summary_preserves_legacy_shape_and_adds_runtime_fields()
     assert clinvar["raw_hash"] == clinvar["raw_record_hash"]
     assert clinvar["limitations_count"] == 0
     assert clinvar["attempted"] is True
+
+
+def test_provider_summary_and_runtime_json_share_one_runtime_source() -> None:
+    step_results = {
+        "query_clinvar": {
+            "records": [{"source": _source("clinvar").model_dump(mode="json")}],
+            "limitations": [],
+        }
+    }
+    config = DataSourcesConfig(
+        sources={
+            "clinvar": DataSourceConfig(name="clinvar", mode=ProviderMode.ONLINE),
+            "population": DataSourceConfig(name="population", mode=ProviderMode.MOCK),
+            "computational": DataSourceConfig(name="computational", mode=ProviderMode.MOCK),
+            "literature": DataSourceConfig(name="literature", mode=ProviderMode.MOCK),
+            "clingen_erepo": DataSourceConfig(name="clingen_erepo", mode=ProviderMode.MOCK),
+        }
+    )
+
+    runtime_results = build_provider_runtime_results(
+        config,
+        step_results,
+        {"use_online_clinvar": True},
+    )
+    summary = provider_summary_from_runtime_results(runtime_results)
+    runtime_json = provider_runtime_results_to_json(runtime_results)
+
+    assert runtime_json["clinvar"]["outcome"] == "success"
+    assert summary["clinvar"]["outcome"] == runtime_json["clinvar"]["outcome"]
+    assert summary["clinvar"]["actual_outcome"] == runtime_json["clinvar"]["outcome"]
+    assert summary["clinvar"]["raw_record_hash"] == runtime_json["clinvar"]["raw_record_hash"]
+    assert summary["clinvar"]["raw_hash"] == runtime_json["clinvar"]["raw_record_hash"]

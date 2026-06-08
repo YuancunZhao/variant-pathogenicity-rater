@@ -17,8 +17,15 @@ from variant_pathogenicity_rater.schemas.variant import Variant
 
 
 GNOMAD_GRAPHQL_ENDPOINT = "https://gnomad.broadinstitute.org/api"
-GNOMAD_QUERY = """
-query Variant($variantId: String!, $dataset: DatasetId!) {
+GNOMAD_FULL_QUERY_NAME = "VariantFullWithOptionalPopulation"
+GNOMAD_FULL_QUERY_VERSION = "v1_optional_population_legacy"
+GNOMAD_FREQUENCY_QUERY_NAME = "VariantFrequency"
+GNOMAD_FREQUENCY_QUERY_VERSION = "v2_exome_genome_stable"
+GNOMAD_MINIMAL_QUERY_NAME = "VariantMinimal"
+GNOMAD_MINIMAL_QUERY_VERSION = "v1_minimal_identity"
+
+GNOMAD_FULL_QUERY = """
+query VariantFullWithOptionalPopulation($variantId: String!, $dataset: DatasetId!) {
   variant(variantId: $variantId, dataset: $dataset) {
     variantId
     chrom
@@ -36,6 +43,30 @@ query Variant($variantId: String!, $dataset: DatasetId!) {
       hemizygote_count
     }
     faf95 { population faf95 }
+  }
+}
+"""
+GNOMAD_FREQUENCY_QUERY = """
+query VariantFrequency($variantId: String!, $dataset: DatasetId!) {
+  variant(variantId: $variantId, dataset: $dataset) {
+    variantId
+    chrom
+    pos
+    ref
+    alt
+    genome { ac an af homozygote_count hemizygote_count }
+    exome { ac an af homozygote_count hemizygote_count }
+  }
+}
+"""
+GNOMAD_MINIMAL_QUERY = """
+query VariantMinimal($variantId: String!, $dataset: DatasetId!) {
+  variant(variantId: $variantId, dataset: $dataset) {
+    variantId
+    chrom
+    pos
+    ref
+    alt
   }
 }
 """
@@ -86,7 +117,13 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
             )
         except Exception as exc:  # noqa: BLE001 - provider failure must degrade.
             raw_error = _error_payload(exc)
-            request_payload = _request_payload(query["variant_id"], self.dataset)
+            request_payload = _request_payload(
+                query["variant_id"],
+                self.dataset,
+                query_text=GNOMAD_FREQUENCY_QUERY,
+                query_name=GNOMAD_FREQUENCY_QUERY_NAME,
+                query_version=GNOMAD_FREQUENCY_QUERY_VERSION,
+            )
             return _empty_frequency(
                 variant=variant,
                 query=query,
@@ -97,6 +134,11 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
                     "query": query,
                     "request_payload": request_payload,
                     "request_payload_hash": raw_record_hash(request_payload),
+                    "graphql_query_name": GNOMAD_FREQUENCY_QUERY_NAME,
+                    "graphql_query_version": GNOMAD_FREQUENCY_QUERY_VERSION,
+                    "dataset": self.dataset,
+                    "variant_id": query["variant_id"],
+                    "endpoint": GNOMAD_GRAPHQL_ENDPOINT,
                     "error": raw_error,
                 },
                 limitations=[
@@ -109,14 +151,60 @@ class GnomADOnlineProvider(PopulationFrequencyProvider):
             )
 
     def _load_payload(self, query: dict[str, Any]) -> dict[str, Any]:
-        request_payload = _request_payload(query["variant_id"], self.dataset)
-        payload = self.http_client.post_json(GNOMAD_GRAPHQL_ENDPOINT, request_payload)
+        attempts: list[dict[str, Any]] = []
+        payload: dict[str, Any] | None = None
+        selected_stage: dict[str, str] | None = None
+        final_error: Exception | None = None
+        for stage in _query_stages():
+            request_payload = _request_payload(
+                query["variant_id"],
+                self.dataset,
+                query_text=stage["query_text"],
+                query_name=stage["query_name"],
+                query_version=stage["query_version"],
+            )
+            try:
+                candidate = self.http_client.post_json(GNOMAD_GRAPHQL_ENDPOINT, request_payload)
+            except Exception as exc:  # noqa: BLE001 - fallback turns provider drift into diagnostics.
+                final_error = exc
+                attempts.append(_attempt_from_exception(stage, request_payload, exc))
+                continue
+            errors = candidate.get("errors") if isinstance(candidate, dict) else None
+            variant_payload = ((candidate.get("data") or {}).get("variant") if isinstance(candidate, dict) else None)
+            attempt = _attempt_from_payload(stage, request_payload, candidate)
+            attempts.append(attempt)
+            if errors and stage["query_name"] != GNOMAD_MINIMAL_QUERY_NAME:
+                continue
+            payload = candidate
+            selected_stage = stage
+            if variant_payload is None and stage["query_name"] != GNOMAD_MINIMAL_QUERY_NAME:
+                continue
+            break
+        if payload is None or selected_stage is None:
+            selected_stage = _query_stages()[-1]
+            error_payload = _error_payload(final_error) if final_error is not None else {"message": "No gnomAD response payload was available."}
+            payload = {
+                "errors": [{"message": _provider_error_summary(error_payload)}],
+                "data": {"variant": None},
+            }
+        request_payload = _request_payload(
+            query["variant_id"],
+            self.dataset,
+            query_text=selected_stage["query_text"],
+            query_name=selected_stage["query_name"],
+            query_version=selected_stage["query_version"],
+        )
         return {
             "provider": "GnomADOnlineProvider",
             "source_version": self._source_version(),
             "retrieved_at": datetime.now(timezone.utc).isoformat(),
             "endpoint": GNOMAD_GRAPHQL_ENDPOINT,
             "query": query,
+            "dataset": self.dataset,
+            "variant_id": query["variant_id"],
+            "graphql_query_name": selected_stage["query_name"],
+            "graphql_query_version": selected_stage["query_version"],
+            "attempts": attempts,
             "request_payload": request_payload,
             "request_payload_hash": raw_record_hash(request_payload),
             "payload": payload,
@@ -141,7 +229,8 @@ def _frequency_from_payload(
     cache_hit: bool,
 ) -> PopulationFrequency:
     errors = (payload.get("payload") or {}).get("errors")
-    if errors:
+    raw = (payload.get("payload") or {}).get("data", {}).get("variant")
+    if errors and not _is_variant_not_found_payload(payload):
         error_summary = _graphql_error_summary(errors)
         return _empty_frequency(
             variant=variant,
@@ -153,10 +242,10 @@ def _frequency_from_payload(
             limitations=[
                 f"gnomAD online query failed: GraphQL errors: {error_summary}",
                 "gnomAD GraphQL error payload was captured for provider diagnostics.",
+                *_attempt_limitations(payload, include_failure_terms=True),
                 "Provider failure is not evidence of population absence and cannot trigger PM2_Supporting.",
             ],
         )
-    raw = (payload.get("payload") or {}).get("data", {}).get("variant")
     if not isinstance(raw, dict):
         return _empty_frequency(
             variant=variant,
@@ -168,6 +257,7 @@ def _frequency_from_payload(
             limitations=[
                 "No gnomAD online record matched the supplied query; this is not evidence of population absence.",
                 "gnomAD no_record is not treated as population absence and cannot trigger PM2_Supporting.",
+                *_attempt_limitations(payload),
             ],
         )
     genome = raw.get("genome") if isinstance(raw.get("genome"), dict) else {}
@@ -178,7 +268,12 @@ def _frequency_from_payload(
     faf95 = _faf95(raw.get("faf95"), popmax.get("id") if popmax else None)
     limitations = [
         "gnomAD online source supplies population facts only; BA1/BS1/PM2 require existing rule gates.",
+        *_attempt_limitations(payload),
     ]
+    if payload.get("graphql_query_name") != GNOMAD_FULL_QUERY_NAME:
+        limitations.append(
+            "gnomAD optional population/FAF query was not used for final frequency parsing; stable exome/genome fields were used."
+        )
     source = EvidenceSource(
         name=config.name,
         version=source_version,
@@ -262,7 +357,7 @@ def _empty_frequency(
         cache_hit=cache_hit,
         request_method="POST",
         request_url=GNOMAD_GRAPHQL_ENDPOINT,
-        dataset="gnomAD",
+        dataset=str(raw_payload.get("dataset") or query.get("dataset") or "gnomAD"),
         raw_payload_kind="graphql_json",
         limitations=limitations,
     )
@@ -317,10 +412,22 @@ def _int(value: Any) -> int | None:
     return None
 
 
-def _request_payload(variant_id: str, dataset: str) -> dict[str, Any]:
+def _request_payload(
+    variant_id: str,
+    dataset: str,
+    *,
+    query_text: str,
+    query_name: str,
+    query_version: str,
+) -> dict[str, Any]:
     return {
-        "query": GNOMAD_QUERY,
+        "query": query_text,
+        "operationName": query_name,
         "variables": {"variantId": variant_id, "dataset": dataset},
+        "query_metadata": {
+            "query_name": query_name,
+            "query_version": query_version,
+        },
     }
 
 
@@ -354,3 +461,115 @@ def _error_limitations(payload: dict[str, Any]) -> list[str]:
     if payload.get("response_text"):
         details.append(f"gnomAD HTTP response body summary: {str(payload['response_text'])[:240]}")
     return details
+
+
+def _query_stages() -> list[dict[str, str]]:
+    return [
+        {
+            "query_name": GNOMAD_FULL_QUERY_NAME,
+            "query_version": GNOMAD_FULL_QUERY_VERSION,
+            "query_text": GNOMAD_FULL_QUERY,
+        },
+        {
+            "query_name": GNOMAD_FREQUENCY_QUERY_NAME,
+            "query_version": GNOMAD_FREQUENCY_QUERY_VERSION,
+            "query_text": GNOMAD_FREQUENCY_QUERY,
+        },
+        {
+            "query_name": GNOMAD_MINIMAL_QUERY_NAME,
+            "query_version": GNOMAD_MINIMAL_QUERY_VERSION,
+            "query_text": GNOMAD_MINIMAL_QUERY,
+        },
+    ]
+
+
+def _attempt_from_exception(
+    stage: dict[str, str],
+    request_payload: dict[str, Any],
+    exc: Exception,
+) -> dict[str, Any]:
+    error = _error_payload(exc)
+    return {
+        "query_name": stage["query_name"],
+        "query_version": stage["query_version"],
+        "outcome": "error",
+        "endpoint": GNOMAD_GRAPHQL_ENDPOINT,
+        "dataset": request_payload.get("variables", {}).get("dataset"),
+        "variant_id": request_payload.get("variables", {}).get("variantId"),
+        "request_payload_hash": raw_record_hash(request_payload),
+        "http_status": error.get("status"),
+        "error": error,
+        "error_summary": _provider_error_summary(error),
+    }
+
+
+def _attempt_from_payload(
+    stage: dict[str, str],
+    request_payload: dict[str, Any],
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    errors = payload.get("errors") if isinstance(payload, dict) else None
+    variant_payload = ((payload.get("data") or {}).get("variant") if isinstance(payload, dict) else None)
+    if errors:
+        outcome = "no_record" if _is_variant_not_found_errors(errors) and variant_payload is None else "graphql_errors"
+    elif variant_payload is None:
+        outcome = "no_record"
+    else:
+        outcome = "success"
+    return {
+        "query_name": stage["query_name"],
+        "query_version": stage["query_version"],
+        "outcome": outcome,
+        "endpoint": GNOMAD_GRAPHQL_ENDPOINT,
+        "dataset": request_payload.get("variables", {}).get("dataset"),
+        "variant_id": request_payload.get("variables", {}).get("variantId"),
+        "request_payload_hash": raw_record_hash(request_payload),
+        "graphql_errors": errors,
+        "graphql_error_summary": _graphql_error_summary(errors) if errors else None,
+        "payload": payload if errors else None,
+    }
+
+
+def _attempt_limitations(payload: dict[str, Any], *, include_failure_terms: bool = False) -> list[str]:
+    limitations = []
+    for attempt in payload.get("attempts") or []:
+        if not isinstance(attempt, dict):
+            continue
+        outcome = attempt.get("outcome")
+        if outcome not in {"error", "graphql_errors"}:
+            continue
+        summary = attempt.get("error_summary") or attempt.get("graphql_error_summary")
+        prefix = "gnomAD query failed" if include_failure_terms else "gnomAD optional query returned an error"
+        limitations.append(
+            f"{prefix}: {attempt.get('query_name')} {attempt.get('query_version')} for {attempt.get('variant_id')} on {attempt.get('dataset')}: {summary}"
+        )
+        if attempt.get("http_status") is not None:
+            limitations.append(f"gnomAD HTTP status: {attempt['http_status']}.")
+        error = attempt.get("error") if isinstance(attempt.get("error"), dict) else {}
+        if error.get("response_text"):
+            limitations.append(f"gnomAD HTTP response body summary: {str(error['response_text'])[:240]}")
+    return limitations
+
+
+def _is_variant_not_found_payload(payload: dict[str, Any]) -> bool:
+    errors = (payload.get("payload") or {}).get("errors")
+    raw = (payload.get("payload") or {}).get("data", {}).get("variant")
+    return raw is None and _is_variant_not_found_errors(errors)
+
+
+def _is_variant_not_found_errors(errors: Any) -> bool:
+    if not errors:
+        return False
+    summary = _graphql_error_summary(errors).lower()
+    return "variant not found" in summary or "not found" == summary.strip()
+
+
+def _provider_error_summary(payload: dict[str, Any]) -> str:
+    parts = []
+    if payload.get("status") is not None:
+        parts.append(f"HTTP {payload['status']}")
+    if payload.get("message"):
+        parts.append(str(payload["message"]))
+    if payload.get("response_text"):
+        parts.append(str(payload["response_text"])[:240])
+    return " | ".join(parts) or str(payload)[:240]
