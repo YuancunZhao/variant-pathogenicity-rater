@@ -86,6 +86,12 @@ payloads that lack `step_results.provider_runtime`.
 list.  Report generation is presentation and serialization work — it must not
 change final classification or evidence generation.
 
+79A-3B: ``step_results.provider_execution_plan`` is emitted as an additive
+observability artifact.  It is built in ``output_phase`` from the same
+``VariantIdentity``, options, and ``DataSourcesConfig`` used by the rest of
+the pipeline.  ``evidence_phase`` remains the sole provider execution owner;
+the plan does not route or gate any provider call.
+
 ## Extension Guidelines
 
 Future features should be added to the phase that owns their behavior:

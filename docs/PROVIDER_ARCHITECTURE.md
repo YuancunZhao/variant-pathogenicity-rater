@@ -185,3 +185,10 @@ plus ``evidence_phase``-equivalent helpers (``_online_source``,
 
 The plan is **additive observability only**. No consumer (report, benchmark,
 classification) consumes ``ProviderExecutionPlan`` at this stage.
+
+79A-3B wires the plan into the single-variant pipeline under
+``step_results.provider_execution_plan``.  The plan is built in
+``output_phase`` after ``provider_identity`` is available, using the same
+``VariantIdentity``, options, and ``DataSourcesConfig`` that the pipeline
+already uses.  ``evidence_phase`` remains the sole execution owner;
+``ProviderRuntimeResult`` remains the sole provider runtime outcome source.

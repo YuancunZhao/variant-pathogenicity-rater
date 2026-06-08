@@ -649,3 +649,87 @@ def test_providers_summary_equals_provider_mode_summary_for_fresh_output() -> No
     result = rate_variant(_flat_variant_payload())
 
     assert result["providers"]["summary"] == result["provider_mode_summary"]
+
+
+# ── 79A-3B: provider_execution_plan observability wiring ──────────────
+
+
+def test_rate_variant_emits_provider_execution_plan() -> None:
+    result = rate_variant(_flat_variant_payload())
+
+    plan = result["step_results"]["provider_execution_plan"]
+    assert plan["plan_version"] == "79A-3A-v1"
+    assert len(plan["nodes"]) == 8
+    assert plan["provider_identity"] is not None
+    assert plan["provider_identity"]["gene"] == "BRCA1"
+
+
+def test_provider_execution_plan_has_expected_node_keys() -> None:
+    result = rate_variant(_flat_variant_payload())
+
+    plan = result["step_results"]["provider_execution_plan"]
+    keys = {node["node_key"] for node in plan["nodes"]}
+    assert keys == {
+        "provider_identity",
+        "query_population_frequency",
+        "evaluate_computational_evidence",
+        "query_clinvar",
+        "query_clingen_erepo",
+        "search_literature_evidence",
+        "search_and_summarize_literature",
+        "provider_runtime",
+    }
+
+
+def test_provider_execution_plan_mock_mode_attempts_local_providers() -> None:
+    """Mock/default valid identity: mock/local provider steps have planned_attempt=true."""
+    result = rate_variant(_flat_variant_payload())
+    plan = result["step_results"]["provider_execution_plan"]
+
+    by_key = {node["node_key"]: node for node in plan["nodes"]}
+    assert by_key["query_population_frequency"]["planned_attempt"] is True
+    assert by_key["evaluate_computational_evidence"]["planned_attempt"] is True
+    assert by_key["query_clinvar"]["planned_attempt"] is True
+    assert by_key["search_literature_evidence"]["planned_attempt"] is True
+    assert by_key["search_and_summarize_literature"]["planned_attempt"] is False
+
+
+def test_provider_execution_plan_does_not_change_classification() -> None:
+    payload = {**_flat_variant_payload(), "options": {"include_population": False, "include_computational": False, "include_clinvar": False, "include_literature": False}}
+    result = rate_variant(payload)
+
+    assert "provider_execution_plan" in result["step_results"]
+    assert result["final_classification"] in {"vus", "pathogenic", "likely_pathogenic", "benign", "likely_benign"}
+
+
+def test_provider_execution_plan_preserves_applied_evidence() -> None:
+    payload = {**_flat_variant_payload(), "options": {"include_population": False, "include_computational": False, "include_clinvar": False, "include_literature": False}}
+    result = rate_variant(payload)
+
+    assert "provider_execution_plan" in result["step_results"]
+    assert result["applied_evidence"] == result["evidence"]["applied"]
+    assert result["evidence_items"] == result["evidence"]["all_items"]
+
+
+def test_provider_execution_plan_preserves_providers_summary() -> None:
+    result = rate_variant(_flat_variant_payload())
+
+    assert "provider_execution_plan" in result["step_results"]
+    assert result["providers"]["summary"] == result["provider_mode_summary"]
+
+
+def test_provider_execution_plan_serialized_identity_is_valid() -> None:
+    result = rate_variant(_flat_variant_payload())
+    plan = result["step_results"]["provider_execution_plan"]
+    identity = plan["provider_identity"]
+    assert isinstance(identity, dict)
+    assert identity.get("gene") == "BRCA1"
+    assert identity.get("genome_build") == "GRCh38"
+
+
+def test_provider_execution_plan_dependency_fields_present() -> None:
+    result = rate_variant(_flat_variant_payload())
+    plan = result["step_results"]["provider_execution_plan"]
+    for field in ("dependency_unsatisfied", "dependency_skip_planned", "dependency_skipped", "attempted"):
+        assert field in plan, f"plan missing field: {field}"
+        assert isinstance(plan[field], list), f"plan.{field} is not a list"
