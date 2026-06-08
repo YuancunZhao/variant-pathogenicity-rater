@@ -7,6 +7,9 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
+from variant_pathogenicity_rater.data_sources.provider_result import (
+    provider_summary_from_runtime_json,
+)
 from variant_pathogenicity_rater.evidence.status import summarize_evidence_status
 from variant_pathogenicity_rater.runtime.options import (
     normalize_runtime_options,
@@ -361,10 +364,15 @@ def _runtime_section(result: dict[str, Any], options_used: dict[str, Any]) -> di
 
 
 def _providers_section(result: dict[str, Any]) -> dict[str, Any]:
-    summary = _json_copy(result.get("provider_mode_summary") or {})
     provider_runtime = ((result.get("step_results") or {}).get("provider_runtime") or {})
     if not isinstance(provider_runtime, dict):
         provider_runtime = {}
+    # Project summary from step_results.provider_runtime (ground truth).
+    # provider_mode_summary is only a legacy compatibility fallback.
+    if provider_runtime:
+        summary = provider_summary_from_runtime_json(provider_runtime)
+    else:
+        summary = _json_copy(result.get("provider_mode_summary") or {})
     providers = {
         "summary": summary,
         "clinvar": _provider_entry(provider_runtime.get("clinvar")),
@@ -748,15 +756,23 @@ def _parser_versions(result: dict[str, Any]) -> dict[str, str]:
 
 def _data_source_versions(result: dict[str, Any]) -> dict[str, str]:
     versions: dict[str, str] = {}
+    # Prefer provider_runtime source_version (the ground-truth runtime contract).
+    provider_runtime = (result.get("step_results") or {}).get("provider_runtime") or {}
+    if isinstance(provider_runtime, dict):
+        for name, entry in provider_runtime.items():
+            if isinstance(entry, dict) and entry.get("source_version"):
+                versions[str(name)] = str(entry["source_version"])
+    # Evidence-item source versions fill gaps.
     for item in _iter_sources(result):
         if isinstance(item, dict) and item.get("name") and item.get("version"):
-            versions[str(item["name"])] = str(item["version"])
+            versions.setdefault(str(item["name"]), str(item["version"]))
         provenance = item.get("provenance") if isinstance(item, dict) else None
         if isinstance(provenance, dict) and provenance.get("data_source") and provenance.get("source_version"):
-            versions[str(provenance["data_source"])] = str(provenance["source_version"])
+            versions.setdefault(str(provenance["data_source"]), str(provenance["source_version"]))
+    # Legacy provider_mode_summary is the last fallback.
     for name, provider in (result.get("provider_mode_summary") or {}).items():
         if isinstance(provider, dict) and provider.get("source_version"):
-            versions[str(name)] = str(provider["source_version"])
+            versions.setdefault(str(name), str(provider["source_version"]))
     return versions
 
 

@@ -58,6 +58,9 @@ def _result(
                     "records_count": 1 if clinvar == "success" else 0,
                     "attempted": clinvar != "skipped",
                     "cache_hit": cache_hit,
+                    "yield_observations": {
+                        "candidate_evidence_count": 1 if clinvar == "success" else 0,
+                    },
                     **latency(latency_ms),
                 },
                 "population": {
@@ -71,6 +74,9 @@ def _result(
                         if gnomad == "failure"
                         else None
                     ),
+                    "yield_observations": {
+                        "data_source": "gnomAD" if gnomad not in {"skipped", "failure"} else "mock_population_frequency",
+                    },
                     **latency(latency_ms + 1),
                 },
                 "computational": {
@@ -88,6 +94,11 @@ def _result(
                     "records_count": 2 if literature == "success" else 0,
                     "attempted": literature != "skipped",
                     "cache_hit": cache_hit,
+                    "yield_observations": {
+                        "pubmed_citations": 1 if literature == "success" else 0,
+                        "litvar_citations": 1 if literature == "success" else 0,
+                        "summary_generated": literature == "success",
+                    },
                     **latency(latency_ms + 3),
                 },
             },
@@ -213,34 +224,64 @@ def test_provider_benchmark_separates_dependency_skip_from_provider_failure() ->
     assert "gnomAD skipped due to invalid identity" in report
 
 
-def test_provider_benchmark_outcomes_come_from_provider_runtime_not_raw_steps() -> None:
+def test_provider_benchmark_ignores_raw_step_payloads_for_outcome_and_yield() -> None:
+    """Benchmark must derive outcome AND yield from step_results.provider_runtime,
+    never from raw provider step payloads."""
+
     def runner(payload: dict[str, Any]) -> dict[str, Any]:
         result = _result(case_id=payload["gene"], clinvar="skipped", gnomad="skipped", vep="skipped", literature="skipped")
+        # Populate raw step payloads with data that MUST be ignored.
+        # The benchmark must NOT read these for outcome or yield.
         result["step_results"]["query_clinvar"] = {
             "records": [{"id": payload["gene"]}],
-            "candidate_evidence_items": [{"code": "PP5"}],
+            "candidate_evidence_items": [{"code": "PP5"}, {"code": "PM2"}],  # 2 items
         }
         result["step_results"]["query_population_frequency"] = {
             "data_source": "gnomAD",
             "overall_af": 0.001,
         }
         result["step_results"]["evaluate_computational_evidence"] = {
-            "summary": {"predictor_calls": [{"method": "CADD"}]},
+            "summary": {"predictor_calls": [{"method": "CADD"}, {"method": "REVEL"}]},
         }
         result["step_results"]["search_and_summarize_literature"] = {
-            "literature_records": [{"source": "PubMed", "pmid": "1"}],
+            "literature_records": [
+                {"source": "PubMed", "pmid": "1"},
+                {"source": "LitVar", "pmid": "2"},
+            ],
             "criterion_summaries": [{"criterion": "PS4"}],
+        }
+        # Populate provider_runtime with the REAL yield data.
+        # These values differ from raw steps to prove benchmark reads
+        # only provider_runtime.
+        result["step_results"]["provider_runtime"]["clinvar"]["records_count"] = 3
+        result["step_results"]["provider_runtime"]["clinvar"]["yield_observations"] = {
+            "candidate_evidence_count": 5,
+        }
+        result["step_results"]["provider_runtime"]["population"]["records_count"] = 1
+        result["step_results"]["provider_runtime"]["population"]["yield_observations"] = {
+            "data_source": "gnomAD",
+        }
+        result["step_results"]["provider_runtime"]["literature"]["yield_observations"] = {
+            "pubmed_citations": 3,
+            "litvar_citations": 2,
+            "summary_generated": True,
         }
         return result
 
     result = run_provider_benchmark(case_runner=runner)
 
+    # Outcomes come from provider_runtime (all skipped), not raw steps.
     assert result.clinvar.skipped == 6
     assert result.gnomad.skipped == 6
     assert result.vep.skipped == 6
     assert result.pubmed.skipped == 6
-    assert result.provider_yield["clinvar"].records_found == 6
+    # Yield comes from provider_runtime records_count and yield_observations,
+    # NOT from raw step payloads.
+    assert result.provider_yield["clinvar"].records_found == 3 * 6
+    assert result.provider_yield["clinvar"].candidate_evidence_generated == 5 * 6
     assert result.provider_yield["gnomad"].af_records_found == 6
+    assert result.provider_yield["pubmed"].articles_found == 3 * 6
+    assert result.provider_yield["litvar"].citations_found == 2 * 6
 
 
 def test_provider_benchmark_preserves_classification_as_observed_metric_only() -> None:

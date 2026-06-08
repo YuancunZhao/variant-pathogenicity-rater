@@ -72,14 +72,23 @@ Each canonical provider entry uses the same field names:
 - `provenance`
 
 `providers.summary` is the canonical replacement for the legacy
-`provider_mode_summary` field. The legacy field remains emitted unchanged for
-compatibility.
+`provider_mode_summary` field. `providers.summary` is projected from
+`step_results.provider_runtime` (the ground-truth provider runtime contract);
+`provider_mode_summary` is retained as a legacy compatibility fallback for
+old external payloads that lack `step_results.provider_runtime`. For freshly
+generated outputs the two are equal.
 
 77B adds `step_results.provider_runtime` as the normalized provider runtime
 contract for ClinVar, population/gnomAD, computational/VEP,
 literature/PubMed-LitVar, and ClinGen ERepo. Per-provider canonical entries
-prefer this runtime contract when available. For compatibility,
-`providers.summary` remains equal to `provider_mode_summary`.
+prefer this runtime contract.
+
+81B hardens the projection: canonical ``providers.summary`` is always derived
+from ``step_results.provider_runtime``, not from the top-level
+``provider_mode_summary`` field. ``provider_mode_summary`` is a legacy
+compatibility view only. Provider yields, data-source versions, and benchmark
+metrics exclusively consume ``ProviderRuntimeResult`` — they do not read raw
+provider step payloads.
 
 See `docs/PROVIDER_RESULT_CONTRACT.md` for the provider outcome and provenance
 contract.

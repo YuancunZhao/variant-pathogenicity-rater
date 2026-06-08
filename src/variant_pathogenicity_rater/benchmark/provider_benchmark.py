@@ -438,35 +438,46 @@ def _literature_runtime(value: Any, provider_name: str) -> dict[str, Any]:
 
 
 def _provider_yield(result: dict[str, Any]) -> dict[str, Any]:
-    clinvar = (result.get("step_results") or {}).get("query_clinvar") or {}
-    population = (result.get("step_results") or {}).get("query_population_frequency") or {}
-    computational = (result.get("step_results") or {}).get("evaluate_computational_evidence") or {}
-    literature = (
-        (result.get("step_results") or {}).get("search_and_summarize_literature")
-        or (result.get("step_results") or {}).get("search_literature_evidence")
-        or {}
-    )
-    predictor_calls = ((computational.get("summary") or {}).get("predictor_calls") or [])
-    literature_records = _literature_records(literature)
+    """Derive provider yield from step_results.provider_runtime only.
+
+    Raw provider step payloads (query_clinvar, query_population_frequency,
+    evaluate_computational_evidence, search_*) are intentionally not read
+    here.  Yield metrics come from ``records_count``, ``outcome``, and
+    ``yield_observations`` on each provider runtime entry.
+    """
+    provider_runtime = (result.get("step_results") or {}).get("provider_runtime") or {}
+    clinvar_rt = dict(provider_runtime.get("clinvar") or {})
+    population_rt = dict(provider_runtime.get("population") or {})
+    computational_rt = dict(provider_runtime.get("computational") or {})
+    literature_rt = dict(provider_runtime.get("literature") or {})
+
+    clinvar_yield = dict(clinvar_rt.get("yield_observations") or {})
+    population_yield = dict(population_rt.get("yield_observations") or {})
+    literature_yield = dict(literature_rt.get("yield_observations") or {})
+
     return {
         "clinvar": {
-            "records_found": len(clinvar.get("records") or []),
-            "candidate_evidence_generated": len(clinvar.get("candidate_evidence_items") or []),
+            "records_found": int(clinvar_rt.get("records_count") or 0),
+            "candidate_evidence_generated": int(clinvar_yield.get("candidate_evidence_count") or 0),
         },
         "gnomad": {
-            "af_records_found": int(population.get("overall_af") is not None or population.get("max_pop_af") is not None),
-            "population_provider_hits": int(population.get("data_source") not in {None, "mock_population_frequency"} and bool(population)),
+            "af_records_found": int(int(population_rt.get("records_count") or 0) > 0),
+            "population_provider_hits": int(
+                population_rt.get("outcome") == "success"
+                and population_yield.get("data_source") not in {None, "mock_population_frequency"}
+                and int(population_rt.get("records_count") or 0) > 0
+            ),
         },
         "vep": {
             "consequence_resolved": int(_vep_consequence_resolved(result)),
-            "predictor_records_returned": len(predictor_calls),
+            "predictor_records_returned": int(computational_rt.get("records_count") or 0),
         },
         "pubmed": {
-            "articles_found": sum(1 for record in literature_records if _source_name(record) == "pubmed"),
-            "summary_generated": int(bool(literature.get("criterion_summaries") or literature.get("summary"))),
+            "articles_found": int(literature_yield.get("pubmed_citations") or 0),
+            "summary_generated": int(literature_yield.get("summary_generated") or False),
         },
         "litvar": {
-            "citations_found": sum(1 for record in literature_records if _source_name(record) == "litvar"),
+            "citations_found": int(literature_yield.get("litvar_citations") or 0),
         },
     }
 
@@ -608,21 +619,6 @@ def _is_timeout(payload: dict[str, Any]) -> bool:
         if item
     ).lower()
     return "timeout" in text or "timed out" in text
-
-
-def _literature_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    for key in ("literature_records", "literature_search_results", "records"):
-        records = payload.get(key)
-        if isinstance(records, list):
-            return [record for record in records if isinstance(record, dict)]
-    return []
-
-
-def _source_name(record: dict[str, Any]) -> str:
-    source = record.get("source")
-    if isinstance(source, dict):
-        source = source.get("name") or source.get("source")
-    return str(source or record.get("data_source") or "").lower()
 
 
 def _vep_consequence_resolved(result: dict[str, Any]) -> bool:

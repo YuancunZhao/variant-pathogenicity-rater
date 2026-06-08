@@ -129,8 +129,10 @@ phase-level contracts:
   provider calls that require usable identity.
 - `ProviderRuntimeResult` is constructed in `output_phase` from provider step
   payloads and dependency skip payloads, then serialized into
-  `step_results.provider_runtime`, `provider_mode_summary`, and canonical
-  provider sections.
+  `step_results.provider_runtime`, `provider_mode_summary` (a legacy
+  compatibility view projected from `ProviderRuntimeResult`), and canonical
+  provider sections. `build_provider_runtime_results` is the only function
+  that interprets raw provider step payloads.
 
 79A-2 does not replace existing provider calls. The planned follow-up is a
 fuller provider orchestrator that can route resolution, annotation, population,

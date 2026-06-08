@@ -43,6 +43,7 @@ class ProviderRuntimeResult(SchemaModel):
     retrieval_timestamp: str | None = None
     provenance: dict[str, Any] = Field(default_factory=dict)
     dependency_status: dict[str, Any] | None = None
+    yield_observations: dict[str, Any] = Field(default_factory=dict)
 
 
 def build_provider_runtime_result(
@@ -65,6 +66,7 @@ def build_provider_runtime_result(
     retrieval_timestamp: str | None = None,
     provenance: dict[str, Any] | None = None,
     dependency_status: dict[str, Any] | None = None,
+    yield_observations: dict[str, Any] | None = None,
 ) -> ProviderRuntimeResult:
     resolved_outcome = ProviderOutcome(str(outcome))
     resolved_attempted = attempted
@@ -89,6 +91,7 @@ def build_provider_runtime_result(
         retrieval_timestamp=retrieval_timestamp,
         provenance=dict(provenance or {}),
         dependency_status=dependency_status,
+        yield_observations=dict(yield_observations or {}),
     )
 
 
@@ -227,6 +230,7 @@ def provider_result_from_step_payload(
             configured_mode=str(source_config.mode),
             limitations=list(source_config.limitations or []),
         )
+    yield_obs = _yield_observations_from_step(step_name, step_payload)
     dependency_status = _provider_dependency_status(step_payload)
     if dependency_status and dependency_status.get("satisfied") is False:
         limitations = _provider_limitations(step_payload)
@@ -249,6 +253,7 @@ def provider_result_from_step_payload(
             retrieval_timestamp=provenance.get("retrieved_at") or source_payload.get("retrieval_timestamp"),
             provenance=provenance,
             dependency_status=dependency_status,
+            yield_observations=yield_obs,
         )
 
     limitations = _provider_limitations(step_payload)
@@ -284,6 +289,7 @@ def provider_result_from_step_payload(
         retrieval_timestamp=provenance.get("retrieved_at") or source_payload.get("retrieval_timestamp"),
         provenance=provenance,
         dependency_status=dependency_status,
+        yield_observations=yield_obs,
     )
 
 
@@ -349,6 +355,28 @@ def provider_runtime_results_json(
             options,
         )
     )
+
+
+def provider_summary_from_runtime_json(
+    runtime_json: dict[str, Any],
+) -> dict[str, Any]:
+    """Project legacy ``provider_mode_summary`` from serialized
+    ``step_results.provider_runtime``.
+
+    Each entry is validated as a ``ProviderRuntimeResult`` and then
+    projected through ``_legacy_summary_item`` so the output shape
+    matches ``provider_summary_from_runtime_results``.
+    """
+    summary: dict[str, Any] = {}
+    for name, payload in runtime_json.items():
+        if not isinstance(payload, dict):
+            continue
+        try:
+            result = ProviderRuntimeResult.model_validate(payload)
+        except Exception:
+            continue
+        summary[name] = _legacy_summary_item(result)
+    return summary
 
 
 def _legacy_summary_item(result: ProviderRuntimeResult) -> dict[str, Any]:
@@ -533,6 +561,51 @@ def _provider_warnings(step_payload: Any) -> list[str]:
             if isinstance(flag, dict) and flag.get("message"):
                 warnings.append(str(flag["message"]))
     return _unique(warnings)
+
+
+def _yield_observations_from_step(step_name: str, step_payload: Any) -> dict[str, Any]:
+    """Extract non-semantic yield observations from raw step payloads.
+
+    This is the only place that reads raw step payload shapes for yield
+    metrics.  Benchmark and reporting consumers read ``yield_observations``
+    from ``ProviderRuntimeResult`` instead of interpreting raw steps.
+    """
+    if not isinstance(step_payload, dict):
+        return {}
+    if step_name == "query_clinvar":
+        return {
+            "candidate_evidence_count": len(step_payload.get("candidate_evidence_items") or []),
+        }
+    if step_name == "query_population_frequency":
+        data_source = step_payload.get("data_source")
+        return {
+            "data_source": str(data_source) if data_source else None,
+        }
+    if step_name in ("search_and_summarize_literature", "search_literature_evidence"):
+        records = _literature_yield_records(step_payload)
+        return {
+            "pubmed_citations": sum(1 for r in records if _record_source_name(r) == "pubmed"),
+            "litvar_citations": sum(1 for r in records if _record_source_name(r) == "litvar"),
+            "summary_generated": bool(
+                step_payload.get("criterion_summaries") or step_payload.get("summary")
+            ),
+        }
+    return {}
+
+
+def _literature_yield_records(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    for key in ("literature_records", "literature_search_results", "records"):
+        records = payload.get(key)
+        if isinstance(records, list):
+            return [record for record in records if isinstance(record, dict)]
+    return []
+
+
+def _record_source_name(record: dict[str, Any]) -> str:
+    source = record.get("source")
+    if isinstance(source, dict):
+        source = source.get("name") or source.get("source")
+    return str(source or record.get("data_source") or "").lower()
 
 
 def _provider_source_version(

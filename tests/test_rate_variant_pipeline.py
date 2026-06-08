@@ -5,6 +5,8 @@ import json
 
 from server import McpServer, build_registry
 from config import ServerConfig
+from variant_pathogenicity_rater.data_sources.provider_result import provider_summary_from_runtime_json
+from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
 
@@ -525,3 +527,60 @@ def test_mcp_rate_annotated_variants_preserves_pvs1_decision_path_per_record() -
     pvs1 = next(item for item in record["applied_evidence"] if item["code"] == "PVS1")
 
     assert pvs1["supporting_data"]["decision_path"]
+
+
+def test_canonical_providers_summary_survives_stale_provider_mode_summary() -> None:
+    """Canonical providers.summary must be projected from
+    step_results.provider_runtime, not from the legacy provider_mode_summary
+    top-level field."""
+    result = rate_variant(_flat_variant_payload())
+
+    # Baseline: both should be equal for a fresh pipeline result.
+    assert result["providers"]["summary"] == result["provider_mode_summary"]
+
+    # Simulate a stale/conflicting provider_mode_summary.
+    stale_summary = {
+        "clinvar": {
+            "requested_mode": "default",
+            "configured_mode": "mock",
+            "actual_outcome": "success",
+            "outcome": "success",
+            "records_count": 999,
+            "source_version": "stale-v99",
+            "attempted": True,
+            "cache_hit": True,
+            "provider_mode": "mock",
+            "endpoint": "https://stale.example.com",
+            "query": {"stale": True},
+        },
+    }
+    result["provider_mode_summary"] = stale_summary
+
+    # Re-apply canonical fields so _providers_section re-runs.
+    add_rate_variant_canonical_fields(result)
+
+    # providers.summary must reflect provider_runtime, not the stale summary.
+    assert result["providers"]["summary"] != stale_summary
+    assert result["provider_mode_summary"] == stale_summary  # legacy field preserved as-is
+
+    # The canonical summary must match what provider_runtime projects.
+    provider_runtime = result["step_results"]["provider_runtime"]
+    projected = provider_summary_from_runtime_json(provider_runtime)
+    assert result["providers"]["summary"] == projected
+    # Non-stale providers should still match the runtime entry.
+    for name in projected:
+        assert result["providers"]["summary"][name]["outcome"] == provider_runtime[name]["outcome"]
+
+
+def test_canonical_providers_summary_falls_back_to_legacy_when_runtime_missing() -> None:
+    """When step_results.provider_runtime is absent, providers.summary
+    must fall back to the legacy provider_mode_summary."""
+    result = rate_variant(_flat_variant_payload())
+    result["provider_mode_summary"] = {
+        "clinvar": {"outcome": "fallback_only", "records_count": 1},
+    }
+    result["step_results"].pop("provider_runtime", None)
+
+    add_rate_variant_canonical_fields(result)
+
+    assert result["providers"]["summary"] == result["provider_mode_summary"]
