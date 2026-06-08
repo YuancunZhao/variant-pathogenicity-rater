@@ -187,8 +187,18 @@ The plan is **additive observability only**. No consumer (report, benchmark,
 classification) consumes ``ProviderExecutionPlan`` at this stage.
 
 79A-3B wires the plan into the single-variant pipeline under
-``step_results.provider_execution_plan``.  The plan is built in
-``output_phase`` after ``provider_identity`` is available, using the same
-``VariantIdentity``, options, and ``DataSourcesConfig`` that the pipeline
-already uses.  ``evidence_phase`` remains the sole execution owner;
-``ProviderRuntimeResult`` remains the sole provider runtime outcome source.
+``step_results.provider_execution_plan``.
+
+79A-3C moves plan construction to ``provider_phase`` so that
+``evidence_phase`` can reuse the plan's dependency checks instead of
+calling ``check_*_dependency`` functions directly.  ``evidence_phase``
+reads ``ProviderDependencyCheck`` objects from the plan via
+``_dependency_check_from_plan()`` and writes ``provider_dependency_checks``
+with identical values.  Lazy fallback helpers exist only for the rare
+case where the plan is absent.
+
+``evidence_phase`` remains the sole execution owner; the plan does not
+route or gate any provider call.  ``ProviderRuntimeResult`` remains the
+sole provider runtime outcome source.  ``output_phase`` no longer builds
+the plan — it preserves the already-populated
+``step_results.provider_execution_plan`` from ``provider_phase``.

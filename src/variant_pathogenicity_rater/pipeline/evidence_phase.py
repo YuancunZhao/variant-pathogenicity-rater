@@ -44,10 +44,8 @@ from variant_pathogenicity_rater.evidence.literature import extract_literature_e
 from variant_pathogenicity_rater.evidence.reviewed import process_reviewed_evidence
 from variant_pathogenicity_rater.literature_agent import search_and_summarize_literature
 from variant_pathogenicity_rater.providers import (
-    check_clinvar_dependency,
-    check_gnomad_dependency,
-    check_literature_dependency,
-    check_vep_dependency,
+    ProviderDependencyCheck,
+    ProviderExecutionPlan,
     dependency_skip_payload,
 )
 from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
@@ -127,6 +125,7 @@ def run_evidence_phase(
     context: GeneDiseaseContext,
     variant_resolution: VariantResolutionResult | None,
     provider_identity: Any,
+    provider_execution_plan: ProviderExecutionPlan | None = None,
     audit_trail: list[AuditTrail],
     limitations: list[str],
     step_results: dict[str, Any],
@@ -208,7 +207,9 @@ def run_evidence_phase(
         state.vcep_override_context,
     )
     if options.get("include_population", True):
-        gnomad_dependency = check_gnomad_dependency(provider_identity)
+        gnomad_dependency = _dependency_check_from_plan(provider_execution_plan, "query_population_frequency")
+        if gnomad_dependency is None:
+            gnomad_dependency = _fallback_gnomad_check(provider_identity)
         state.provider_dependency_checks["gnomad"] = gnomad_dependency.model_dump(mode="json")
         if _online_source(data_sources_config, "population") and not gnomad_dependency.satisfied:
             _record_dependency_skip(
@@ -323,7 +324,9 @@ def run_evidence_phase(
             state.evidence_items.append(pvs1_item)
 
     if options.get("include_computational", True):
-        vep_dependency = check_vep_dependency(provider_identity)
+        vep_dependency = _dependency_check_from_plan(provider_execution_plan, "evaluate_computational_evidence")
+        if vep_dependency is None:
+            vep_dependency = _fallback_vep_check(provider_identity)
         state.provider_dependency_checks["vep"] = vep_dependency.model_dump(mode="json")
         computational_result = run_step(
             "evaluate_computational_evidence",
@@ -374,7 +377,9 @@ def run_evidence_phase(
 
     clinvar_records = []
     if options.get("include_clinvar", True):
-        clinvar_dependency = check_clinvar_dependency(provider_identity)
+        clinvar_dependency = _dependency_check_from_plan(provider_execution_plan, "query_clinvar")
+        if clinvar_dependency is None:
+            clinvar_dependency = _fallback_clinvar_check(provider_identity)
         state.provider_dependency_checks["clinvar"] = clinvar_dependency.model_dump(mode="json")
         if _online_source(data_sources_config, "clinvar") and not clinvar_dependency.satisfied:
             _record_dependency_skip(
@@ -429,11 +434,15 @@ def run_evidence_phase(
     literature_records = []
     if options.get("include_literature", True):
         if _use_online_literature(options):
-            literature_dependency = check_literature_dependency(
-                provider_identity,
-                explicit_query=options.get("search_query"),
-                pmids=options.get("pmids") or [],
+            literature_dependency = _dependency_check_from_plan(
+                provider_execution_plan, "search_and_summarize_literature"
             )
+            if literature_dependency is None:
+                literature_dependency = _fallback_lit_check(
+                    provider_identity,
+                    explicit_query=options.get("search_query"),
+                    pmids=options.get("pmids") or [],
+                )
             state.provider_dependency_checks["literature"] = literature_dependency.model_dump(mode="json")
             if not literature_dependency.satisfied:
                 _record_dependency_skip(
@@ -1165,3 +1174,60 @@ def _unique_review_flags(flags: list[Any]) -> list[Any]:
         seen.add(code)
         unique.append(flag)
     return unique
+
+
+# ── 79A-3C: dependency check reuse from ProviderExecutionPlan ──────────
+
+
+def _dependency_check_from_plan(
+    plan: ProviderExecutionPlan | None,
+    node_key: str,
+) -> ProviderDependencyCheck | None:
+    """Extract a ``ProviderDependencyCheck`` from the plan for *node_key*.
+
+    Returns None when the plan is absent or the node is not found.
+    Callers must fall back to direct ``check_*_dependency`` calls.
+    """
+    if plan is None:
+        return None
+    for node in plan.nodes:
+        if node.node_key == node_key:
+            return node.dependency_check
+    return None
+
+
+def _fallback_gnomad_check(identity: Any) -> ProviderDependencyCheck:
+    from variant_pathogenicity_rater.providers.dependencies import (
+        check_gnomad_dependency,
+    )
+    return check_gnomad_dependency(identity)
+
+
+def _fallback_vep_check(identity: Any) -> ProviderDependencyCheck:
+    from variant_pathogenicity_rater.providers.dependencies import (
+        check_vep_dependency,
+    )
+    return check_vep_dependency(identity)
+
+
+def _fallback_clinvar_check(identity: Any) -> ProviderDependencyCheck:
+    from variant_pathogenicity_rater.providers.dependencies import (
+        check_clinvar_dependency,
+    )
+    return check_clinvar_dependency(identity)
+
+
+def _fallback_lit_check(
+    identity: Any,
+    *,
+    explicit_query: str | None = None,
+    pmids: list[str] | None = None,
+) -> ProviderDependencyCheck:
+    from variant_pathogenicity_rater.providers.dependencies import (
+        check_literature_dependency,
+    )
+    return check_literature_dependency(
+        identity,
+        explicit_query=explicit_query,
+        pmids=pmids or [],
+    )

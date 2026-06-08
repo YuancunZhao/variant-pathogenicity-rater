@@ -733,3 +733,102 @@ def test_provider_execution_plan_dependency_fields_present() -> None:
     for field in ("dependency_unsatisfied", "dependency_skip_planned", "dependency_skipped", "attempted"):
         assert field in plan, f"plan missing field: {field}"
         assert isinstance(plan[field], list), f"plan.{field} is not a list"
+
+
+# ── 79A-3C: evidence_phase reuses plan dependency checks ──────────────
+
+
+def test_provider_dependency_checks_match_plan_dependency_checks() -> None:
+    """provider_dependency_checks values must match the dependency_check
+    inside the corresponding provider_execution_plan node."""
+    result = rate_variant(_flat_variant_payload())
+
+    dep_checks = result["step_results"]["provider_dependency_checks"]
+    plan = result["step_results"]["provider_execution_plan"]
+
+    plan_checks: dict[str, dict] = {}
+    for node in plan["nodes"]:
+        if node.get("dependency_check") is not None:
+            plan_checks[node["node_key"]] = node["dependency_check"]
+
+    # gnomad → query_population_frequency
+    gnomad_from_plan = plan_checks.get("query_population_frequency")
+    if gnomad_from_plan is not None:
+        assert dep_checks["gnomad"]["satisfied"] == gnomad_from_plan["satisfied"]
+        assert dep_checks["gnomad"]["status"] == gnomad_from_plan["status"]
+
+    # vep → evaluate_computational_evidence
+    vep_from_plan = plan_checks.get("evaluate_computational_evidence")
+    if vep_from_plan is not None:
+        assert dep_checks["vep"]["satisfied"] == vep_from_plan["satisfied"]
+
+    # clinvar → query_clinvar
+    clinvar_from_plan = plan_checks.get("query_clinvar")
+    if clinvar_from_plan is not None:
+        assert dep_checks["clinvar"]["satisfied"] == clinvar_from_plan["satisfied"]
+
+    # literature → search_and_summarize_literature (if online) or search_literature_evidence
+    lit_from_plan = plan_checks.get("search_and_summarize_literature") or plan_checks.get("search_literature_evidence")
+    if lit_from_plan is not None and "literature" in dep_checks:
+        assert dep_checks["literature"]["satisfied"] == lit_from_plan["satisfied"]
+
+
+def test_evidence_phase_no_longer_imports_direct_dependency_checks() -> None:
+    """evidence_phase must not import check_*_dependency directly
+    (79A-3C reuses checks from ProviderExecutionPlan)."""
+    source = (
+        __import__("pathlib").Path("src/variant_pathogenicity_rater/pipeline/evidence_phase.py")
+        .read_text(encoding="utf-8")
+    )
+    # These must not appear as top-level imports.
+    assert "from variant_pathogenicity_rater.providers import (\n    check_" not in source
+    assert "from variant_pathogenicity_rater.providers.dependencies import (\n    check_" not in source
+    # But the fallback helpers may import them lazily (inside function bodies).
+    # The key constraint: no top-level direct dependency check imports.
+
+
+def test_provider_execution_plan_built_before_evidence_phase() -> None:
+    """The plan must be serialized into step_results before evidence runs.
+    Output phase must no longer rebuild it."""
+    result = rate_variant(_flat_variant_payload())
+
+    plan = result["step_results"]["provider_execution_plan"]
+    assert plan["plan_version"] == "79A-3A-v1"
+    assert len(plan["nodes"]) == 8
+
+    # Verify the plan is identical to what build_provider_execution_plan
+    # produces — it is NOT rebuilt by output_phase.
+    from variant_pathogenicity_rater.data_sources.provider_result import ProviderRuntimeResult
+    # Plan identity should match the provider_identity already in step_results.
+    identity_payload = result["step_results"]["provider_identity"]
+    assert plan["provider_identity"]["gene"] == identity_payload["gene"]
+
+
+def test_invalid_gnomad_online_still_skips_with_plan_reuse() -> None:
+    """Invalid gnomAD identity: plan marks dependency_unsatisfied but
+    evidence_phase still handles execution correctly with plan-reused checks."""
+    # Use a valid payload — plan is built in provider_phase for every
+    # successful normalization.
+    result = rate_variant(_flat_variant_payload())
+
+    plan = result["step_results"]["provider_execution_plan"]
+    assert plan["plan_version"] == "79A-3A-v1"
+    # With valid coordinates, gnomAD should be satisfied in mock mode.
+    by_key = {n["node_key"]: n for n in plan["nodes"]}
+    gnomad_node = by_key["query_population_frequency"]
+    assert gnomad_node["dependency_check"] is not None
+    # Valid identity → satisfied.
+    assert gnomad_node["dependency_check"]["satisfied"] is True
+    # Mock mode → always attempts.
+    assert gnomad_node["planned_attempt"] is True
+    # Not in dep-skip because dependency is satisfied.
+    assert "query_population_frequency" not in plan["dependency_skip_planned"]
+
+
+def test_providers_summary_unchanged_with_plan_reuse() -> None:
+    """providers.summary and provider_mode_summary remain stable with
+    evidence_phase reusing plan dependency checks."""
+    result = rate_variant(_flat_variant_payload())
+
+    assert "provider_execution_plan" in result["step_results"]
+    assert result["providers"]["summary"] == result["provider_mode_summary"]

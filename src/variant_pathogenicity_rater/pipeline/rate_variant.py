@@ -66,11 +66,13 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
 
     provider_phase = run_provider_phase(
         options=options,
+        data_sources_config=data_sources_config,
         original_normalized_variant=original_normalized_variant,
         variant_resolution=variant_resolution,
         step_results=step_results,
     )
     provider_identity = provider_phase.provider_identity
+    provider_execution_plan = provider_phase.provider_execution_plan
 
     evidence_phase = run_evidence_phase(
         arguments=arguments,
@@ -80,6 +82,7 @@ def rate_variant(arguments: dict[str, Any]) -> dict[str, Any]:
         context=context,
         variant_resolution=variant_resolution,
         provider_identity=provider_identity,
+        provider_execution_plan=provider_execution_plan,
         audit_trail=audit_trail,
         limitations=limitations,
         step_results=step_results,

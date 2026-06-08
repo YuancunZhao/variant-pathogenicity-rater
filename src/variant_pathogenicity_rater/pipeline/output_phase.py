@@ -12,10 +12,7 @@ from variant_pathogenicity_rater.data_sources.provider_result import (
 )
 from variant_pathogenicity_rater.evidence.status import split_evidence_by_status
 from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
-from variant_pathogenicity_rater.providers import (
-    build_provider_execution_plan,
-    build_variant_identity,
-)
+from variant_pathogenicity_rater.providers import build_variant_identity
 from variant_pathogenicity_rater.reporting import generate_report
 from variant_pathogenicity_rater.schemas.classification import ClassificationResult
 from variant_pathogenicity_rater.schemas.common import AuditTrail
@@ -103,14 +100,10 @@ def build_rate_variant_output(
     )
     step_results["provider_identity"] = provider_identity.model_dump(mode="json")
     step_results["provider_dependency_checks"] = provider_dependency_checks
-    # 79A-3B: additive observability plan — does not change execution.
-    step_results["provider_execution_plan"] = (
-        build_provider_execution_plan(
-            identity=provider_identity,
-            options=options,
-            data_sources_config=data_sources_config,
-        ).model_dump(mode="json")
-    )
+    # 79A-3C: provider_execution_plan is built in provider_phase and
+    # reused in evidence_phase.  output_phase preserves it but does
+    # not rebuild it.  ProviderRuntimeResult construction must not
+    # read the plan.
 
     output = {
         "status": "ok",
