@@ -114,8 +114,10 @@ replace qualified clinical, laboratory, or genetics professional review.
   structured limitation, review flag, failed record, or candidate-only output.
 - `mock_mode` is a backward-compatible legacy field. `data_source_modes`
   reports configured/requested modes, not actual retrieval outcomes. Use
-  `provider_mode_summary` to review success, no-record, failure, skipped, or
-  cache-hit states and associated provenance.
+  `step_results.provider_runtime` as the normalized provider runtime source;
+  legacy `provider_mode_summary` and canonical `providers.summary` are
+  compatibility projections for reviewing success, no-record, failure,
+  skipped, or cache-hit states and associated provenance.
 - ClinVar date fields are normalized only for parser stability and audit
   display. Year-only dates are tracked with year precision, and unknown or
   malformed dates are limitations; date parsing does not make ClinVar evidence
@@ -143,9 +145,9 @@ replace qualified clinical, laboratory, or genetics professional review.
 - ClinGen ERepo exact matches, VCEP activity signals, and supporting summaries
   remain review notes or reviewed-evidence drafts unless explicitly converted
   through valid curator-supplied `reviewed_applied` evidence.
-- The latest documented full pytest result after 74 real provider pipeline
-  integration review is `655 passed, 2 skipped`; live provider smoke tests are
-  env-gated and skipped by default.
+- The latest documented full pytest result after the 81B-81D provider
+  runtime/output cleanup line is `790 passed, 10 skipped`; live provider smoke
+  tests are env-gated and skipped by default.
 
 ## Release Use
 

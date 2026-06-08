@@ -5,7 +5,10 @@ import json
 
 from server import McpServer, build_registry
 from config import ServerConfig
-from variant_pathogenicity_rater.data_sources.provider_result import provider_summary_from_runtime_json
+from variant_pathogenicity_rater.data_sources.provider_result import (
+    provider_entry_from_runtime_json,
+    provider_summary_from_runtime_json,
+)
 from variant_pathogenicity_rater.pipeline.output_schema import add_rate_variant_canonical_fields
 from variant_pathogenicity_rater.pipeline.rate_variant import rate_variant
 from variant_pathogenicity_rater.pipeline.batch import rate_variant_batch
@@ -582,5 +585,67 @@ def test_canonical_providers_summary_falls_back_to_legacy_when_runtime_missing()
     result["step_results"].pop("provider_runtime", None)
 
     add_rate_variant_canonical_fields(result)
+
+    assert result["providers"]["summary"] == result["provider_mode_summary"]
+
+
+# ── 81C regression tests ──
+
+
+def test_pipeline_limitations_appear_in_final_classification_result() -> None:
+    """After output_phase finalizes classification_result.limitations,
+    the serialized classification_result must carry the full limitations
+    list (not just the pre-report set)."""
+    result = rate_variant(_flat_variant_payload())
+
+    serialized = result["classification_result"]
+    assert isinstance(serialized, dict)
+    assert "limitations" in serialized
+    # The output phase merges pipeline limitations into the result.
+    assert any(
+        "mock mode" in str(item).lower() or "human review" in str(item).lower()
+        for item in serialized["limitations"]
+    )
+    # Must also appear in the top-level limitations field.
+    assert result["limitations"] == serialized["limitations"]
+
+
+def test_canonical_provider_entries_validated_through_provider_runtime() -> None:
+    """Every runtime-backed canonical provider entry must be projectable
+    through ``provider_entry_from_runtime_json`` with matching outcome."""
+    result = rate_variant(_flat_variant_payload())
+
+    provider_runtime = result["step_results"]["provider_runtime"]
+    for name in ("clinvar", "population", "computational", "literature", "clingen_erepo"):
+        canonical = result["providers"][name]
+        payload = provider_runtime.get(name)
+        assert isinstance(payload, dict), f"{name} missing from provider_runtime"
+        projected = provider_entry_from_runtime_json(name, payload)
+        assert projected["outcome"] == canonical["outcome"], f"{name} outcome mismatch"
+        assert projected["attempted"] == canonical["attempted"], f"{name} attempted mismatch"
+        assert projected["records_count"] == canonical["records_count"], f"{name} records mismatch"
+
+
+def test_malformed_provider_runtime_entry_yields_safe_fallback() -> None:
+    """A malformed provider_runtime entry (non-dict) must not leak garbage
+    into the canonical providers section."""
+    result = rate_variant(_flat_variant_payload())
+    # Corrupt one provider entry in the runtime.
+    result["step_results"]["provider_runtime"]["clinvar"] = "corrupted"
+
+    add_rate_variant_canonical_fields(result)
+
+    # The canonical entry must be the safe fallback, not garbage.
+    clinvar_entry = result["providers"]["clinvar"]
+    assert clinvar_entry["outcome"] == "skipped"
+    assert clinvar_entry["attempted"] is False
+    assert clinvar_entry["records_count"] == 0
+    # providers.summary should skip the malformed entry.
+    assert "clinvar" not in result["providers"]["summary"] or result["providers"]["summary"]["clinvar"]["outcome"] == "skipped"
+
+
+def test_providers_summary_equals_provider_mode_summary_for_fresh_output() -> None:
+    """Fresh pipeline output must have providers.summary == provider_mode_summary."""
+    result = rate_variant(_flat_variant_payload())
 
     assert result["providers"]["summary"] == result["provider_mode_summary"]

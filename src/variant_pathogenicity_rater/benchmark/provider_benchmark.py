@@ -189,7 +189,7 @@ def run_provider_benchmark(
 
         for provider in PROVIDERS:
             runtime_payload = provider_runtime.get(provider) or {}
-            outcome = _normalize_outcome(runtime_payload.get("outcome"))
+            outcome = _benchmark_outcome_bucket(runtime_payload.get("outcome"))
             outcome_counts[provider][outcome] += 1
             dependency_status = _dependency_status(runtime_payload)
             if dependency_status and dependency_status.get("satisfied") is False:
@@ -267,7 +267,7 @@ def run_provider_benchmark(
         "cases_with_failures": [
             case.case_id
             for case in case_results
-            if any(_normalize_outcome((case.provider_runtime.get(provider) or {}).get("outcome")) == "failure" for provider in PROVIDERS)
+            if any(_benchmark_outcome_bucket((case.provider_runtime.get(provider) or {}).get("outcome")) == "failure" for provider in PROVIDERS)
             or case.status == "error"
         ],
         "classification_benchmark": False,
@@ -557,7 +557,7 @@ def _runtime_metrics(
     )
 
 
-def _normalize_outcome(value: Any) -> str:
+def _benchmark_outcome_bucket(value: Any) -> str:
     text = str(value or "skipped")
     if text == "cache_hit":
         return "success"

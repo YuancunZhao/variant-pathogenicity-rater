@@ -100,6 +100,28 @@ only function that interprets raw step payload shapes. All consumers
 version extraction) read from ``ProviderRuntimeResult``, not from raw step
 payloads.
 
+81C adds:
+
+- ``provider_entry_from_runtime_json(provider_name, payload)`` — validates a
+  serialized provider_runtime entry as a ``ProviderRuntimeResult`` and projects
+  the canonical per-provider entry shape used by ``output_schema``. Malformed
+  or missing entries return a safe fallback (``outcome=skipped``,
+  ``attempted=False``).
+- ``provider_summary_from_runtime_json`` now injects ``provider_name`` from the
+  top-level key so bare runtime entries without an embedded ``provider_name``
+  field still validate correctly.
+
+81D unifies malformed-runtime projection:
+
+- Both ``provider_summary_from_runtime_json`` and
+  ``provider_entry_from_runtime_json`` project a safe skipped fallback for
+  malformed entries belonging to known runtime-backed providers (``clinvar``,
+  ``population``, ``computational``, ``literature``, ``clingen_erepo``).
+- Unknown/garbage keys in ``step_results.provider_runtime`` are silently
+  skipped — they do not pollute ``providers.summary``.
+- The legacy summary fallback is ``outcome=skipped``, ``attempted=False``,
+  ``records_count=0``, with all optional fields set to ``None`` or empty.
+
 ## Safety Semantics
 
 Provider outcomes are audit state, not ACMG evidence.

@@ -8,7 +8,7 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 ## Recommended Next Task
 
-The recommended next task is `79A-3_provider_orchestrator`.
+The recommended next task is `79A-3A_provider_orchestrator_contract_scaffold`.
 
 Documentation note after 81A-3: `81A-3_phase_decomposition` is complete.
 `rate_variant.py` has been reduced to a phase orchestration layer. The
@@ -50,16 +50,24 @@ gnomAD ID validation, provider aliases, conflicts, limitations, and review flags
 without changing evidence logic or classification. The 79A-2 dependency gating
 pass now skips current online provider calls when required identity is missing
 or invalid, especially moving invalid gnomAD identity ahead of GraphQL as
-`skipped` rather than provider `failure` or `no_record`. The next step is a
-fuller provider orchestrator that can route provider dependencies consistently
-without broadening evidence automation.
+`skipped` rather than provider `failure` or `no_record`. The 81B/81C/81D
+runtime-output cleanup line then made `ProviderRuntimeResult` the provider
+runtime source for legacy summaries, canonical provider entries, reports, and
+benchmark provider metrics, including consistent safe fallback behavior for
+malformed known-provider runtime entries. The next step is a provider
+orchestrator contract scaffold: define the dependency graph and execution-plan
+observability before replacing current provider execution paths.
 
 ## Prioritized Task List
 
 | Task name | Priority | Short summary | Risk level | Expected modules touched | Combiner must remain untouched |
 | --- | --- | --- | --- | --- | --- |
+| `81D_runtime_projection_consistency` | Done | Unified malformed known-provider runtime projection so `providers.summary` and per-provider canonical entries both emit safe skipped fallback while unknown runtime garbage keys are ignored. | Low-medium | Provider runtime projection helpers, output schema tests, docs | Yes |
+| `81C_report_output_boundary_cleanup` | Done | Finalized `classification_result.limitations` before report generation, made per-provider canonical output projection validate through `ProviderRuntimeResult`, and clarified benchmark outcome bucketing. | Low-medium | Output phase, output schema, provider result helpers, report boundary docs, focused tests | Yes |
+| `81B_provider_runtime_unification` | Done | Made `ProviderRuntimeResult` the single internal source for provider runtime summaries, projected `provider_mode_summary` as a legacy view, and moved benchmark provider yield/outcome metrics to runtime payloads. | Medium | Provider runtime helpers, output schema, provider benchmark, docs, tests | Yes |
 | `81A-3_phase_decomposition` | Done | Decomposed `rate_variant.py` into normalization, resolution, provider, evidence, classification, and output phases; `rate_variant.py` is now an orchestration layer. | Medium | Pipeline phase modules, documentation, regression tests | Yes |
-| `79A-3_provider_orchestrator` | P0 | Introduce a fuller provider orchestrator that routes resolution, annotation, population, clinical assertion, and literature providers through declared dependencies while preserving existing providers. | Medium-high | Provider dependency layer, provider adapters, pipeline wiring, benchmark docs, focused tests | Yes |
+| `79A-3A_provider_orchestrator_contract_scaffold` | P0 | Define provider orchestrator contracts, node/dependency graph schema, and execution-plan observability while preserving current provider execution paths. | Medium | Provider dependency layer, provider architecture docs, optional additive plan output, focused tests | Yes |
+| `79A-3_provider_orchestrator` | P0-after-3A | Introduce a fuller provider orchestrator that routes resolution, annotation, population, clinical assertion, and literature providers through declared dependencies while preserving existing providers. | Medium-high | Provider dependency layer, provider adapters, pipeline wiring, benchmark docs, focused tests | Yes |
 | `79A-2_provider_dependency_gating` | Done | Added provider dependency checks and online-provider preflight skips so invalid gnomAD identity becomes identity limitation plus skipped provider runtime instead of GraphQL failure. | Medium | Provider dependency package, pipeline online provider gates, provider runtime, benchmark metrics, docs, tests | Yes |
 | `79A-1_variant_identity_model_and_adapter` | Done | Added provider-layer VariantIdentity, normalized/resolution adapters, gnomAD ID validation, provider alias helpers, additive rate_variant output, and benchmark identity coverage without changing providers or classification. | Medium | Provider identity package, pipeline output, provider benchmark, docs, tests | Yes |
 | `78F_vep_provider_stabilization` | Done | Stabilized online Ensembl VEP fallback with POST region, alt-only GET region, transcript HGVS, minimal consequence fallback, timeout/error diagnostics, and descriptive protein-change resolution bridging without direct PP3/BP4 application. | Medium | VEP online provider, provider tests, resolution docs, benchmark docs | Yes |
@@ -139,10 +147,9 @@ Current known gaps after 79A-2 provider dependency gating:
   provider runtime outcomes and raw-hash/cache-hit fields are visible.
 - Raw `step_results` are still a legacy compatibility/debug payload; migration
   into a canonical step-state model remains future work.
-- Future slimming work should target provider runtime duplication, report
-  generator/view model overlap, MCP schema centralization, and benchmark
-  runtime reuse. These are candidate cleanup tracks only and should not be
-  started automatically from this document refresh.
+- Provider runtime/output/report duplication was reduced by 81B-81D; future
+  cleanup should focus on MCP schema centralization and a canonical step-state
+  model rather than reworking the completed provider-runtime projection path.
 - Larger real-world hospital annotation validation has not been completed.
 - CNV/SV interpretation is not supported; only framework planning is currently
   appropriate.

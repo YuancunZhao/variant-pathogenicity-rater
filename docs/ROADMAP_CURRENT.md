@@ -166,8 +166,9 @@ candidate/applied separation. The standalone real resolution provider
 validation suite now covers local snapshot-backed transcript, protein,
 coordinate, exon, and NMD resolution boundaries.
 
-The latest full regression baseline after the v0.3.0 release review and later
-provider/literature integration work is `655 passed, 2 skipped`.
+The latest full regression baseline after the v0.3.0 release review,
+provider/literature integration work, and 81B-81D provider runtime/output
+cleanup is `790 passed, 10 skipped`.
 The classification combiner remained unchanged.
 
 ### Phase 11: Variant Resolution Framework
@@ -236,8 +237,8 @@ blocking flags, abstract-only records are limitations, low-confidence
 extractions are review flags, duplicate publications/families/cohorts are
 collapsed before summaries, and the classification combiner remains unchanged.
 
-The latest full regression baseline after the subsequent 74 real provider
-pipeline integration review is `655 passed, 2 skipped`.
+The latest full regression baseline after the subsequent provider/runtime
+cleanup work is `790 passed, 10 skipped`.
 
 ### Phase 15: Real Provider Pipeline
 
@@ -269,9 +270,12 @@ is not part of default pytest.
 The 76 mock/fixture interface audit activation is implemented. It clarifies
 runtime provider semantics without changing evidence logic or the combiner.
 `mock_mode` remains for backward compatibility, `data_source_modes` reports
-configured/requested modes, and `provider_mode_summary` reports actual
-provider outcomes, source versions, endpoint/query/raw-hash/cache-hit
-provenance, record counts, and limitations.
+configured/requested modes, and `step_results.provider_runtime` is the
+normalized provider outcome/provenance source. Legacy
+`provider_mode_summary`, canonical `providers.summary`, per-provider canonical
+entries, and provider benchmark yield/outcome metrics are projected from that
+runtime contract. Known malformed provider runtime entries degrade to safe
+`skipped` fallbacks; unknown runtime garbage keys are ignored.
 
 This phase also keeps structured input coordinates visible in
 `variant_resolution.resolved_coordinate` when no local resolution fixture is

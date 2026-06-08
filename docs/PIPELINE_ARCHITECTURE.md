@@ -81,8 +81,10 @@ The canonical `providers.summary` is projected from provider_runtime only;
 `provider_mode_summary` is retained as a legacy fallback for old external
 payloads that lack `step_results.provider_runtime`.
 
-Output generation is presentation and serialization work. It must not change
-final classification or evidence generation.
+81C: ``classification_result.limitations`` is finalized **before**
+``generate_report()`` so the report receives the complete pipeline limitations
+list.  Report generation is presentation and serialization work — it must not
+change final classification or evidence generation.
 
 ## Extension Guidelines
 

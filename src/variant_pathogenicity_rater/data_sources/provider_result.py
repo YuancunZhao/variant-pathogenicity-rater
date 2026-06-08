@@ -357,26 +357,127 @@ def provider_runtime_results_json(
     )
 
 
+_KNOWN_RUNTIME_PROVIDERS = frozenset({"clinvar", "population", "computational", "literature", "clingen_erepo"})
+
+
 def provider_summary_from_runtime_json(
     runtime_json: dict[str, Any],
 ) -> dict[str, Any]:
     """Project legacy ``provider_mode_summary`` from serialized
     ``step_results.provider_runtime``.
 
-    Each entry is validated as a ``ProviderRuntimeResult`` and then
-    projected through ``_legacy_summary_item`` so the output shape
-    matches ``provider_summary_from_runtime_results``.
+    Each known provider entry is validated as a ``ProviderRuntimeResult``
+    and projected through ``_legacy_summary_item``.  Malformed entries
+    for known provider keys receive a safe skipped fallback so that
+    ``providers.summary`` does not silently omit a known provider.
+    Unknown/garbage keys are skipped.
     """
     summary: dict[str, Any] = {}
     for name, payload in runtime_json.items():
+        if name not in _KNOWN_RUNTIME_PROVIDERS:
+            continue
         if not isinstance(payload, dict):
+            summary[name] = _legacy_summary_fallback()
             continue
         try:
-            result = ProviderRuntimeResult.model_validate(payload)
+            result = ProviderRuntimeResult.model_validate({"provider_name": name, **payload})
         except Exception:
+            summary[name] = _legacy_summary_fallback()
             continue
         summary[name] = _legacy_summary_item(result)
     return summary
+
+
+def provider_entry_from_runtime_json(
+    provider_name: str,
+    payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Project a canonical per-provider entry from a serialized provider_runtime entry.
+
+    Validates the payload as a ``ProviderRuntimeResult`` and projects the
+    canonical shape used by ``output_schema._provider_entry``.  Returns a
+    safe fallback dict when the payload is missing or fails validation.
+
+    Transcript and VCEP provider entries are not backed by
+    ``ProviderRuntimeResult`` and should use their own projections.
+    """
+    if not isinstance(payload, dict):
+        return _empty_provider_entry()
+    try:
+        runtime = ProviderRuntimeResult.model_validate({"provider_name": provider_name, **payload})
+    except Exception:
+        return _empty_provider_entry()
+    provenance = dict(runtime.provenance or {})
+    raw_hash = runtime.raw_record_hash
+    provider_mode = provenance.get("provider_mode") or runtime.configured_mode
+    if raw_hash is not None:
+        provenance.setdefault("raw_record_hash", raw_hash)
+    if provider_mode is not None:
+        provenance.setdefault("provider_mode", provider_mode)
+    return {
+        "requested_mode": runtime.requested_mode,
+        "configured_mode": runtime.configured_mode,
+        "attempted": runtime.attempted,
+        "outcome": str(runtime.outcome),
+        "records_count": runtime.records_count,
+        "source_version": runtime.source_version,
+        "query": dict(runtime.query),
+        "endpoint": runtime.endpoint,
+        "cache_hit": runtime.cache_hit,
+        "limitations": list(runtime.limitations),
+        "provenance": provenance,
+        "warnings": list(runtime.warnings),
+        "error_type": runtime.error_type,
+        "error_message_summary": runtime.error_message_summary,
+    }
+
+
+def _empty_provider_entry() -> dict[str, Any]:
+    return {
+        "requested_mode": "default",
+        "configured_mode": None,
+        "attempted": False,
+        "outcome": "skipped",
+        "records_count": 0,
+        "source_version": None,
+        "query": {},
+        "endpoint": None,
+        "cache_hit": None,
+        "limitations": [],
+        "provenance": {},
+        "warnings": [],
+        "error_type": None,
+        "error_message_summary": None,
+    }
+
+
+def _legacy_summary_fallback() -> dict[str, Any]:
+    """Legacy summary entry for a known provider whose runtime entry is
+    malformed or missing.  Shape matches ``_legacy_summary_item`` output
+    for a skipped, unattempted provider."""
+    return {
+        "requested_mode": "default",
+        "configured_mode": None,
+        "actual_outcome": "skipped",
+        "source_version": None,
+        "endpoint": None,
+        "query": {},
+        "raw_hash": None,
+        "cache_hit": None,
+        "provider_mode": None,
+        "records_count": 0,
+        "limitations_count": 0,
+        "limitations": [],
+        "attempted": False,
+        "outcome": "skipped",
+        "warnings": [],
+        "error_type": None,
+        "error_message_summary": None,
+        "raw_record_hash": None,
+        "retrieval_timestamp": None,
+        "provenance": {},
+        "dependency_status": None,
+    }
 
 
 def _legacy_summary_item(result: ProviderRuntimeResult) -> dict[str, Any]:

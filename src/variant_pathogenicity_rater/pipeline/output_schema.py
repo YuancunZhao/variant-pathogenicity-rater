@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from variant_pathogenicity_rater.data_sources.provider_result import (
+    provider_entry_from_runtime_json,
     provider_summary_from_runtime_json,
 )
 from variant_pathogenicity_rater.evidence.status import summarize_evidence_status
@@ -375,43 +376,27 @@ def _providers_section(result: dict[str, Any]) -> dict[str, Any]:
         summary = _json_copy(result.get("provider_mode_summary") or {})
     providers = {
         "summary": summary,
-        "clinvar": _provider_entry(provider_runtime.get("clinvar")),
-        "population": _provider_entry(provider_runtime.get("population")),
-        "computational": _provider_entry(provider_runtime.get("computational")),
-        "literature": _provider_entry(provider_runtime.get("literature")),
-        "clingen_erepo": _provider_entry(provider_runtime.get("clingen_erepo")),
+        "clinvar": _provider_entry("clinvar", provider_runtime.get("clinvar")),
+        "population": _provider_entry("population", provider_runtime.get("population")),
+        "computational": _provider_entry("computational", provider_runtime.get("computational")),
+        "literature": _provider_entry("literature", provider_runtime.get("literature")),
+        "clingen_erepo": _provider_entry("clingen_erepo", provider_runtime.get("clingen_erepo")),
         "transcript": _transcript_provider_entry(result),
         "vcep": _vcep_provider_entry(result),
     }
     return providers
 
 
-def _provider_entry(value: Any) -> dict[str, Any]:
-    payload = value if isinstance(value, dict) else {}
-    outcome = payload.get("outcome") or "skipped"
-    provenance = _json_copy(payload.get("provenance") or {})
-    raw_hash = payload.get("raw_record_hash") or payload.get("raw_hash")
-    provider_mode = provenance.get("provider_mode") or payload.get("provider_mode")
-    if raw_hash is not None:
-        provenance.setdefault("raw_record_hash", raw_hash)
-    if provider_mode is not None:
-        provenance.setdefault("provider_mode", provider_mode)
-    return {
-        "requested_mode": payload.get("requested_mode", "default"),
-        "configured_mode": payload.get("configured_mode"),
-        "attempted": bool(payload.get("attempted")) if "attempted" in payload else outcome not in {"skipped", None},
-        "outcome": outcome,
-        "records_count": int(payload.get("records_count") or 0),
-        "source_version": payload.get("source_version"),
-        "query": _json_copy(payload.get("query")),
-        "endpoint": payload.get("endpoint"),
-        "cache_hit": payload.get("cache_hit"),
-        "limitations": list(payload.get("limitations") or []),
-        "provenance": provenance,
-        "warnings": list(payload.get("warnings") or []),
-        "error_type": payload.get("error_type"),
-        "error_message_summary": payload.get("error_message_summary"),
-    }
+def _provider_entry(name: str, value: Any) -> dict[str, Any]:
+    """Project a canonical per-provider entry from a serialized provider_runtime entry.
+
+    Delegates to ``provider_entry_from_runtime_json`` which validates
+    through ``ProviderRuntimeResult`` and projects the canonical shape.
+    Falls back to a safe empty entry for missing or malformed payloads.
+    """
+    if isinstance(value, dict):
+        return provider_entry_from_runtime_json(name, value)
+    return provider_entry_from_runtime_json(name, None)
 
 
 def _transcript_provider_entry(result: dict[str, Any]) -> dict[str, Any]:

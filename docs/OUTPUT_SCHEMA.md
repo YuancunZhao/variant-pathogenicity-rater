@@ -90,6 +90,18 @@ compatibility view only. Provider yields, data-source versions, and benchmark
 metrics exclusively consume ``ProviderRuntimeResult`` — they do not read raw
 provider step payloads.
 
+81C: per-provider canonical entries (``clinvar``, ``population``,
+``computational``, ``literature``, ``clingen_erepo``) are projected through
+``provider_entry_from_runtime_json`` which validates each entry against
+``ProviderRuntimeResult``.  Malformed entries yield a safe ``skipped``
+fallback rather than propagating unvalidated data.  Transcript and VCEP
+entries remain separate (not ``ProviderRuntimeResult``-backed).
+
+81D: ``providers.summary`` and per-provider canonical entries project a
+consistent safe ``skipped`` fallback for malformed known-provider runtime
+entries.  Unknown/garbage keys in ``provider_runtime`` are silently skipped
+and do not appear in ``providers.summary``.
+
 See `docs/PROVIDER_RESULT_CONTRACT.md` for the provider outcome and provenance
 contract.
 

@@ -33,8 +33,9 @@ the 77C evidence status helper unification, the 77D RuntimeOptions
 foundation, the 78A real-world smoke validation layer, the 78B HGVS
 resolution provider upgrade, the 78C real-world provider benchmark, the
 78D/78E/78F provider hardening passes, the 79A-1 provider-layer
-VariantIdentity model/adapter, 79A-2 provider dependency gating, and the
-81A-3 pipeline phase decomposition, the
+VariantIdentity model/adapter, 79A-2 provider dependency gating, the
+81A-3 pipeline phase decomposition, and the 81B/81C/81D provider-runtime,
+report/output boundary, and runtime-projection cleanup passes, the
 project state is: the generic SNV/small-indel interpretation loop is connected
 end to end for controlled internal review, including generated applied
 evidence, candidate/suggested evidence, literature search summaries,
@@ -65,7 +66,13 @@ provider alias helpers for ClinVar/VEP/literature, additive provider identity
 benchmark coverage, provider dependency checks, identity-gated online provider
 skips, gnomAD invalid-identity skip reporting, dependency-status runtime
 payloads, Chinese laboratory reporting, a phase-decomposed `rate_variant`
-orchestration layer, and the unchanged ACMG classification combiner.
+orchestration layer, provider runtime as the canonical internal provider
+outcome source, legacy `provider_mode_summary` projection from that runtime,
+canonical `providers.summary` and per-provider entries validated through
+`ProviderRuntimeResult`, benchmark provider metrics sourced from runtime
+payloads rather than raw provider steps, report generation after finalized
+classification limitations, consistent malformed-runtime safe fallbacks, and
+the unchanged ACMG classification combiner.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
 now checks six real HGVS c. inputs for structured end-to-end returns without
@@ -90,15 +97,18 @@ gnomAD, where invalid identity no longer needs to reach GraphQL as provider
 failure. The 81A-3 pipeline decomposition reduced `rate_variant.py` from a
 monolithic implementation to an orchestration-only layer while preserving final
 classification, evidence generation, the public API, default offline behavior,
-and legacy output fields. The next project
+and legacy output fields. The 81B/81C/81D cleanup line reduced provider
+runtime/output/report duplication without changing classification, evidence
+generation, reviewed evidence, public legacy fields, or default offline
+behavior. The next project
 constraint is no longer basic workflow connectivity, rule-profile plumbing,
 real provider safety posture, first-pass benchmark breadth, localization,
 natural-language/HGVS text intake, HGVS c. resolution for key fixture-backed
 cases, general literature search/summarization, first-pass real-world HGVS
 smoke coverage, first-pass HGVS resolution provider output, or first-pass
 provider hardening after 78C, or first-pass provider dependency gating; it is a
-fuller provider orchestrator, deeper selected real-world case validation, a
-narrow real VCEP profile pilot, provider
+provider orchestrator contract scaffold, deeper selected real-world case
+validation, a narrow real VCEP profile pilot, provider
 cache/reproducibility hardening, and CNV/SV framework planning.
 
 The software positioning is deliberately conservative: Variant Pathogenicity
@@ -137,9 +147,10 @@ Current pipeline phase responsibilities are:
   bookkeeping.
 - `classification_phase.py`: ACMG classification and classification-level
   review-flag aggregation.
-- `output_phase.py`: report generation, provider runtime serialization,
-  provider summary construction, final legacy output assembly, and canonical
-  output schema application.
+- `output_phase.py`: final report-relevant classification state preparation,
+  report generation, provider runtime serialization, legacy provider summary
+  projection, final legacy output assembly, and canonical output schema
+  application.
 
 ## Current Capabilities
 
@@ -165,6 +176,12 @@ The 77A canonical output view is additive. New clients should prefer
 `final_classification`, `report_text`, and `step_results` remain emitted.
 77B adds `step_results.provider_runtime` as the normalized provider runtime
 contract backing provider summaries while preserving raw provider step payloads.
+81B-81D harden that boundary: `ProviderRuntimeResult` is the canonical
+internal provider runtime source, `provider_mode_summary` is a legacy
+compatibility projection, `providers.summary` and per-provider canonical
+entries are projected from serialized runtime, benchmark provider metrics read
+runtime/yield observations rather than raw provider steps, and malformed known
+provider runtime entries degrade to safe `skipped` fallback entries.
 77C adds a shared read-only evidence status helper used for applied,
 candidate-only, review-note, and reviewed evidence grouping without changing
 evidence generation, reviewed-evidence validation, or the combiner.
@@ -343,7 +360,8 @@ PM2 by itself, and candidate evidence remains outside the combiner.
 
 Provider mode reporting is now explicit. `mock_mode` remains for backward
 compatibility, and `data_source_modes` reports configured/requested modes after
-runtime options are applied. Actual provider outcomes are reported in
+runtime options are applied. Actual provider outcomes are normalized in
+`step_results.provider_runtime` and projected into legacy
 `provider_mode_summary`, including requested mode, configured mode, outcome,
 source version, endpoint, query, raw hash, cache hit, provider mode, record
 count, and limitations. `offline_default_mode` and
@@ -355,7 +373,9 @@ The 77A canonical output view maps these legacy provider/runtime fields into
 network policy. Raw `step_results` remain a compatibility/debug payload and
 have not been migrated. 77B adds `step_results.provider_runtime` as a
 normalized provider outcome/provenance contract while preserving the original
-provider step payloads.
+provider step payloads. 81B-81D make this runtime contract the source for
+provider summary projection, canonical provider entries, benchmark yield
+metrics, and malformed-runtime fallback behavior.
 
 ### Benchmark Validation
 
@@ -368,8 +388,8 @@ Current benchmark status:
 - Provider fixture-backed through `data/benchmark_provider_fixtures/`.
 - Includes local population, ClinVar, computational, literature, ClinGen
   ERepo, VCEP profile, annotation, and transcript metadata fixtures.
-- Latest full regression status after 74 real provider pipeline integration
-  review: `655 passed, 2 skipped`.
+- Latest full regression status after the 81B-81D provider runtime/output
+  cleanup line: `790 passed, 10 skipped`.
 
 The benchmark covers generated and reviewed evidence boundaries for `PVS1`,
 `BA1`, `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed
@@ -572,10 +592,10 @@ override of user-supplied context.
 
 ## Current Test Status
 
-The latest documented full regression run after 74 real provider pipeline
-integration review recorded:
+The latest documented full regression run after the 81B-81D provider
+runtime/output/report cleanup line recorded:
 
-- Full pytest: `655 passed, 2 skipped`.
+- Full pytest: `790 passed, 10 skipped`.
 - Benchmark coverage: 100 curated offline SNV/small-indel cases.
 - Benchmark version: `offline-curated-v4-phase-c`.
 - Benchmark provider posture: fixture-backed, including annotation and
@@ -596,8 +616,10 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is selected real-world case validation, followed by
-one narrowly scoped real VCEP profile pilot behind explicit profile selection.
+The recommended next task is
+`79A-3A_provider_orchestrator_contract_scaffold`, followed by selected
+real-world case validation and one narrowly scoped real VCEP profile pilot
+behind explicit profile selection.
 
 Real provider validation for ClinVar, gnomAD, Ensembl VEP, PubMed/LitVar,
 MANE, and ERepo is complete for the current provider surface and should now be
@@ -605,8 +627,8 @@ maintained as a regression boundary: local fixture/snapshot validation,
 optional online disabled by default, provenance/cache visibility,
 failure-to-limitation behavior, and no direct provider-driven classification.
 
-Current known gaps are selected real-world case validation, a selected real
-VCEP profile pilot, larger real-world hospital annotation validation, broader
-resolution fixture coverage
+Current known gaps are provider orchestration beyond dependency preflight,
+selected real-world case validation, a selected real VCEP profile pilot, larger
+real-world hospital annotation validation, broader resolution fixture coverage
 beyond the initial targeted records, provider cache/reproducibility hardening,
 and CNV/SV support.

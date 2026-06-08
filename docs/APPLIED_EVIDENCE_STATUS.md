@@ -26,8 +26,8 @@ baseline:
 - Provider fixture-backed, including population, ClinVar, computational,
   literature, ClinGen ERepo, VCEP profile, annotation, and transcript metadata
   fixtures.
-- Latest full regression status after 74 real provider pipeline integration
-  review: `655 passed, 2 skipped`.
+- Latest full regression status after the 81B-81D provider runtime/output
+  cleanup line: `790 passed, 10 skipped`.
 
 The benchmark covers applied and candidate boundaries for `PVS1`, `BA1`,
 `BS1`, `PM2_Supporting`, `PP3`, `BP4`, `PS1`, `PM5`, manual reviewed evidence,
@@ -342,28 +342,32 @@ PM3-like trans observations.
 
 ## Recommended Next Task
 
-The recommended next task is env-gated live provider smoke validation, followed
-by selected real-world case validation.
+The recommended next task is
+`79A-3A_provider_orchestrator_contract_scaffold`, followed by selected
+real-world case validation.
 
 The applied evidence loop, lightweight VCEP signal/override framework, current
 real provider validation surface, benchmark Phase C baseline, Chinese report
 output, offline variant resolution, General Literature Search and Summary
-Engine, and 74 real provider pipeline are complete enough for controlled
-internal validation. Local fixtures/snapshots remain the primary validation
-path, optional online behavior is disabled by default,
+Engine, the 74 real provider pipeline, env-gated live provider smoke layer,
+provider benchmark/hardening passes, provider dependency gating, and 81B-81D
+provider-runtime/output/report boundary cleanup are complete enough for
+controlled internal validation. Local fixtures/snapshots remain the primary
+validation path, optional online behavior is disabled by default,
 provenance/cache/limitations are visible, failures degrade to limitations,
 candidate/review-note evidence stays outside classification, and no provider
 directly changes classification.
 
 The next priorities are:
 
+- Provider orchestrator contract scaffold before replacing provider execution
+  paths.
 - Selected real-world case validation.
-- Env-gated live provider smoke validation.
 - Selected real VCEP profile pilot.
 - Provider cache/reproducibility hardening.
 - CNV/SV framework planning as design-only work.
 
-Current known gaps remain live provider smoke validation, selected real-world
-case validation, selected real VCEP profile pilot, provider
+Current known gaps remain provider orchestration beyond dependency preflight,
+selected real-world case validation, selected real VCEP profile pilot, provider
 cache/reproducibility hardening, larger real-world hospital annotation
 validation, and CNV/SV support.

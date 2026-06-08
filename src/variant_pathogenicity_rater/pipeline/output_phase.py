@@ -56,6 +56,10 @@ def build_rate_variant_output(
     review_note_evidence = _review_note_evidence_items(evidence_items)
     normalization_identity = (step_results.get("normalize_variant") or {}).get("variant_identity")
 
+    # Finalize classification_result state before report generation so the
+    # report sees the complete limitations list.
+    classification_result.limitations = _unique(limitations)
+
     report = run_step(
         "generate_report",
         audit_trail,
@@ -73,8 +77,6 @@ def build_rate_variant_output(
             "limitations": _unique(limitations),
             "human_review_required": True,
         }
-
-    classification_result.limitations = _unique(limitations)
     if hasattr(report, "content") and hasattr(report, "model_dump_json"):
         classification_result.report_text = str(report.content)
         serialized_report = json.loads(report.model_dump_json())
