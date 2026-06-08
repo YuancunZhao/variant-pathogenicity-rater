@@ -70,9 +70,16 @@ It must not generate new evidence or reinterpret provider records.
 
 ### output_phase.py
 
-`output_phase` generates reports, serializes provider runtime results,
-constructs `provider_mode_summary`, assembles legacy top-level output fields,
-and applies the canonical output schema.
+`output_phase` generates reports, serializes provider runtime results through
+`build_provider_runtime_results` (the single function that interprets raw
+provider step payloads), constructs `provider_mode_summary` as a legacy
+compatibility view projected from `ProviderRuntimeResult`, assembles legacy
+top-level output fields, and applies the canonical output schema.
+
+`provider_mode_summary` is a projection of `step_results.provider_runtime`.
+The canonical `providers.summary` is projected from provider_runtime only;
+`provider_mode_summary` is retained as a legacy fallback for old external
+payloads that lack `step_results.provider_runtime`.
 
 Output generation is presentation and serialization work. It must not change
 final classification or evidence generation.

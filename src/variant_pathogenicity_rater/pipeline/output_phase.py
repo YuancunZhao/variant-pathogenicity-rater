@@ -61,11 +61,7 @@ def build_rate_variant_output(
         audit_trail,
         limitations,
         lambda: generate_report(
-            variant=normalized_variant,
-            classification_result=classification_result,
-            evidence_items=evidence_items,
-            limitations=_unique(limitations),
-            audit_trail=audit_trail + classification_result.audit_trail,
+            classification_result,
             mode=options.get("report_mode", "detailed"),
             language=options.get("report_language", "en"),
         ),
@@ -114,7 +110,8 @@ def build_rate_variant_output(
         },
         "data_source_modes_semantics": (
             "Configured/requested provider modes after runtime options are applied; "
-            "actual provider outcomes are reported in provider_mode_summary."
+            "actual provider outcomes are recorded in step_results.provider_runtime "
+            "(provider_mode_summary is a legacy compatibility view)."
         ),
         "provider_mode_summary": provider_mode_summary,
         "unresolved_placeholder_mode": _unresolved_placeholder_mode(step_results),

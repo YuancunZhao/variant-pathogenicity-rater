@@ -33,6 +33,17 @@ CLASSIFICATION_LABELS = {
 
 
 def build_report_view_model(result: ClassificationResult | dict[str, Any]) -> ReportViewModel:
+    """Build a render-ready ``ReportViewModel`` from a ``ClassificationResult``.
+
+    This is the **single data-preparation boundary** for report rendering.
+    It extracts classification internals (including per-criterion decision
+    data, source provenance, and reviewed-evidence metadata) so that
+    ``generator.py`` does not need to interpret raw classification state.
+
+    ``generator.py`` consumes only the ``ReportViewModel`` and its
+    ``VariantReportSummary`` — it does not inspect raw classification
+    fields or provider-mode metadata directly.
+    """
     classification_result, provider_payload = _classification_and_provider_payload(result)
     evidence_entries = [_evidence_entry(item) for item in classification_result.evidence_items]
     status_views = [build_evidence_status_view(item) for item in classification_result.evidence_items]

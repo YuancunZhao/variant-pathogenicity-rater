@@ -47,7 +47,17 @@ def generate_report(
     language: ReportLanguage | str = ReportLanguage.ENGLISH,
     **legacy_kwargs: Any,
 ) -> VariantReport:
-    """Render a supplied ClassificationResult without recalculating ACMG logic."""
+    """Render a supplied ClassificationResult without recalculating ACMG logic.
+
+    This function is **render-only**.  It does not inspect raw
+    classification internals — it consumes pre-built evidence sections
+    and provider views through ``build_report_view_model()`` which
+    concentrates data preparation in ``reporting/view_model_builder.py``.
+
+    ``**legacy_kwargs`` is retained for backward compatibility only.
+    New callers should pass a ``ClassificationResult`` as the first
+    positional argument.
+    """
 
     result = classification_result or legacy_kwargs.get("classification_result")
     if not isinstance(result, ClassificationResult):

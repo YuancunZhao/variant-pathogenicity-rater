@@ -49,8 +49,13 @@ Valid outcomes:
 
 ## Compatibility Summary
 
-`provider_mode_summary` remains the backward-compatible top-level provider
-summary. Existing keys remain present:
+`provider_mode_summary` is a **legacy compatibility view** projected from
+`ProviderRuntimeResult`. It remains emitted unchanged for backward
+compatibility but is no longer the authoritative provider summary. New
+clients should prefer `providers.summary` and the per-provider canonical
+entries under `step_results.provider_runtime`.
+
+Legacy keys remain present in `provider_mode_summary`:
 
 - `requested_mode`
 - `configured_mode`
@@ -76,9 +81,24 @@ summary. Existing keys remain present:
 - `retrieval_timestamp`
 - `provenance`
 
-`providers.summary` remains equal to `provider_mode_summary` for compatibility.
-Per-provider canonical entries prefer `step_results.provider_runtime` when
-available.
+`providers.summary` is projected from `step_results.provider_runtime` (the
+ground-truth provider runtime contract). For freshly generated outputs,
+`providers.summary` equals `provider_mode_summary`. Per-provider canonical
+entries prefer `step_results.provider_runtime` when available.
+
+## Yield Observations
+
+81B adds a non-semantic `yield_observations` dictionary to
+`ProviderRuntimeResult`. This field carries provider-specific metadata that
+benchmark and reporting consumers need for yield metrics (candidate evidence
+counts, literature per-source article/citation counts, population data-source
+labels) without reading raw provider step payloads.
+
+`yield_observations` is populated by `provider_result_from_step_payload` — the
+only function that interprets raw step payload shapes. All consumers
+(``providers.summary`` projection, benchmark yield metrics, data-source
+version extraction) read from ``ProviderRuntimeResult``, not from raw step
+payloads.
 
 ## Safety Semantics
 
