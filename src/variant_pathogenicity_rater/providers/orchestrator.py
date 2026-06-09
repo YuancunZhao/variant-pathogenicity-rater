@@ -455,6 +455,24 @@ def dependency_check_from_plan(
     return node.dependency_check
 
 
+def dependency_skip_planned_from_plan(
+    plan: ProviderExecutionPlan | None,
+    node_key: str,
+) -> bool:
+    """Return True if *node_key* is in ``plan.dependency_skip_planned``.
+
+    Returns False when plan is None, the node_key is not found, or the
+    node_key is not in the explicit skip list.
+
+    This does **not** infer skip state from ``planned_attempt`` or any
+    other execution-node field — it only reads the explicit
+    ``dependency_skip_planned`` list computed at plan-build time.
+    """
+    if plan is None:
+        return False
+    return node_key in plan.dependency_skip_planned
+
+
 # ── internal helpers ──────────────────────────────────────────────────
 
 

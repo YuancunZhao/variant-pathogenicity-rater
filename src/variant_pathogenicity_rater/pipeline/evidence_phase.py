@@ -48,6 +48,7 @@ from variant_pathogenicity_rater.providers import (
     ProviderExecutionPlan,
     dependency_check_from_plan,
     dependency_skip_payload,
+    dependency_skip_planned_from_plan,
 )
 from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
 from variant_pathogenicity_rater.schemas.annotation import TranscriptSelection, VariantAnnotation
@@ -212,7 +213,15 @@ def run_evidence_phase(
         if gnomad_dependency is None:
             gnomad_dependency = _fallback_gnomad_check(provider_identity)
         state.provider_dependency_checks["gnomad"] = gnomad_dependency.model_dump(mode="json")
-        if _online_source(data_sources_config, "population") and not gnomad_dependency.satisfied:
+        if provider_execution_plan is not None:
+            population_dependency_skip = dependency_skip_planned_from_plan(
+                provider_execution_plan, "query_population_frequency"
+            )
+        else:
+            population_dependency_skip = (
+                _online_source(data_sources_config, "population") and not gnomad_dependency.satisfied
+            )
+        if population_dependency_skip:
             _record_dependency_skip(
                 "query_population_frequency",
                 gnomad_dependency,
@@ -329,12 +338,23 @@ def run_evidence_phase(
         if vep_dependency is None:
             vep_dependency = _fallback_vep_check(provider_identity)
         state.provider_dependency_checks["vep"] = vep_dependency.model_dump(mode="json")
+        if provider_execution_plan is not None:
+            computational_dependency_skip = dependency_skip_planned_from_plan(
+                provider_execution_plan, "evaluate_computational_evidence"
+            )
+        else:
+            computational_dependency_skip = (
+                options.get("computational_predictions") is None
+                and _online_source(data_sources_config, "computational")
+                and not vep_dependency.satisfied
+            )
         computational_result = run_step(
             "evaluate_computational_evidence",
             audit_trail,
             limitations,
             lambda: _skip_or_evaluate_computational_step(
                 vep_dependency=vep_dependency,
+                dependency_skip_planned=computational_dependency_skip,
                 options=options,
                 variant=normalized_variant,
                 data_sources_config=data_sources_config,
@@ -382,7 +402,15 @@ def run_evidence_phase(
         if clinvar_dependency is None:
             clinvar_dependency = _fallback_clinvar_check(provider_identity)
         state.provider_dependency_checks["clinvar"] = clinvar_dependency.model_dump(mode="json")
-        if _online_source(data_sources_config, "clinvar") and not clinvar_dependency.satisfied:
+        if provider_execution_plan is not None:
+            clinvar_dependency_skip = dependency_skip_planned_from_plan(
+                provider_execution_plan, "query_clinvar"
+            )
+        else:
+            clinvar_dependency_skip = (
+                _online_source(data_sources_config, "clinvar") and not clinvar_dependency.satisfied
+            )
+        if clinvar_dependency_skip:
             _record_dependency_skip(
                 "query_clinvar",
                 clinvar_dependency,
@@ -445,7 +473,13 @@ def run_evidence_phase(
                     pmids=options.get("pmids") or [],
                 )
             state.provider_dependency_checks["literature"] = literature_dependency.model_dump(mode="json")
-            if not literature_dependency.satisfied:
+            if provider_execution_plan is not None:
+                literature_dependency_skip = dependency_skip_planned_from_plan(
+                    provider_execution_plan, "search_and_summarize_literature"
+                )
+            else:
+                literature_dependency_skip = not literature_dependency.satisfied
+            if literature_dependency_skip:
                 _record_dependency_skip(
                     "search_and_summarize_literature",
                     literature_dependency,
@@ -813,6 +847,7 @@ def _computational_predictions(
 def _skip_or_evaluate_computational_step(
     *,
     vep_dependency: Any,
+    dependency_skip_planned: bool = False,
     options: dict[str, Any],
     variant: Variant,
     data_sources_config: DataSourcesConfig,
@@ -821,11 +856,7 @@ def _skip_or_evaluate_computational_step(
     existing_evidence_items: list[EvidenceItem] | None = None,
     vcep_override_context: VCEPOverrideContext | None = None,
 ) -> Any:
-    if (
-        options.get("computational_predictions") is None
-        and _online_source(data_sources_config, "computational")
-        and not vep_dependency.satisfied
-    ):
+    if dependency_skip_planned:
         return dependency_skip_payload(vep_dependency)
     return _evaluate_computational_step(
         options,

@@ -211,3 +211,11 @@ the plan — it preserves the already-populated
 ``evidence_phase`` imports ``dependency_check_from_plan`` from the
 providers package instead of defining its own plan-traversal helper.
 Pipeline code no longer manually traverses ``plan.nodes``.
+
+79A-3E adds ``dependency_skip_planned_from_plan(plan, node_key)`` and
+wires it into ``evidence_phase`` so skip decisions come from the plan
+instead of locally recomputing online-source-and-unsatisfied-check
+conditions.  Absent-plan fallbacks preserve the old per-provider skip
+logic; the normal ``rate_variant`` path uses plan-derived decisions.
+``planned_attempt`` remains observability-only and does not route
+execution.

@@ -15,6 +15,7 @@ from variant_pathogenicity_rater.providers import (
     VariantIdentity,
     build_provider_execution_plan,
     dependency_check_from_plan,
+    dependency_skip_planned_from_plan,
     provider_node_from_plan,
 )
 from variant_pathogenicity_rater.schemas.common import SchemaModel
@@ -459,3 +460,60 @@ def test_invalid_gnomad_online_identity_is_dep_unsatisfied_and_dep_skip() -> Non
     assert node.planned_attempt is False
     assert node.dependency_check is not None
     assert node.dependency_check.satisfied is False
+
+
+# ── 79A-3E: dependency_skip_planned_from_plan helper ──────────────────
+
+
+def test_dependency_skip_planned_from_plan_none_plan() -> None:
+    """None plan always returns False."""
+    assert dependency_skip_planned_from_plan(None, "query_population_frequency") is False
+
+
+def test_dependency_skip_planned_from_plan_missing_node() -> None:
+    """Missing node returns False."""
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    assert dependency_skip_planned_from_plan(plan, "nonexistent") is False
+
+
+def test_dependency_skip_planned_from_plan_invalid_gnomad_online() -> None:
+    """Invalid gnomAD identity + online source → True for query_population_frequency."""
+    identity = _identity(chrom=None, pos=None)
+    plan = build_provider_execution_plan(identity, {"use_online_gnomad": True}, _online_config())
+    assert dependency_skip_planned_from_plan(plan, "query_population_frequency") is True
+
+
+def test_dependency_skip_planned_from_plan_invalid_gnomad_mock() -> None:
+    """Invalid gnomAD identity + mock source → False for query_population_frequency."""
+    identity = _identity(chrom=None, pos=None)
+    plan = build_provider_execution_plan(identity, {}, _mock_config())
+    assert dependency_skip_planned_from_plan(plan, "query_population_frequency") is False
+
+
+def test_dependency_skip_planned_from_plan_offline_missing_lit_dep() -> None:
+    """Offline missing literature dependency → False for both lit nodes."""
+    identity = _identity(gene=None, hgvs_c=None, chrom=None, pos=None)
+    plan = build_provider_execution_plan(identity, {}, _mock_config())
+    assert dependency_skip_planned_from_plan(plan, "search_literature_evidence") is False
+    assert dependency_skip_planned_from_plan(plan, "search_and_summarize_literature") is False
+
+
+def test_dependency_skip_planned_from_plan_online_missing_lit_dep() -> None:
+    """Online missing literature dependency → True only for search_and_summarize_literature."""
+    identity = _identity(gene=None, hgvs_c=None, chrom=None, pos=None)
+    plan = build_provider_execution_plan(identity, {"use_online_pubmed": True}, _online_config())
+    assert dependency_skip_planned_from_plan(plan, "search_and_summarize_literature") is True
+    assert dependency_skip_planned_from_plan(plan, "search_literature_evidence") is False
+
+
+def test_dependency_skip_planned_from_plan_valid_identity_no_skip() -> None:
+    """Valid identity + online source → no dependency skip."""
+    plan = build_provider_execution_plan(_identity(), {"use_online_gnomad": True}, _online_config())
+    assert dependency_skip_planned_from_plan(plan, "query_population_frequency") is False
+
+
+def test_dependency_skip_planned_from_plan_node_without_dependency_check() -> None:
+    """Node without dependency check (e.g. provider_identity) → False."""
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    assert dependency_skip_planned_from_plan(plan, "provider_identity") is False
+    assert dependency_skip_planned_from_plan(plan, "provider_runtime") is False
