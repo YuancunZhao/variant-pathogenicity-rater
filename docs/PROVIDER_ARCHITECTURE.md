@@ -197,8 +197,10 @@ reads ``ProviderDependencyCheck`` objects from the plan via
 with identical values.  Lazy fallback helpers exist only for the rare
 case where the plan is absent.
 
-``evidence_phase`` remains the sole execution owner; the plan does not
-route or gate any provider call.  ``ProviderRuntimeResult`` remains the
+``evidence_phase`` remains the sole execution owner.  The plan does not
+route provider calls or execute providers; ``evidence_phase`` uses the
+plan's precomputed dependency skip decisions for provider dependency
+gates.  ``ProviderRuntimeResult`` remains the
 sole provider runtime outcome source.  ``output_phase`` no longer builds
 the plan — it preserves the already-populated
 ``step_results.provider_execution_plan`` from ``provider_phase``.

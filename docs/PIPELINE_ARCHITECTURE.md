@@ -94,8 +94,10 @@ change final classification or evidence generation.
 (imported from the providers package) instead of calling
 ``check_*_dependency`` directly or recomputing online-gate skip
 conditions.  Lazy fallback helpers exist only for the absent-plan edge
-case.  ``evidence_phase`` remains the sole provider execution owner;
-the plan does not route or gate any provider call.  ``output_phase``
+case.  ``evidence_phase`` remains the sole provider execution owner.  The plan
+does not route provider calls or execute providers; ``evidence_phase``
+uses the plan's precomputed dependency skip decisions for provider
+dependency gates.  ``output_phase``
 preserves the plan but does not rebuild it.
 
 ## Extension Guidelines
