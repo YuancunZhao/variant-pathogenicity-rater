@@ -8,7 +8,7 @@ review, also read `docs/APPLIED_EVIDENCE_STATUS.md`.
 
 ## Recommended Next Task
 
-The recommended next task is `79A-3A_provider_orchestrator_contract_scaffold`.
+The recommended next task is `61A_selected_real_vcep_profile_pilot_scaffold` — a narrowly scoped offline fixture-backed pilot exercising one or two selected VCEP profiles behind explicit profile selection. The full `79A-3_provider_orchestrator` (execution migration) remains a later higher-risk task.
 
 Documentation note after 81A-3: `81A-3_phase_decomposition` is complete.
 `rate_variant.py` has been reduced to a phase orchestration layer. The
@@ -71,6 +71,7 @@ observability before replacing current provider execution paths.
 | `79A-3C_dependency_check_reuse` | Done | `evidence_phase` reuses `ProviderDependencyCheck` objects from `ProviderExecutionPlan` instead of calling `check_*_dependency` directly. | Medium | `evidence_phase.py`, `provider_phase.py`, `rate_variant.py` | Yes |
 | `79A-3D_accessor_hardening` | Done | Public `provider_node_from_plan()` and `dependency_check_from_plan()` helpers in `providers/orchestrator.py`; `evidence_phase` no longer traverses `plan.nodes` manually. | Low | `orchestrator.py`, `evidence_phase.py`, `providers/__init__.py` | Yes |
 | `79A-3E_dependency_skip_decision_reuse` | Done | `dependency_skip_planned_from_plan()` helper; `evidence_phase` reuse skip decisions from `ProviderExecutionPlan` instead of locally recomputing online-gate conditions. | Medium | `orchestrator.py`, `evidence_phase.py`, `providers/__init__.py`, tests | Yes |
+| `63A_selected_real_world_case_validation` | Done | Offline fixture-backed 6-case validation scaffold exercising ProviderExecutionPlan, ProviderRuntimeResult, candidate/applied evidence safety gates, PM2 safety, and provider summary consistency. | Low-medium | `data/selected_real_world_validation_cases.json`, `tests/test_selected_real_world_case_validation.py`, docs | Yes |
 | `79A-3_provider_orchestrator` | P0-after-3A | Introduce a fuller provider orchestrator that routes resolution, annotation, population, clinical assertion, and literature providers through declared dependencies while preserving existing providers. | Medium-high | Provider dependency layer, provider adapters, pipeline wiring, benchmark docs, focused tests | Yes |
 | `79A-2_provider_dependency_gating` | Done | Added provider dependency checks and online-provider preflight skips so invalid gnomAD identity becomes identity limitation plus skipped provider runtime instead of GraphQL failure. | Medium | Provider dependency package, pipeline online provider gates, provider runtime, benchmark metrics, docs, tests | Yes |
 | `79A-1_variant_identity_model_and_adapter` | Done | Added provider-layer VariantIdentity, normalized/resolution adapters, gnomAD ID validation, provider alias helpers, additive rate_variant output, and benchmark identity coverage without changing providers or classification. | Medium | Provider identity package, pipeline output, provider benchmark, docs, tests | Yes |

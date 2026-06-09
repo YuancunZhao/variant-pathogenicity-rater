@@ -72,7 +72,11 @@ canonical `providers.summary` and per-provider entries validated through
 `ProviderRuntimeResult`, benchmark provider metrics sourced from runtime
 payloads rather than raw provider steps, report generation after finalized
 classification limitations, consistent malformed-runtime safe fallbacks, and
-the unchanged ACMG classification combiner.
+the unchanged ACMG classification combiner, the 79A-3A provider orchestrator
+contract scaffold (ProviderExecutionPlan, dependency skip observability),
+79A-3B execution-plan wiring, 79A-3C evidence-phase dependency check reuse,
+79A-3D plan accessor hardening, 79A-3E dependency skip decision reuse, and
+the 63A offline fixture-backed 6-case selected real-world validation scaffold.
 The 74 real provider pipeline has passed offline integration review with the
 default no-network safety boundary intact, and the 78A real-world smoke suite
 now checks six real HGVS c. inputs for structured end-to-end returns without
@@ -592,12 +596,14 @@ override of user-supplied context.
 
 ## Current Test Status
 
-The latest documented full regression run after the 81B-81D provider
-runtime/output/report cleanup line recorded:
+The latest documented full regression run after the 79A-3A through 79A-3E
+provider orchestrator scaffold and 63A selected real-world case validation:
 
-- Full pytest: `790 passed, 10 skipped`.
+- Full pytest: `898 passed, 10 skipped`.
 - Benchmark coverage: 100 curated offline SNV/small-indel cases.
 - Benchmark version: `offline-curated-v4-phase-c`.
+- Selected validation: 6-case offline fixture-backed scaffold
+  (`data/selected_real_world_validation_cases.json`).
 - Benchmark provider posture: fixture-backed, including annotation and
   transcript metadata fixtures, with online provider tests mocked and live
   smoke tests env-gated.
@@ -616,10 +622,17 @@ instead of assuming they are still exact.
 
 ## Current Roadmap Priority
 
-The recommended next task is
-`79A-3A_provider_orchestrator_contract_scaffold`, followed by selected
-real-world case validation and one narrowly scoped real VCEP profile pilot
-behind explicit profile selection.
+79A-3A through 79A-3E (provider orchestrator contract scaffold, plan wiring,
+dependency check reuse, accessor hardening, dependency skip decision reuse) and
+63A (selected real-world case validation scaffold) are complete.
+
+The recommended next task is `61A_selected_real_vcep_profile_pilot_scaffold`
+— a narrowly scoped offline fixture-backed pilot exercising one or two selected
+VCEP profiles behind explicit profile selection. This should be followed by
+provider cache/reproducibility hardening and CNV/SV framework planning.
+
+The full `79A-3_provider_orchestrator` (execution migration) remains a later
+higher-risk task to be scheduled after more validation.
 
 Real provider validation for ClinVar, gnomAD, Ensembl VEP, PubMed/LitVar,
 MANE, and ERepo is complete for the current provider surface and should now be
@@ -627,8 +640,7 @@ maintained as a regression boundary: local fixture/snapshot validation,
 optional online disabled by default, provenance/cache visibility,
 failure-to-limitation behavior, and no direct provider-driven classification.
 
-Current known gaps are provider orchestration beyond dependency preflight,
-selected real-world case validation, a selected real VCEP profile pilot, larger
-real-world hospital annotation validation, broader resolution fixture coverage
-beyond the initial targeted records, provider cache/reproducibility hardening,
-and CNV/SV support.
+Current known gaps are selected real VCEP profile pilot, larger real-world
+hospital annotation validation, broader resolution fixture coverage beyond the
+initial targeted records, provider cache/reproducibility hardening, and CNV/SV
+support.

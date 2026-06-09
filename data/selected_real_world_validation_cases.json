@@ -1,0 +1,296 @@
+{
+  "validation_version": "63A-offline-selected-validation-v1",
+  "case_count": 6,
+  "description": "Selected real-world case validation scaffold. Each case exercises provider boundary invariants — ProviderExecutionPlan observability, ProviderRuntimeResult provenance, and candidate/applied evidence safety gates — without changing classification or provider execution behavior. All cases are offline fixture-backed; no live network calls.",
+  "cases": [
+    {
+      "case_id": "63A-brca1-structured-population",
+      "scenario": "structured_coordinate_population_path",
+      "variant": {
+        "gene": "BRCA1",
+        "transcript": "NM_007294.4",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "chromosome": "17",
+        "position": 43124027,
+        "ref": "AG",
+        "alt": "A",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "BRCA1",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_63A_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.95, "prediction": "deleterious"},
+        {"source": {"name": "curated_63A_computational", "version": "offline-v1"}, "method": "CADD", "score": 35.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": "pop-brca1-68-69delag",
+      "clinvar_fixture_ids": ["clinvar-brca1-68-69delag"],
+      "expected_behavior": "Structured coordinate with satisfied population dependency exercises the full population path: PVS1 + PM2 applied, PP3 and PP5 remain candidate-only.",
+      "expected_applied_evidence": ["PVS1", "PM2"],
+      "expected_candidate_evidence": ["PP3", "PP5"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "BRCA1 c.68_69delAG is a well-known truncating variant. Structured coordinates ensure population dependency is satisfied in the execution plan.",
+      "provider_invariants": {
+        "expect_plan_exists": true,
+        "expect_runtime_exists": true,
+        "expect_population_dependency_satisfied": true,
+        "expect_no_direct_pp5_bp6": true,
+        "expect_summary_matches_mode_summary": true
+      }
+    },
+    {
+      "case_id": "63A-clinvar-candidate-only",
+      "scenario": "clinvar_candidate_only_assertion",
+      "variant": {
+        "gene": "HBB",
+        "transcript": "NM_000518.5",
+        "hgvs_c": "NM_000518.5:c.20A>T",
+        "hgvs_p": "NP_000509.1:p.Glu7Val",
+        "chromosome": "11",
+        "position": 5227002,
+        "ref": "A",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "HBB",
+        "disease": "Hemoglobinopathy review",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-hbb-e7v",
+      "clinvar_fixture_ids": ["clinvar-hbb-e7v-conflict"],
+      "expected_behavior": "ClinVar conflict record stays in candidate/review-note evidence. No PP5/BP6 direct application from ClinVar assertion.",
+      "expected_applied_evidence": [],
+      "expected_candidate_evidence": ["PP5"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED", "CLINVAR_CONFLICTING_INTERPRETATIONS"],
+      "explanation": "The sickle cell ClinVar conflict exercises the critical safety boundary: conflicting ClinVar assertions must never apply PP5/BP6 directly.",
+      "provider_invariants": {
+        "expect_plan_exists": true,
+        "expect_runtime_exists": true,
+        "expect_clinvar_dependency_satisfied": true,
+        "expect_no_direct_pp5_bp6": true,
+        "expect_summary_matches_mode_summary": true
+      }
+    },
+    {
+      "case_id": "63A-computational-inline",
+      "scenario": "computational_inline_prediction_path",
+      "variant": {
+        "gene": "RYR1",
+        "transcript": "NM_000540.3",
+        "hgvs_c": "NM_000540.3:c.1840C>T",
+        "hgvs_p": "NP_000531.2:p.Arg614Cys",
+        "chromosome": "19",
+        "position": 38455431,
+        "ref": "C",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "RYR1",
+        "disease": "Malignant hyperthermia susceptibility",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.0001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": false,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_63A_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.88, "prediction": "deleterious"},
+        {"source": {"name": "curated_63A_computational", "version": "offline-v1"}, "method": "CADD", "score": 28.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": "pop-ryr1-r614c",
+      "clinvar_fixture_ids": ["clinvar-ryr1-r614c-vus"],
+      "expected_behavior": "Computational inline predictions generate PP3 applied evidence. PM2 from absent population. No BP4 or PP5 from ClinVar directly.",
+      "expected_applied_evidence": ["PM2", "PP3"],
+      "expected_candidate_evidence": [],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "RYR1 Arg614Cys exercises the computational evidence inline path — PP3 is applied through the evidence generator, not from provider facts directly.",
+      "provider_invariants": {
+        "expect_plan_exists": true,
+        "expect_runtime_exists": true,
+        "expect_computational_dependency_satisfied": true,
+        "expect_no_direct_pp5_bp6": true,
+        "expect_summary_matches_mode_summary": true
+      }
+    },
+    {
+      "case_id": "63A-literature-candidate",
+      "scenario": "literature_candidate_review_note",
+      "variant": {
+        "gene": "CFTR",
+        "transcript": "NM_000492.4",
+        "hgvs_c": "NM_000492.4:c.350G>A",
+        "hgvs_p": "NP_000483.3:p.Arg117His",
+        "chromosome": "7",
+        "position": 117559590,
+        "ref": "G",
+        "alt": "A",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "CFTR",
+        "disease": "Cystic fibrosis",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.0003,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-cftr-r117h",
+      "clinvar_fixture_ids": [],
+      "include_literature": true,
+      "literature_records": [
+        {
+          "study_id": "lit-63A-cftr-r117h",
+          "pmid": "920045",
+          "gene": "CFTR",
+          "hgvs_c": "NM_000492.4:c.350G>A",
+          "title": "Curated 63A validation literature for CFTR Arg117His",
+          "year": 2026,
+          "finding": "Functional study suggests residual channel activity",
+          "quality": "moderate",
+          "claims": []
+        }
+      ],
+      "expected_behavior": "Literature records generate candidate/review-note evidence items, never applied evidence. Literature provider outcome is valid and summarized.",
+      "expected_applied_evidence": [],
+      "expected_candidate_evidence": ["PP5", "PS1"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "CFTR Arg117His with literature records exercises the offline literature candidate-evidence path. Literature items stay candidate unless explicitly reviewed.",
+      "provider_invariants": {
+        "expect_plan_exists": true,
+        "expect_runtime_exists": true,
+        "expect_literature_provider_present": true,
+        "expect_no_direct_pp5_bp6": true,
+        "expect_summary_matches_mode_summary": true
+      }
+    },
+    {
+      "case_id": "63A-no-population-no-pm2",
+      "scenario": "dependency_skipped_population_no_pm2",
+      "variant": {
+        "gene": "ATM",
+        "transcript": "NM_000051.4",
+        "hgvs_c": "NM_000051.4:c.2T>C",
+        "hgvs_p": "NP_000042.3:p.Met1Thr",
+        "chromosome": "11",
+        "position": 108223044,
+        "ref": "T",
+        "alt": "C",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "ATM",
+        "disease": "Ataxia-telangiectasia",
+        "inheritance": "autosomal recessive",
+        "disease_prevalence": 0.00001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true
+      },
+      "computational_predictions": [
+        {"source": {"name": "curated_63A_computational", "version": "offline-v1"}, "method": "REVEL", "score": 0.91, "prediction": "deleterious"},
+        {"source": {"name": "curated_63A_computational", "version": "offline-v1"}, "method": "CADD", "score": 30.0, "prediction": "deleterious"}
+      ],
+      "population_fixture_id": null,
+      "clinvar_fixture_ids": ["clinvar-atm-met1thr-vus"],
+      "expected_behavior": "When population fixture is absent, PM2 must not be triggered. PVS1 may be candidate-only for start-loss edge. No provider-miss → PM2 inference.",
+      "expected_applied_evidence": ["PP3"],
+      "expected_candidate_evidence": ["PVS1"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED", "PVS1_CANDIDATE_ONLY"],
+      "explanation": "ATM Met1Thr with absent population fixture exercises the critical safety gate: missing population data must not be treated as population absence for PM2.",
+      "provider_invariants": {
+        "expect_plan_exists": true,
+        "expect_runtime_exists": true,
+        "expect_population_dependency_may_be_unsatisfied": true,
+        "expect_no_pm2_from_absent_population": true,
+        "expect_no_direct_pp5_bp6": true,
+        "expect_summary_matches_mode_summary": true
+      }
+    },
+    {
+      "case_id": "63A-erepo-candidate",
+      "scenario": "erepo_candidate_only_review_note",
+      "variant": {
+        "gene": "BRCA2",
+        "transcript": "NM_000059.4",
+        "hgvs_c": "NM_000059.4:c.9976A>T",
+        "hgvs_p": "NP_000050.3:p.Lys3326Ter",
+        "chromosome": "13",
+        "position": 32398770,
+        "ref": "A",
+        "alt": "T",
+        "genome_build": "GRCh38"
+      },
+      "disease_context": {
+        "gene": "BRCA2",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+        "disease_prevalence": 0.001,
+        "population_ancestry": "global",
+        "lof_is_known_mechanism": true,
+        "transcript_is_biologically_relevant": true,
+        "nmd_prediction_available": true,
+        "nmd_predicted": false
+      },
+      "computational_predictions": [],
+      "population_fixture_id": "pop-brca2-k3326ter",
+      "clinvar_fixture_ids": ["clinvar-brca2-k3326ter-vus"],
+      "include_literature": false,
+      "include_clingen_erepo": true,
+      "clingen_erepo_records": [
+        {
+          "ca_id": "CA-63A-001",
+          "classification": "Uncertain significance",
+          "classification_date": "2025-01-01",
+          "classification_version": "v1",
+          "clinvar_variation_id": "63A-001",
+          "criteria_applied": [],
+          "disease_condition": "Hereditary breast and ovarian cancer",
+          "evidence_summaries": [{"summary_text": "63A ERepo curated summary — terminal truncation with NMD ambiguity review note."}],
+          "gene": "BRCA2",
+          "genomic": {"alt": "T", "chromosome": "13", "genome_build": "GRCh38", "position": 32398770, "ref": "A"},
+          "hgvs_c": "NM_000059.4:c.9976A>T",
+          "hgvs_p": "NP_000050.3:p.Lys3326Ter",
+          "record_id": "erepo-63A-brca2-k3326ter",
+          "source_url": "https://erepo.example/63A-brca2",
+          "vcep_name": "ClinGen BRCA2 VCEP"
+        }
+      ],
+      "expected_behavior": "ClinGen ERepo records generate candidate-only review-note evidence, never applied. ERepo provider outcome is reflected in provider_runtime.",
+      "expected_applied_evidence": ["PVS1"],
+      "expected_candidate_evidence": ["PP5"],
+      "allowed_classifications": ["vus"],
+      "expected_review_flags": ["HUMAN_REVIEW_REQUIRED"],
+      "explanation": "BRCA2 Lys3326Ter with ERepo records exercises the candidate-only ERepo review-note path. ERepo drafts default to needs_more_info.",
+      "provider_invariants": {
+        "expect_plan_exists": true,
+        "expect_runtime_exists": true,
+        "expect_erepo_provider_present": true,
+        "expect_no_direct_pp5_bp6": true,
+        "expect_summary_matches_mode_summary": true
+      }
+    }
+  ]
+}
