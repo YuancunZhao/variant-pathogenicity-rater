@@ -804,25 +804,30 @@ def test_provider_execution_plan_built_before_evidence_phase() -> None:
     assert plan["provider_identity"]["gene"] == identity_payload["gene"]
 
 
-def test_invalid_gnomad_online_still_skips_with_plan_reuse() -> None:
-    """Invalid gnomAD identity: plan marks dependency_unsatisfied but
-    evidence_phase still handles execution correctly with plan-reused checks."""
-    # Use a valid payload — plan is built in provider_phase for every
-    # successful normalization.
-    result = rate_variant(_flat_variant_payload())
+def test_invalid_gnomad_online_plan_shows_dep_unsatisfied_and_dep_skip() -> None:
+    """Invalid gnomAD identity with online flag: plan must show
+    dependency_unsatisfied AND dependency_skip_planned for population.
+
+    Uses a variant payload that normalizes successfully but lacks
+    coordinate data, so gnomAD dependency is unsatisfied."""
+    # No chromosome/position/ref/alt → gnomAD dependency fails, but
+    # HGVS-based normalization still succeeds.
+    payload = {
+        "gene": "BRCA1",
+        "transcript": "NM_007294.4",
+        "hgvs_c": "NM_007294.4:c.68_69delAG",
+        "hgvs_p": "NP_009225.1:p.Glu23ValfsTer17",
+        "disease": "Hereditary breast and ovarian cancer",
+        "inheritance": "autosomal dominant",
+        "options": {"use_online_gnomad": True},
+    }
+    result = rate_variant(payload)
 
     plan = result["step_results"]["provider_execution_plan"]
+    assert "query_population_frequency" in plan["dependency_unsatisfied"]
+    # Online flag is set → dependency gate is enforced in the plan.
+    assert "query_population_frequency" in plan["dependency_skip_planned"]
     assert plan["plan_version"] == "79A-3A-v1"
-    # With valid coordinates, gnomAD should be satisfied in mock mode.
-    by_key = {n["node_key"]: n for n in plan["nodes"]}
-    gnomad_node = by_key["query_population_frequency"]
-    assert gnomad_node["dependency_check"] is not None
-    # Valid identity → satisfied.
-    assert gnomad_node["dependency_check"]["satisfied"] is True
-    # Mock mode → always attempts.
-    assert gnomad_node["planned_attempt"] is True
-    # Not in dep-skip because dependency is satisfied.
-    assert "query_population_frequency" not in plan["dependency_skip_planned"]
 
 
 def test_providers_summary_unchanged_with_plan_reuse() -> None:
@@ -832,3 +837,36 @@ def test_providers_summary_unchanged_with_plan_reuse() -> None:
 
     assert "provider_execution_plan" in result["step_results"]
     assert result["providers"]["summary"] == result["provider_mode_summary"]
+
+
+def test_provider_dependency_checks_equal_plan_checks_where_present() -> None:
+    """Every key in provider_dependency_checks must match the corresponding
+    plan node's dependency_check payload exactly (not just selected fields)."""
+    result = rate_variant(_flat_variant_payload())
+
+    dep_checks = result["step_results"]["provider_dependency_checks"]
+    plan = result["step_results"]["provider_execution_plan"]
+
+    plan_checks: dict[str, dict] = {}
+    for node in plan["nodes"]:
+        dc = node.get("dependency_check")
+        if dc is not None:
+            plan_checks[node["node_key"]] = dc
+
+    key_map = {
+        "gnomad": "query_population_frequency",
+        "vep": "evaluate_computational_evidence",
+        "clinvar": "query_clinvar",
+    }
+    for dep_key, node_key in key_map.items():
+        plan_dc = plan_checks.get(node_key)
+        if plan_dc is not None and dep_key in dep_checks:
+            assert dep_checks[dep_key] == plan_dc, (
+                f"{dep_key} mismatch: dep_checks={dep_checks[dep_key]} vs plan={plan_dc}"
+            )
+
+    lit_plan = plan_checks.get("search_and_summarize_literature") or plan_checks.get(
+        "search_literature_evidence"
+    )
+    if lit_plan is not None and "literature" in dep_checks:
+        assert dep_checks["literature"] == lit_plan

@@ -86,15 +86,16 @@ payloads that lack `step_results.provider_runtime`.
 list.  Report generation is presentation and serialization work — it must not
 change final classification or evidence generation.
 
-79A-3B/3C: ``step_results.provider_execution_plan`` is built once in
+79A-3B/3C/3D: ``step_results.provider_execution_plan`` is built once in
 ``provider_phase`` from ``VariantIdentity``, options, and
 ``DataSourcesConfig``.  ``evidence_phase`` reuses the plan's
-``ProviderDependencyCheck`` objects via ``_dependency_check_from_plan()``
-instead of calling ``check_*_dependency`` functions directly.  Lazy
-fallback helpers exist only for the absent-plan edge case.
-``evidence_phase`` remains the sole provider execution owner; the plan
-does not route or gate any provider call.  ``output_phase`` preserves the
-plan but does not rebuild it.
+``ProviderDependencyCheck`` objects via
+``dependency_check_from_plan()`` (imported from the providers package)
+instead of calling ``check_*_dependency`` functions directly or
+traversing ``plan.nodes`` manually.  Lazy fallback helpers exist only
+for the absent-plan edge case.  ``evidence_phase`` remains the sole
+provider execution owner; the plan does not route or gate any provider
+call.  ``output_phase`` preserves the plan but does not rebuild it.
 
 ## Extension Guidelines
 

@@ -14,6 +14,8 @@ from variant_pathogenicity_rater.providers import (
     ProviderNodeKind,
     VariantIdentity,
     build_provider_execution_plan,
+    dependency_check_from_plan,
+    provider_node_from_plan,
 )
 from variant_pathogenicity_rater.schemas.common import SchemaModel
 
@@ -400,3 +402,60 @@ def test_valid_gnomad_online_with_flag_attempts() -> None:
     assert node.planned_attempt is True
     assert "query_population_frequency" in plan.attempted
     assert "query_population_frequency" not in plan.dependency_skip_planned
+
+
+# ── 79A-3D: plan accessor helpers ────────────────────────────────────
+
+
+def test_provider_node_from_plan_returns_node_for_valid_key() -> None:
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    node = provider_node_from_plan(plan, "query_clinvar")
+    assert node is not None
+    assert node.node_key == "query_clinvar"
+    assert node.provider_name == "clinvar"
+
+
+def test_provider_node_from_plan_returns_none_for_missing_key() -> None:
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    assert provider_node_from_plan(plan, "nonexistent") is None
+
+
+def test_provider_node_from_plan_returns_none_for_none_plan() -> None:
+    assert provider_node_from_plan(None, "query_clinvar") is None
+
+
+def test_dependency_check_from_plan_returns_check_for_valid_key() -> None:
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    check = dependency_check_from_plan(plan, "query_population_frequency")
+    assert check is not None
+    assert check.provider_name == "gnomad"
+    assert check.satisfied is True
+
+
+def test_dependency_check_from_plan_returns_none_for_node_without_check() -> None:
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    assert dependency_check_from_plan(plan, "provider_identity") is None
+
+
+def test_dependency_check_from_plan_returns_none_for_none_plan() -> None:
+    assert dependency_check_from_plan(None, "query_population_frequency") is None
+
+
+def test_dependency_check_from_plan_returns_none_for_missing_key() -> None:
+    plan = build_provider_execution_plan(_identity(), {}, _mock_config())
+    assert dependency_check_from_plan(plan, "nonexistent") is None
+
+
+def test_invalid_gnomad_online_identity_is_dep_unsatisfied_and_dep_skip() -> None:
+    """Invalid gnomAD identity with online source → dependency_unsatisfied AND
+    dependency_skip_planned for query_population_frequency."""
+    identity = _identity(chrom=None, pos=None)  # no coordinate → invalid gnomAD
+    plan = build_provider_execution_plan(identity, {"use_online_gnomad": True}, _online_config())
+
+    assert "query_population_frequency" in plan.dependency_unsatisfied
+    assert "query_population_frequency" in plan.dependency_skip_planned
+    node = provider_node_from_plan(plan, "query_population_frequency")
+    assert node is not None
+    assert node.planned_attempt is False
+    assert node.dependency_check is not None
+    assert node.dependency_check.satisfied is False

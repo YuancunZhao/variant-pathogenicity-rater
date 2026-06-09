@@ -46,6 +46,7 @@ from variant_pathogenicity_rater.literature_agent import search_and_summarize_li
 from variant_pathogenicity_rater.providers import (
     ProviderDependencyCheck,
     ProviderExecutionPlan,
+    dependency_check_from_plan,
     dependency_skip_payload,
 )
 from variant_pathogenicity_rater.schemas.acmg import EvidenceCode
@@ -207,7 +208,7 @@ def run_evidence_phase(
         state.vcep_override_context,
     )
     if options.get("include_population", True):
-        gnomad_dependency = _dependency_check_from_plan(provider_execution_plan, "query_population_frequency")
+        gnomad_dependency = dependency_check_from_plan(provider_execution_plan, "query_population_frequency")
         if gnomad_dependency is None:
             gnomad_dependency = _fallback_gnomad_check(provider_identity)
         state.provider_dependency_checks["gnomad"] = gnomad_dependency.model_dump(mode="json")
@@ -324,7 +325,7 @@ def run_evidence_phase(
             state.evidence_items.append(pvs1_item)
 
     if options.get("include_computational", True):
-        vep_dependency = _dependency_check_from_plan(provider_execution_plan, "evaluate_computational_evidence")
+        vep_dependency = dependency_check_from_plan(provider_execution_plan, "evaluate_computational_evidence")
         if vep_dependency is None:
             vep_dependency = _fallback_vep_check(provider_identity)
         state.provider_dependency_checks["vep"] = vep_dependency.model_dump(mode="json")
@@ -377,7 +378,7 @@ def run_evidence_phase(
 
     clinvar_records = []
     if options.get("include_clinvar", True):
-        clinvar_dependency = _dependency_check_from_plan(provider_execution_plan, "query_clinvar")
+        clinvar_dependency = dependency_check_from_plan(provider_execution_plan, "query_clinvar")
         if clinvar_dependency is None:
             clinvar_dependency = _fallback_clinvar_check(provider_identity)
         state.provider_dependency_checks["clinvar"] = clinvar_dependency.model_dump(mode="json")
@@ -434,7 +435,7 @@ def run_evidence_phase(
     literature_records = []
     if options.get("include_literature", True):
         if _use_online_literature(options):
-            literature_dependency = _dependency_check_from_plan(
+            literature_dependency = dependency_check_from_plan(
                 provider_execution_plan, "search_and_summarize_literature"
             )
             if literature_dependency is None:
@@ -1176,24 +1177,7 @@ def _unique_review_flags(flags: list[Any]) -> list[Any]:
     return unique
 
 
-# ── 79A-3C: dependency check reuse from ProviderExecutionPlan ──────────
-
-
-def _dependency_check_from_plan(
-    plan: ProviderExecutionPlan | None,
-    node_key: str,
-) -> ProviderDependencyCheck | None:
-    """Extract a ``ProviderDependencyCheck`` from the plan for *node_key*.
-
-    Returns None when the plan is absent or the node is not found.
-    Callers must fall back to direct ``check_*_dependency`` calls.
-    """
-    if plan is None:
-        return None
-    for node in plan.nodes:
-        if node.node_key == node_key:
-            return node.dependency_check
-    return None
+# ── 79A-3D: lazy fallback helpers (only when plan is absent) ──────────
 
 
 def _fallback_gnomad_check(identity: Any) -> ProviderDependencyCheck:

@@ -424,7 +424,38 @@ def build_provider_execution_plan(
     )
 
 
-# ── helpers ──────────────────────────────────────────────────────────
+# ── public accessors ─────────────────────────────────────────────────
+
+
+def provider_node_from_plan(
+    plan: ProviderExecutionPlan | None,
+    node_key: str,
+) -> ProviderExecutionNode | None:
+    """Return the execution node for *node_key*, or None."""
+    if plan is None:
+        return None
+    for node in plan.nodes:
+        if node.node_key == node_key:
+            return node
+    return None
+
+
+def dependency_check_from_plan(
+    plan: ProviderExecutionPlan | None,
+    node_key: str,
+) -> ProviderDependencyCheck | None:
+    """Return the ``ProviderDependencyCheck`` for *node_key* from the plan.
+
+    Returns None when the plan is absent, the node is missing, or the
+    node has no dependency check.
+    """
+    node = provider_node_from_plan(plan, node_key)
+    if node is None:
+        return None
+    return node.dependency_check
+
+
+# ── internal helpers ──────────────────────────────────────────────────
 
 
 def _copy_identity(identity: VariantIdentity) -> VariantIdentity:

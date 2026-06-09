@@ -33,6 +33,8 @@ from variant_pathogenicity_rater.providers.orchestrator import (
     ProviderExecutionPlan,
     ProviderNodeKind,
     build_provider_execution_plan,
+    dependency_check_from_plan,
+    provider_node_from_plan,
 )
 
 __all__ = [
@@ -58,4 +60,6 @@ __all__ = [
     "ProviderExecutionNode",
     "ProviderExecutionPlan",
     "build_provider_execution_plan",
+    "provider_node_from_plan",
+    "dependency_check_from_plan",
 ]

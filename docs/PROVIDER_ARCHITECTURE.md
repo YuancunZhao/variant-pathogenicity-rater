@@ -202,3 +202,12 @@ route or gate any provider call.  ``ProviderRuntimeResult`` remains the
 sole provider runtime outcome source.  ``output_phase`` no longer builds
 the plan — it preserves the already-populated
 ``step_results.provider_execution_plan`` from ``provider_phase``.
+
+79A-3D adds public plan accessor helpers in ``providers/orchestrator.py``:
+
+- ``provider_node_from_plan(plan, node_key)`` → ``ProviderExecutionNode | None``
+- ``dependency_check_from_plan(plan, node_key)`` → ``ProviderDependencyCheck | None``
+
+``evidence_phase`` imports ``dependency_check_from_plan`` from the
+providers package instead of defining its own plan-traversal helper.
+Pipeline code no longer manually traverses ``plan.nodes``.
